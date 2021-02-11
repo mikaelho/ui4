@@ -27,25 +27,22 @@
     left: 100px;
     width: 100px;
     height: 100px;
+    color: white;
     background-color: green;
   }
   </style>
   <script type="text/javascript">
-    ui4.startClassObserver();
-    
     function initialize() {
-      ui4.startTracking("div1", "width", "div2", "width");
       const movingElem = document.getElementById("div0");
-      console.log("peh");
       movingElem.style.width = "450px";
     }
   </script>
 </head>
 
-<body onload="initialize();">
+<body onload="ui4.startTracking(); initialize();">
   <div id="div0">
-    <div id="div1" class="foo">Foobar</div>
+    <div id="div1">Foobar</div>
   </div>
-  <div id="div2" class="two too">Toobar</div>
+  <div id="div2" ui4="width=div1.width">Toobar</div>
 </body>
 </html>
