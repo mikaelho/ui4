@@ -4,7 +4,11 @@
   
   var attrTypes = {
     width: NEUTRAL,
-    left: LEADING
+    height: NEUTRAL,
+    left: LEADING,
+    right: TRAILING,
+    top: LEADING,
+    bottom: TRAILING
   };
   
   var allDependencies = {};
