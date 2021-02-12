@@ -5,6 +5,10 @@
 <title>ui4 tester</title>
   <script src="ui4.js" type="text/javascript"></script>
   <style>
+  #root {
+    width: 100%;
+    height: 100%;
+  }
   #div0 {
     position: absolute;
     top: 100px;
@@ -23,9 +27,6 @@
   }
   #div2 {
     position: absolute;
-    top: 250px;
-    left: 100px;
-    width: 100px;
     height: 100px;
     color: white;
     background-color: green;
@@ -40,9 +41,11 @@
 </head>
 
 <body onload="ui4.startTracking(); initialize();">
+<div id="root">
   <div id="div0">
     <div id="div1">Foobar</div>
   </div>
-  <div id="div2" ui4="width=div1.width">Toobar</div>
+  <div id="div2" ui4="width=div1.width left=div0.right top=div0.bottom">Toobar</div>
+</div>
 </body>
 </html>

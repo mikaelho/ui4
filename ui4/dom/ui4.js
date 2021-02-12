@@ -1,42 +1,83 @@
+/*jshint esversion: 6 */
+
 (function (ui4, undefined) {
+  'use strict';
+
+  let gap=20;
+
+  const LEADING="leading", TRAILING="trailing", NEUTRAL="neutral";
   
-  var LEADING="leading", TRAILING="trailing", NEUTRAL="neutral";
-  
-  var attrTypes = {
+  const attrs = {
+    constant: NEUTRAL,
     width: NEUTRAL,
     height: NEUTRAL,
     left: LEADING,
     right: TRAILING,
     top: LEADING,
-    bottom: TRAILING
+    bottom: TRAILING,
+    centerx: NEUTRAL,
+    centery: NEUTRAL,
+  };
+
+  const compositeAttrTypes = {
+    x: [attrs.left],
+    y: [attrs.top],
+    center: [attrs.centerx, attrs.centery],
+    position: [attrs.left, attrs.top],
+    size: [attrs.width, attrs.height],
+    bbox: [attrs.left, attrs.top, attrs.width, attrs.height]
   };
   
   var allDependencies = {};
   
   function checkDependecies() {
     for (const [targetId, dependencies] of Object.entries(allDependencies)) {
-      dependencies.forEach( (d) => {
-        console.log(JSON.stringify(d));
-        var sourceElem = document.getElementById(d.sourceId);
+      dependencies.forEach( (dependency) => {
+        window.console.log(JSON.stringify(dependency));
+        var sourceElem = document.getElementById(dependency.sourceId);
         var targetElem = document.getElementById(targetId);
         var sourceStyle = window.getComputedStyle(sourceElem);
         var targetStyle = window.getComputedStyle(targetElem);
-        d.updateFunc(sourceStyle, d.sourceAttr, targetElem, targetStyle, d.targetAttr);
+        dependency.updateFunc(
+            sourceElem, sourceStyle, dependency.sourceAttr,
+            targetElem, targetStyle, dependency.targetAttr
+        );
       });
     }
   }
   
-  function updateEqual(sourceStyle, sourceAttr, targetElem, targetStyle, targetAttr) {
+  function updateEqual(sourceElem, sourceStyle, sourceAttr, targetElem, targetStyle, targetAttr) {
     var sourceValue = sourceStyle.getPropertyValue(sourceAttr);
     var targetValue = targetStyle.getPropertyValue(targetAttr);
     if (sourceValue !== targetValue) {
       targetElem.style[targetAttr] = sourceValue;
     }
   }
+
+  const complementValue = {
+    left: (parentStyle, sourceStyle) => parseFloat(parentStyle.width) - parseFloat(sourceStyle.right) + gap,
+    right: (parentStyle, sourceStyle) => parentStyle.width - sourceStyle.left - gap,
+    top: (parentStyle, sourceStyle) => parseFloat(parentStyle.height) - parseFloat(sourceStyle.bottom) + gap,
+    bottom: (parentStyle, sourceStyle) => parentStyle.height - sourceStyle.top - gap
+  };
+
+  function updateComplementary(sourceElem, sourceStyle, sourceAttr, targetElem, targetStyle, targetAttr) {
+    let parentStyle = window.getComputedStyle(sourceElem.parentElement);
+    window.console.log(sourceElem.id, sourceElem.parentNode.id);
+    let sourceValue = complementValue[targetAttr](parentStyle, sourceStyle) + "px";
+    console.log(sourceValue);
+    let targetValue = targetStyle.getPropertyValue(targetAttr);
+    if (sourceValue !== targetValue) {
+      targetElem.style[targetAttr] = sourceValue;
+    }
+  }
   
   function getUpdateFunction(source, target) {
-    if (attrTypes[source] === attrTypes[target]) {
+    if (attrs[source] === attrs[target] || attrs[source] === NEUTRAL || attrs[target] === NEUTRAL) {
       return updateEqual;
+    }
+    else {
+      return updateComplementary;
     }
   }
   
@@ -97,7 +138,7 @@
       childList: true,
       attributeFilter: ["style"]
     });
-  }
+  };
   
 } ( window.ui4 = window.ui4 || {} ));
 
