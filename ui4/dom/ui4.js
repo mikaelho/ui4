@@ -47,9 +47,9 @@
     top: function(context, value) { context.style.top = value + 'px'; },
     bottom: function(context, value) { context.style.bottom = parseFloat(context.parentStyle.height) - value + 'px'; },
     centerx: function(context, value) {
-      if (context.dependencies.find(item => item.targetId === 'left')) {  // left locked, width must give
+      if (context.dependencies.find(item => item.targetAttr === 'left')) {  // left locked, width must give
         context.style.width = 2 * (value - parseFloat(context.getStyle.left)) + 'px';
-      } else if (context.dependencies.find(item => item.targetId === 'right')) {  // right locked, width must give)
+      } else if (context.dependencies.find(item => item.targetAttr === 'right')) {  // right locked, width must give)
         context.style.width =
             2 * (parseFloat(context.parentStyle.width) - parseFloat(context.getStyle.right) - value) + 'px';
       } else {  // Neither locked, move left
@@ -57,9 +57,9 @@
       }
     },
     centery: function(context, value) {
-      if (context.dependencies.find(item => item.targetId === 'top')) {  // top locked, height must give
+      if (context.dependencies.find(item => item.targetAttr === 'top')) {  // top locked, height must give
         context.style.height = 2 * (value - parseFloat(context.getStyle.top)) + 'px';
-      } else if (context.dependencies.find(item => item.targetId === 'bottom')) {  // bottom locked, height must give)
+      } else if (context.dependencies.find(item => item.targetAttr === 'bottom')) {  // bottom locked, height must give)
         context.style.height =
             2 * (parseFloat(context.parentStyle.height) - parseFloat(context.getStyle.bottom) - value) + 'px';
       } else {  // Neither locked, move top
@@ -78,7 +78,7 @@
         let targetElem = document.getElementById(targetId);
         let sourceStyle = window.getComputedStyle(sourceElem);
         let targetStyle = window.getComputedStyle(targetElem);
-        let contained = targetElem.parentElement === sourceElem
+        let contained = targetElem.parentElement === sourceElem;
 
         let sourceContext = {
           contained: contained,
@@ -86,22 +86,34 @@
           parentStyle: window.getComputedStyle(sourceElem.parentElement)
         };
         let sourceValue = getValue[dependency.sourceAttr](sourceContext);
+        
         let targetContext = {
           dependencies: dependencies,
           getStyle: window.getComputedStyle(targetElem),
           style: targetElem.style,
-          parentStyle: window.getComputedStyle(targetElem.parentElement)
+          parentStyle: window.getComputedStyle(targetElem.parentElement),
+          contained: false,
         };
         let targetValue = getValue[dependency.targetAttr](targetContext);
 
         let sourceType = attrType[dependency.sourceAttr];
         let targetType = attrType[dependency.targetAttr];
-        if (sourceType === LEADING && targetType === TRAILING) {
-          sourceValue += contained ? gap : -gap;
+        if (contained) {
+          if (sourceType === LEADING && targetType === LEADING) {
+            sourceValue += gap;
+          }
+          else if (sourceType === TRAILING && targetType === TRAILING) {
+            sourceValue -= gap;
+          }
+        } else {
+          if (sourceType === LEADING && targetType === TRAILING) {
+            sourceValue -= gap;
+          }
+          else if (sourceType === TRAILING && targetType === LEADING) {
+            sourceValue += gap;
+          }
         }
-        else if (sourceType === TRAILING && targetType === LEADING) {
-          sourceValue += contained ? -gap : gap;
-        }
+        
 
         if (targetValue !== sourceValue) {
           setValue[dependency.targetAttr](targetContext, sourceValue);
