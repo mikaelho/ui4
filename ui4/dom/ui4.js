@@ -4,13 +4,10 @@
   'use strict';
 
   let gap = 8;
-  
-  const startTransitionEvent = "transitionstart"; //"htmx:beforeSwap";
-  const endTransitionEvent = "transitionend"; //"htmx:afterSwap";
 
-  const LEADING="leading", TRAILING="trailing", NEUTRAL="neutral";
-  
-  const attrs = {
+  const LEADING = "leading", TRAILING = "trailing", NEUTRAL = "neutral";
+
+  const attrType = {
     constant: NEUTRAL,
     width: NEUTRAL,
     height: NEUTRAL,
@@ -22,70 +19,101 @@
     centery: NEUTRAL,
   };
 
-  const compositeAttrTypes = {
-    x: [attrs.left],
-    y: [attrs.top],
-    center: [attrs.centerx, attrs.centery],
-    position: [attrs.left, attrs.top],
-    size: [attrs.width, attrs.height],
-    bbox: [attrs.left, attrs.top, attrs.width, attrs.height]
+  const getValue = {
+    constant: (context) => parseFloat(context.constant),
+    width: (context) => parseFloat(context.getStyle.width),
+    height: (context) => parseFloat(context.getStyle.height),
+    left: (context) => context.contained ?  0 : parseFloat(context.getStyle.left),
+    right: (context) => context.contained ?
+        parseFloat(context.getStyle.width) :
+        parseFloat(context.parentStyle.width) - parseFloat(context.getStyle.right),
+    top: (context) => context.contained ?  0 : parseFloat(context.getStyle.top),
+    bottom: (context) => context.contained ?
+        parseFloat(context.getStyle.height) :
+        parseFloat(context.parentStyle.height) - parseFloat(context.getStyle.bottom),
+    centerx: (context) => context.contained ?
+        parseFloat(context.getStyle.width) / 2 :
+        parseFloat(context.getStyle.left) + parseFloat(context.getStyle.width) / 2,
+    centery: (context) => context.contained ?
+        parseFloat(context.getStyle.height) / 2 :
+        parseFloat(context.getStyle.top) + parseFloat(context.getStyle.height) / 2,
   };
-  
+
+  const setValue = {
+    width: function(context, value) { context.style.width = value + 'px'; },
+    height: function(context, value) { context.style.height = value + 'px'; },
+    left: function(context, value) { context.style.left = value + 'px'; },
+    right: function(context, value) { context.style.right = parseFloat(context.parentStyle.width) - value + 'px'; },
+    top: function(context, value) { context.style.top = value + 'px'; },
+    bottom: function(context, value) { context.style.bottom = parseFloat(context.parentStyle.height) - value + 'px'; },
+    centerx: function(context, value) {
+      if (context.dependencies.find(item => item.targetId === 'left')) {  // left locked, width must give
+        context.style.width = 2 * (value - parseFloat(context.getStyle.left)) + 'px';
+      } else if (context.dependencies.find(item => item.targetId === 'right')) {  // right locked, width must give)
+        context.style.width =
+            2 * (parseFloat(context.parentStyle.width) - parseFloat(context.getStyle.right) - value) + 'px';
+      } else {  // Neither locked, move left
+        context.style.left = value - parseFloat(context.getStyle.width) / 2 + 'px';
+      }
+    },
+    centery: function(context, value) {
+      if (context.dependencies.find(item => item.targetId === 'top')) {  // top locked, height must give
+        context.style.height = 2 * (value - parseFloat(context.getStyle.top)) + 'px';
+      } else if (context.dependencies.find(item => item.targetId === 'bottom')) {  // bottom locked, height must give)
+        context.style.height =
+            2 * (parseFloat(context.parentStyle.height) - parseFloat(context.getStyle.bottom) - value) + 'px';
+      } else {  // Neither locked, move top
+        context.style.top = value - parseFloat(context.getStyle.height) / 2 + 'px';
+      }
+    }
+  };
+
   var allDependencies = {};
-  
+
   ui4.checkDependencies = function() {
     for (const [targetId, dependencies] of Object.entries(allDependencies)) {
-      dependencies.forEach( (dependency) => {
+      dependencies.forEach( dependency => {
         //window.console.log(JSON.stringify(dependency));
-        var sourceElem = document.getElementById(dependency.sourceId);
-        var targetElem = document.getElementById(targetId);
-        var sourceStyle = window.getComputedStyle(sourceElem);
-        var targetStyle = window.getComputedStyle(targetElem);
-        dependency.updateFunc(
-            sourceElem, sourceStyle, dependency.sourceAttr,
-            targetElem, targetStyle, dependency.targetAttr
-        );
+        let sourceElem = document.getElementById(dependency.sourceId);
+        let targetElem = document.getElementById(targetId);
+        let sourceStyle = window.getComputedStyle(sourceElem);
+        let targetStyle = window.getComputedStyle(targetElem);
+        let contained = targetElem.parentElement === sourceElem
+
+        let sourceContext = {
+          contained: contained,
+          getStyle: window.getComputedStyle(sourceElem),
+          parentStyle: window.getComputedStyle(sourceElem.parentElement)
+        };
+        let sourceValue = getValue[dependency.sourceAttr](sourceContext);
+        let targetContext = {
+          dependencies: dependencies,
+          getStyle: window.getComputedStyle(targetElem),
+          style: targetElem.style,
+          parentStyle: window.getComputedStyle(targetElem.parentElement)
+        };
+        let targetValue = getValue[dependency.targetAttr](targetContext);
+
+        let sourceType = attrType[dependency.sourceAttr];
+        let targetType = attrType[dependency.targetAttr];
+        if (sourceType === LEADING && targetType === TRAILING) {
+          sourceValue += contained ? gap : -gap;
+        }
+        else if (sourceType === TRAILING && targetType === LEADING) {
+          sourceValue += contained ? -gap : gap;
+        }
+
+        if (targetValue !== sourceValue) {
+          setValue[dependency.targetAttr](targetContext, sourceValue);
+        }
       });
     }
-  }
-  
-  function updateEqual(sourceElem, sourceStyle, sourceAttr, targetElem, targetStyle, targetAttr) {
-    var sourceValue = sourceStyle.getPropertyValue(sourceAttr);
-    var targetValue = targetStyle.getPropertyValue(targetAttr);
-    if (sourceValue !== targetValue) {
-      targetElem.style[targetAttr] = sourceValue;
-    }
-  }
-
-  const complementValue = {
-    left: (parentStyle, sourceStyle) => parseFloat(parentStyle.width) - parseFloat(sourceStyle.right) + gap,
-    right: (parentStyle, sourceStyle) => parentStyle.width - sourceStyle.left - gap,
-    top: (parentStyle, sourceStyle) => parseFloat(parentStyle.height) - parseFloat(sourceStyle.bottom) + gap,
-    bottom: (parentStyle, sourceStyle) => parentStyle.height - sourceStyle.top - gap
   };
 
-  function updateComplementary(sourceElem, sourceStyle, sourceAttr, targetElem, targetStyle, targetAttr) {
-    let parentStyle = window.getComputedStyle(sourceElem.parentElement);
-    let sourceValue = complementValue[targetAttr](parentStyle, sourceStyle) + "px";
-    let targetValue = targetStyle.getPropertyValue(targetAttr);
-    if (sourceValue !== targetValue) {
-      targetElem.style[targetAttr] = sourceValue;
-    }
-  }
-  
-  function getUpdateFunction(source, target) {
-    if (attrs[source] === attrs[target] || attrs[source] === NEUTRAL || attrs[target] === NEUTRAL) {
-      return updateEqual;
-    }
-    else {
-      return updateComplementary;
-    }
-  }
-  
   function setDependencies(node) {
-    var targetId = node.id; 
+    var targetId = node.id;
     if (!targetId) { return; }
-    
+
     var ui4AttrValue = node.getAttribute("ui4");
     if (!ui4AttrValue) { return; }
 
@@ -93,12 +121,7 @@
     var specs = ui4AttrValue.split(" ");
     specs.forEach( (spec) => {
       let tokens = spec.split(/\W/);
-      dependencies.push({
-        updateFunc: getUpdateFunction(tokens[2], tokens[0]),
-        targetAttr: tokens[0],
-        sourceId: tokens[1],
-        sourceAttr: tokens[2]
-      });
+      dependencies.push({targetAttr: tokens[0], sourceId: tokens[1], sourceAttr: tokens[2]});
     });
     if (!dependencies.length) {
       delete allDependencies[targetId];
@@ -106,7 +129,7 @@
       allDependencies[targetId] = dependencies;
     }
   }
-  
+
   function classChangeHandler(mutations, observer) {
     mutations.forEach( (mutation) => {
       switch(mutation.type) {
@@ -122,7 +145,7 @@
       }
     });
   }
-  
+
   ui4.startClassObserver = function () {
     const observer = new MutationObserver(classChangeHandler);
     observer.observe(document, {
@@ -131,7 +154,7 @@
       attributeFilter: ["ui4"]
     });
   };
-  
+
   ui4.startTracking = function () {
     const observer = new MutationObserver(ui4.checkDependencies);
     observer.observe(document.body, {
@@ -140,23 +163,25 @@
       attributeFilter: ["style"]
     });
   };
-  
-  // Manage updates during CSS transitions
-  
+
+  // Update constraints during CSS transitions
+  const startTransitionEvent = "transitionstart"; //"htmx:beforeSwap";
+  const endTransitionEvent = "transitionend"; //"htmx:afterSwap";
+
   var runningTransitions = 0;
   var animationFrame;
-  
+
   window.addEventListener(startTransitionEvent, function (evt) {
     if (runningTransitions === 0) {
-      function dependencyRunner() {
+      const dependencyRunner = function () {
         ui4.checkDependencies();
         animationFrame = requestAnimationFrame(dependencyRunner);
-      }
+      };
       dependencyRunner();
       runningTransitions++;
     }
   });
-  
+
   window.addEventListener(endTransitionEvent, function () {
     runningTransitions--;
     if (runningTransitions <= 0) {
@@ -164,8 +189,15 @@
       cancelAnimationFrame(animationFrame);
     }
   });
-  
-  
+
+  // Update constrains on window resize
+  window.addEventListener('resize', function (evt) {
+    ui4.checkDependencies();
+  });
+
+  // Start reacting to node additions, deletions and style changes
+  document.addEventListener('DOMContentLoaded', ui4.startTracking);
+
 } ( window.ui4 = window.ui4 || {} ));
 
 ui4.startClassObserver();
