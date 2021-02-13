@@ -3,7 +3,10 @@
 (function (ui4, undefined) {
   'use strict';
 
-  let gap=20;
+  let gap = 8;
+  
+  const startTransitionEvent = "transitionstart"; //"htmx:beforeSwap";
+  const endTransitionEvent = "transitionend"; //"htmx:afterSwap";
 
   const LEADING="leading", TRAILING="trailing", NEUTRAL="neutral";
   
@@ -30,10 +33,10 @@
   
   var allDependencies = {};
   
-  function checkDependecies() {
+  ui4.checkDependencies = function() {
     for (const [targetId, dependencies] of Object.entries(allDependencies)) {
       dependencies.forEach( (dependency) => {
-        window.console.log(JSON.stringify(dependency));
+        //window.console.log(JSON.stringify(dependency));
         var sourceElem = document.getElementById(dependency.sourceId);
         var targetElem = document.getElementById(targetId);
         var sourceStyle = window.getComputedStyle(sourceElem);
@@ -63,9 +66,7 @@
 
   function updateComplementary(sourceElem, sourceStyle, sourceAttr, targetElem, targetStyle, targetAttr) {
     let parentStyle = window.getComputedStyle(sourceElem.parentElement);
-    window.console.log(sourceElem.id, sourceElem.parentNode.id);
     let sourceValue = complementValue[targetAttr](parentStyle, sourceStyle) + "px";
-    console.log(sourceValue);
     let targetValue = targetStyle.getPropertyValue(targetAttr);
     if (sourceValue !== targetValue) {
       targetElem.style[targetAttr] = sourceValue;
@@ -132,13 +133,38 @@
   };
   
   ui4.startTracking = function () {
-    const observer = new MutationObserver(checkDependecies);
+    const observer = new MutationObserver(ui4.checkDependencies);
     observer.observe(document.body, {
       subtree: true,
       childList: true,
       attributeFilter: ["style"]
     });
   };
+  
+  // Manage updates during CSS transitions
+  
+  var runningTransitions = 0;
+  var animationFrame;
+  
+  window.addEventListener(startTransitionEvent, function (evt) {
+    if (runningTransitions === 0) {
+      function dependencyRunner() {
+        ui4.checkDependencies();
+        animationFrame = requestAnimationFrame(dependencyRunner);
+      }
+      dependencyRunner();
+      runningTransitions++;
+    }
+  });
+  
+  window.addEventListener(endTransitionEvent, function () {
+    runningTransitions--;
+    if (runningTransitions <= 0) {
+      runningTransitions = 0;
+      cancelAnimationFrame(animationFrame);
+    }
+  });
+  
   
 } ( window.ui4 = window.ui4 || {} ));
 
