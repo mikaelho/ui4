@@ -5,7 +5,7 @@
 
   let gap = 8;
 
-  const LEADING = "leading", TRAILING = "trailing", NEUTRAL = "neutral";
+  const LEADING = "leading", TRAILING = "trailing", NEUTRAL = "neutral", CONSTANT = 'constant';
 
   const attrType = {
     constant: NEUTRAL,
@@ -15,12 +15,25 @@
     right: TRAILING,
     top: LEADING,
     bottom: TRAILING,
-    centerx: NEUTRAL,
-    centery: NEUTRAL,
+    centerX: NEUTRAL,
+    centerY: NEUTRAL,
+  };
+  
+  // If true, set target to source
+  const comparisons = {
+    "=": (a, b) => a != b,
+    "<": (a, b) => a >= b,
+    ">": (a, b) => a <= b
+  };
+  
+  const operators = {
+    "+": (a, b) => a + b,
+    "-": (a, b) => a - b,
+    "*": (a, b) => a * b,
+    "/": (a, b) => a / b
   };
 
   const getValue = {
-    constant: (context) => parseFloat(context.constant),
     width: (context) => parseFloat(context.getStyle.width),
     height: (context) => parseFloat(context.getStyle.height),
     left: (context) => context.contained ?  0 : parseFloat(context.getStyle.left),
@@ -31,10 +44,10 @@
     bottom: (context) => context.contained ?
         parseFloat(context.getStyle.height) :
         parseFloat(context.parentStyle.height) - parseFloat(context.getStyle.bottom),
-    centerx: (context) => context.contained ?
+    centerX: (context) => context.contained ?
         parseFloat(context.getStyle.width) / 2 :
         parseFloat(context.getStyle.left) + parseFloat(context.getStyle.width) / 2,
-    centery: (context) => context.contained ?
+    centerY: (context) => context.contained ?
         parseFloat(context.getStyle.height) / 2 :
         parseFloat(context.getStyle.top) + parseFloat(context.getStyle.height) / 2,
   };
@@ -46,7 +59,7 @@
     right: function(context, value) { context.style.right = parseFloat(context.parentStyle.width) - value + 'px'; },
     top: function(context, value) { context.style.top = value + 'px'; },
     bottom: function(context, value) { context.style.bottom = parseFloat(context.parentStyle.height) - value + 'px'; },
-    centerx: function(context, value) {
+    centerX: function(context, value) {
       if (context.dependencies.find(item => item.targetAttr === 'left')) {  // left locked, width must give
         context.style.width = 2 * (value - parseFloat(context.getStyle.left)) + 'px';
       } else if (context.dependencies.find(item => item.targetAttr === 'right')) {  // right locked, width must give)
@@ -56,7 +69,7 @@
         context.style.left = value - parseFloat(context.getStyle.width) / 2 + 'px';
       }
     },
-    centery: function(context, value) {
+    centerY: function(context, value) {
       if (context.dependencies.find(item => item.targetAttr === 'top')) {  // top locked, height must give
         context.style.height = 2 * (value - parseFloat(context.getStyle.top)) + 'px';
       } else if (context.dependencies.find(item => item.targetAttr === 'bottom')) {  // bottom locked, height must give)
@@ -72,20 +85,31 @@
 
   ui4.checkDependencies = function() {
     for (const [targetId, dependencies] of Object.entries(allDependencies)) {
+      // Only apply the final value per property
+      let finalValues = {};
       dependencies.forEach( dependency => {
-        //window.console.log(JSON.stringify(dependency));
+        //console.log(JSON.stringify(dependency));
         let sourceElem = document.getElementById(dependency.sourceId);
         let targetElem = document.getElementById(targetId);
-        let sourceStyle = window.getComputedStyle(sourceElem);
         let targetStyle = window.getComputedStyle(targetElem);
-        let contained = targetElem.parentElement === sourceElem;
-
-        let sourceContext = {
-          contained: contained,
-          getStyle: window.getComputedStyle(sourceElem),
-          parentStyle: window.getComputedStyle(sourceElem.parentElement)
-        };
-        let sourceValue = getValue[dependency.sourceAttr](sourceContext);
+        
+        let sourceValue;
+        let contained = false;
+        
+        if (dependency.sourceId === CONSTANT) {
+          sourceValue = dependency.constant;
+        }
+        else {
+          let sourceStyle = window.getComputedStyle(sourceElem);
+          contained = targetElem.parentElement === sourceElem;
+  
+          let sourceContext = {
+            contained: contained,
+            getStyle: window.getComputedStyle(sourceElem),
+            parentStyle: window.getComputedStyle(sourceElem.parentElement)
+          };
+          sourceValue = getValue[dependency.sourceAttr](sourceContext);
+        }
         
         let targetContext = {
           dependencies: dependencies,
@@ -98,7 +122,10 @@
 
         let sourceType = attrType[dependency.sourceAttr];
         let targetType = attrType[dependency.targetAttr];
-        if (contained) {
+        if (dependency.operator) {
+          sourceValue = operators[dependency.operator](sourceValue, dependency.constant);
+        }
+        else if (contained) {
           if (sourceType === LEADING && targetType === LEADING) {
             sourceValue += gap;
           }
@@ -115,10 +142,17 @@
         }
         
 
-        if (targetValue !== sourceValue) {
-          setValue[dependency.targetAttr](targetContext, sourceValue);
+        if (comparisons[dependency.comparison](targetValue, sourceValue)) {
+          finalValues[dependency.targetAttr] = {
+            value: sourceValue,
+            context: targetContext
+          }
         }
       });
+      // Only apply the final value for each attribute
+      for (const [targetAttr, data] of Object.entries(finalValues)) {
+        setValue[targetAttr](data.context, data.value);
+      }
     }
   };
 
@@ -132,14 +166,68 @@
     var dependencies = Array();
     var specs = ui4AttrValue.split(" ");
     specs.forEach( (spec) => {
-      let tokens = spec.split(/\W/);
-      dependencies.push({targetAttr: tokens[0], sourceId: tokens[1], sourceAttr: tokens[2]});
+      let dependency = parseSpec(spec);
+      if (dependency) {
+        dependencies.push(dependency);
+      }
     });
     if (!dependencies.length) {
       delete allDependencies[targetId];
     } else {
       allDependencies[targetId] = dependencies;
     }
+  }
+      
+  function parseSpec(spec) {
+    const mainRegex = /([^=<>]+)([=<>])(.+)/;
+    //let tokens = spec.split(/(\W)/);
+    let tokens = mainRegex.exec(spec);
+    if (!tokens || tokens.length != 4) {
+      console.error("Cannot parse:", spec, " - tokens:", tokens);
+      return;
+    }
+    let targetAttr = tokens[1];
+    let comparison = tokens[2];
+    let sourceSpec = tokens[3];
+    let sourceId, sourceAttr, constant, operator, modifier;
+    
+    if (isNaN(sourceSpec)) {
+      const sourceRegex = /([^\.]+)[\.]([^\+\-\/\*]+)([\+\-\/\*]?)(.*)/;
+      let specTokens = sourceRegex.exec(sourceSpec);
+      if (!specTokens || specTokens.length < 3) {
+        console.error("Cannot parse source spec", spec);
+        return;
+      }
+      sourceId = specTokens[1];
+      sourceAttr = specTokens[2];
+      if (specTokens.length == 4) {
+        console.error("Missing modifier value", spec);
+        return;
+      }
+      if (specTokens.length == 5) {
+        operator = specTokens[3];
+        if (isNaN(specTokens[4])) {
+          console.error("Modifier is not a number", spec);
+          return;
+        }
+        constant = parseFloat(specTokens[4]);
+      } else {
+        operator = false;
+        constant = 0;
+      }
+    } else {
+      constant = parseFloat(sourceSpec);
+      sourceId = CONSTANT; 
+      sourceAttr = null;
+    }
+    return {
+      targetAttr: targetAttr,
+      comparison: comparison,
+      sourceId: sourceId, 
+      sourceAttr: sourceAttr,
+      operator: operator,
+      constant: constant
+    };
   }
 
   function classChangeHandler(mutations, observer) {
