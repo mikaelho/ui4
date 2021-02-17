@@ -5,7 +5,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />    
 
-<title>ui4 tester</title>
+<title>Testing ground</title>
   <script src="ui4.js" type="text/javascript"></script>
   <style>
   * { -webkit-user-select: none; }
@@ -55,8 +55,13 @@
   <div id="div0">
     <div id="div1">Foobar</div>
   </div>
-  <div id="div2" ui4="width=div1.width width>100 centerX=div0.centerX top=div0.bottom">Toobar</div>
-  <div id="div3" ui4="centerY=root.centerY centerX=root.width/3">Left center</div>
+  <div id="div2" ui4="width=div1.width width<200 left=div0.left left>div3.right top=div0.bottom">Toobar</div>
+  <div id="div3" ui4="centerY=root.centerY/3 right=root.centerX">Left center</div>
+  <div id="div4" style="background-color: white;" ui4="centerY=root.centerY centerX=root.centerX height=div4.fitHeight width=div4.fitWidth">
+    
+  <div id="div5" ui4="top=div4.top left=div4.left">Onesey</div>
+    <div id="div6" ui4="top=div5.bottom left=div4.left">Twosey</div>
+  </div>  
 </div>
 </body>
 </html>

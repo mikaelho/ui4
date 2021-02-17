@@ -3,6 +3,9 @@ import os
 import threading
 import time
 
+from pathlib import Path
+from string import Template
+
 import flask
 from werkzeug.serving import make_server
 
@@ -26,7 +29,8 @@ class ServerThread(threading.Thread):
 
 class ServerRunner:
     
-    def __init__(self, host, port, quiet=False, **kwargs):
+    def __init__(self, protocol, host, port, quiet=False, **kwargs):
+        self.protocol = protocol
         self.host = host
         self.port = port
         
@@ -36,9 +40,15 @@ class ServerRunner:
             logging.getLogger('werkzeug').disabled = True
             os.environ['WERKZEUG_RUN_MAIN'] = 'true'
         
-        self.flask = flask.Flask('ui4server')
-        self.server = ServerThread(self.flask, host, port)
-        self.server.start()
+        self.flask = flask.Flask('ui4server', static_folder=str(Path(__file__).parent / 'static'))
+        
+    def run_server(self):
+        try:
+            self.server = ServerThread(self.flask, self.host, self.port)
+            self.server.start()
+        except Exception as error:
+            print(error)
+            raise
         
     def stop_server(self):
         self.server.shutdown()
@@ -47,45 +57,54 @@ class ServerRunner:
 class PythonistaRunner(ServerRunner):
         
     def run(self):
-        import ui
+        import wkwebview
         
-        webview = ui.WebView()
-        webview.load_html('Loading...')
-        webview.load_url(f'http://127.0.0.1:{self.port}')
-        webview.present('fullscreen')
         try:
+            self.run_server()
+            webview = wkwebview.WKWebView()
+            webview.load_url(f'{self.protocol}://{self.host}:{self.port}/')
+            webview.present('fullscreen')
+            
             webview.wait_modal()
         finally:
             self.stop_server()
+            
+           
+class BrowserRunner(ServerRunner):
+    
+    def run(self):
+        import webbrowser
+        
+        webbrowser.open(f'{self.protocol}://{self.host}:{self.port}')
            
 
 class App(View):
     
-    _fixed_styles = 'position: absolute; width: 100%; height: 100%; background-color: palegreen;'
+    _css_class = 'rootApp'
     
     def __init__(
         self, 
-        runner_class=PythonistaRunner, 
+        name="UI4 App",
+        runner_class=PythonistaRunner,
+        protocol="http",
         host="127.0.0.1",
         port=8080,
         **kwargs
     ):
-        super().__init__(**kwargs)
-        
-        self.runner = runner_class(host, port)
+        super().__init__(
+            **kwargs)
+        self.name = name
+        self.runner = runner_class(protocol, host, port)
         self.flask = self.runner.flask
         
     def run(self):
         self.runner.run()
         
-    def _render_this(self, fixed_styles, self_styles, children_rendered):
-        return (
-            f'<div id="{self.id}" '
-            f'style="{fixed_styles}">'
-            f'{children_rendered}'
-            '</div>'
-        )
-
+    def _render(self):
+        if not self.children and not self.text:
+            raise ValueError('app has no content')
+        else:
+            return super()._render()
 
 app = App()
 
@@ -96,27 +115,16 @@ def run():
 
 @app.flask.route('/')
 def index():
-    index_html = f"""
-    <html>
-        <head>
-             <script src="https://unpkg.com/htmx.org@1.1.0" integrity="sha384-JVb/MVb+DiMDoxpTmoXWmMYSpQD2Z/1yiruL8+vC6Ri9lk6ORGiQqKSqfmCBbpbX" crossorigin="anonymous"></script>
-             <script>
-             document.body.addEventListener('htmx:configRequest', function(evt) {{
-                 alert('Hou');
-                    evt.detail.parameters['width'] = 'foobar'; // evt.detail.elt.width;
-                }});
-             alert('hougougou');
-             </script>
-        </head>
-        <body hx-trigger="load" hx-post="/ready" hx-target="#targetdiv">
-        {app._render()}
-        <div id="targetdiv"></div>
-        </body>
-    </html>
-    """
-    # print(index_html)
+    template = Template(Path('ui4/static/index_template.html').read_text())
+    index_html = template.safe_substitute(
+        app_name=app.name,
+        content=app._render()
+    )
     return index_html
     
+@app.flask.route("/ui4")
+def send_js():
+    return app.flask.send_static_file('ui4.js')
     
 @app.flask.route('/ready', methods=['POST'])
 def ready():

@@ -50,6 +50,44 @@
     centerY: (context) => context.contained ?
         parseFloat(context.getStyle.height) / 2 :
         parseFloat(context.getStyle.top) + parseFloat(context.getStyle.height) / 2,
+    fitWidth: function (context) {
+      let left = false;
+      let right;
+      for (const child of context.targetElem.children) {
+        if (left === false) {
+          const bbox = child.getBoundingClientRect();
+          left = bbox.left;
+          right = bbox.right;
+        } else {
+          const bbox = child.getBoundingClientRect();
+          left = Math.min(left, bbox.left);
+          right = Math.max(right, bbox.right);
+        }
+      }
+      if (!left) {
+        right = left = 0;
+      }
+      return right - left + 2 * gap;
+    },
+    fitHeight: function (context) {
+      let top = false;
+      let bottom;
+      for (const child of context.targetElem.children) {
+        if (top === false) {
+          const bbox = child.getBoundingClientRect();
+          top = bbox.top;
+          bottom = bbox.bottom;
+        } else {
+          const bbox = child.getBoundingClientRect();
+          top = Math.min(top, bbox.top);
+          bottom = Math.max(bottom, bbox.bottom);
+        }
+      }
+      if (!top) {
+        bottom = top = 0;
+      }
+      return bottom - top + 2 * gap;
+    }
   };
 
   const setValue = {
@@ -106,7 +144,8 @@
           let sourceContext = {
             contained: contained,
             getStyle: window.getComputedStyle(sourceElem),
-            parentStyle: window.getComputedStyle(sourceElem.parentElement)
+            parentStyle: window.getComputedStyle(sourceElem.parentElement),
+            targetElem: targetElem
           };
           sourceValue = getValue[dependency.sourceAttr](sourceContext);
         }
@@ -290,7 +329,7 @@
     }
   });
 
-  // Update constrains on window resize
+  // Update constraints on window resize
   window.addEventListener('resize', function (evt) {
     ui4.checkDependencies();
   });

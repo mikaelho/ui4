@@ -1,0 +1,53 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />    
+
+<title>$app_name</title>
+  
+  <script src="https://unpkg.com/htmx.org@1.1.0"
+  integrity="sha384-JVb/MVb+DiMDoxpTmoXWmMYSpQD2Z/1yiruL8+vC6Ri9lk6ORGiQqKSqfmCBbpbX" 
+  crossorigin="anonymous"></script>
+  
+  <script src="ui4" type="text/javascript">
+  </script>
+  
+  <style>
+      * {
+	      -webkit-user-select: none;
+	  }
+      body {
+	      overflow: hidden;
+	      -webkit-text-size-adjust: none;
+	  }
+      .view {
+	      position: absolute;
+	      box-sizing: border-box;
+	      overflow: hidden;
+	      text-overflow: ellipsis;
+	      pointer-events: none;
+	      margin: 0;
+	      padding: 8px;
+	      font-family: Verdana;
+      }
+      .rootApp {
+	      position: absolute;
+	      top: 0;
+	      left: 0;
+	      width: 100%;
+	      height: 100%;
+	      box-sizing: border-box;
+	      margin: 0;
+	      overflow: hidden;
+	      text-overflow: ellipsis;
+	      pointer-events: none;
+      }
+  </style>
+</head>
+
+<body>
+$content
+</body>
+</html>
