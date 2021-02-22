@@ -16,7 +16,7 @@
   
   <style>
       * {
-	      -webkit-user-select: none;
+	      user-select: none;
 	  }
       body {
 	      overflow: hidden;
@@ -27,10 +27,14 @@
 	      box-sizing: border-box;
 	      overflow: hidden;
 	      text-overflow: ellipsis;
-	      pointer-events: none;
+	      /*pointer-events: none;*/
 	      margin: 0;
 	      padding: 8px;
 	      font-family: Verdana;
+	      font-size: 14px;
+	      transition-property: background-color, color, opacity;
+	      transition-duration: 0.3s;
+	      text-align: center;
       }
       .rootApp {
 	      position: absolute;
@@ -42,12 +46,13 @@
 	      margin: 0;
 	      overflow: hidden;
 	      text-overflow: ellipsis;
-	      pointer-events: none;
+	      /*pointer-events: none;*/
       }
   </style>
 </head>
 
 <body>
+<noscript>JavaScript is required for ui4 apps to function at all.</noscript>
 $content
 </body>
 </html>

@@ -1,42 +1,61 @@
+import random
+
 from ui4 import *
 
-holder = View(
-    parent=app,
-    center=app.center,
-    background_color='white',
-    border_radius=8,
+
+card = View(
+    dock=app.center,
     fit=True,
+    background_color='white',
+    corner_radius=8,
+    text_color='grey',
+    shadow=(2, 2, 8),
+)
+
+title = View(
+    dock=card.top_center,
+    width=200,
+    text="Welcome, Captain",
     text_color='black',
-    shadow=(0, 0, 6, 2),
+    bold=True,
 )
 
-
-v = View(
-#    width=(app.width * 0.9, gt(btn.width)),
-    dock=holder.top,
-    text="Foobar",
-    background_color='#4e4e4e',
-    text_color='white',
-    border_radius=8,
-# Overwrite existing absolute constraint
+email = TextField(
+    dock=title.below,
+    type=TextField.EMAIL,
+    placeholder="Enter email",
 )
 
-v2 = View(
-    dock=v.below,
-    text="Other",
+password = TextField(
+    dock=email.below,
+    type=TextField.PASSWORD,
+    placeholder="Enter password",
+)
+
+error = View(
+    dock=password.below,
+    text="Please try again",
+    text_color='red',
+    alpha=0,
+)
+
+submit = View(
+    dock=password.below,
+    text="Login",
     background_color='#28184e',
     text_color='white',
-    border_radius=8,
 )
 
+@submit
+def on_click(data):
+    submit.top = error.bottom
+    error.alpha = 1
+    submit.animated = True
+    
+    #after(2, fade)
 
-#btn = Button(
-#    dock=top(v),
-#    background_color='blue',
-#    text_color='white',
-#)
 
-app.background_color = '#eafbd3'
+app.background_color = 'lightgrey'
 
 run()
 

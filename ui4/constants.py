@@ -7,6 +7,7 @@ PARENT_DOCK_SPECS = {
     'top_right': ('top', 'right'),
     'bottom_left': ('bottom', 'left'),
     'bottom_right': ('bottom', 'right'),
+    'center': ('center_x', 'center_y'),
     'top_center': ('top', 'center_x'),
     'bottom_center': ('bottom', 'center_x'),
     'left_center': ('left', 'center_y'),
@@ -15,7 +16,4 @@ PARENT_DOCK_SPECS = {
     'top_and_bottom': ('top', 'bottom'),
     'all': ('top', 'left', 'right', 'bottom'),
 }
-
-HORIZONTALS = 'left right center_x width'.split()
-VERTICALS = 'top bottom center_y height'
 

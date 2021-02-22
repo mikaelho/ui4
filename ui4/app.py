@@ -62,7 +62,7 @@ class PythonistaRunner(ServerRunner):
         try:
             self.run_server()
             webview = wkwebview.WKWebView()
-            webview.load_url(f'{self.protocol}://{self.host}:{self.port}/')
+            webview.load_url(f'{self.protocol}://{self.host}:{self.port}/', no_cache=True)
             webview.present('fullscreen')
             
             webview.wait_modal()
@@ -104,7 +104,9 @@ class App(View):
         if not self.children and not self.text:
             raise ValueError('app has no content')
         else:
-            return super()._render()
+            page_content = super()._render()
+            #print(page_content)
+            return page_content
 
 app = App()
 
@@ -120,14 +122,17 @@ def index():
         app_name=app.name,
         content=app._render()
     )
+    View._dirties = set()
+    #print(index_html)
     return index_html
     
-@app.flask.route("/ui4")
+@app.flask.route('/ui4')
 def send_js():
     return app.flask.send_static_file('ui4.js')
     
-@app.flask.route('/ready', methods=['POST'])
-def ready():
-    print(flask.request.form)
-    return "This one is now loaded"
+@app.flask.route('/event')
+def handle_event():
+    view_id = flask.request.args.get('id')
+    view = View._views.get(view_id)
+    return view and view._process_event(flask.request.args.get('event_name', 'click'))
 

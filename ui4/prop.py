@@ -16,10 +16,10 @@ prop.none = object()
         
 def _css_getter(self, attribute):
     return self._values.get(attribute)
-
+    
 
 def _css_setter(self, attribute, css_attribute, to_css_func, normalize_func, value):
-    self._dirty = True
+    self.__class__._dirties.add(self)
     if normalize_func:
         value = normalize_func(value)
     self._values[attribute] = value
@@ -42,6 +42,25 @@ def cssprop(normalize_func, to_css_func, attribute, css_attribute):
                 normalize_func, value
             )()
     )
+    
+    
+def cssprop_onoff(attribute, css_attribute, on_value, off_value='normal'):
+    return property(
+        lambda self:
+            partial(_css_getter, self, attribute)(),
+        lambda self, value:
+            partial(
+                _css_setter, 
+                self, 
+                attribute, 
+                css_attribute, 
+                lambda v: on_value if v else off_value, 
+                None, value
+            )()
+    )
+
+
+css = partial(cssprop, None, None)
 
 
 cssprop_color = partial(
@@ -49,12 +68,19 @@ cssprop_color = partial(
     lambda value: Color(value),
     lambda value: value.css,
 )
-        
+
+       
 cssprop_px = partial(
-    cssprop,
-    None,
+    cssprop, None,
     lambda value: f'{value}px',
 )
+
+
+cssprop_bold = partial(
+    cssprop, None,
+    lambda value: 'bold' if value else 'normal'
+)
+
 
 def _process_value(value):
     if type(value) == str:
@@ -63,6 +89,7 @@ def _process_value(value):
         return " ".join([f"{component}px" for component in value])
     elif type(value) in (int, float):
         return f"{value}px"
+
 
 cssprop_px_or_str = partial(
     cssprop,
@@ -83,8 +110,9 @@ class Anchor:
         self.operator = operator
         self.constant = constant
         
-    def __str__(self):
+    def render(self, attribute):
         return (
+            f'{attribute}'
             f'{self.comparison}'
             f'{self.view and self.view.id or ""}'
             f'{self.view and "." or ""}'
@@ -92,25 +120,63 @@ class Anchor:
             f'{self.operator}'
             f'{self.constant}'
         )
+        
+    def clear(self):
+        for comparisons in self.view._constraints.values():
+            comparisons.pop(self.attribute, None)
+        
+    def _modify(self, operator, value):
+        if self.operator:
+            raise RuntimeError(f'Only 1 modifier supported')
+        self.operator = operator
+        self.constant = value
+        
+    def __add__(self, other):
+        self._modify('+', other)
+        return self
+        
+    def __sub__(self, other):
+        self._modify('-', other)
+        return self
+        
+    def __mul__(self, other):
+        self._modify('*', other)
+        return self
+        
+    def __truediv__(self, other):
+        self._modify('/', other)
+        return self
+        
+    def __mod__(self, other):
+        self._modify('%', other)
+        return self
+            
 
 def _ui4_getter(self, attribute):
     return Anchor('=', self, attribute)
 
+_checklists = (
+    set('left right center_x width'.split()),
+    set('top bottom center_y height'.split()),
+)
 
 def _ui4_setter(self, attribute, css_attribute, value):
-    self._dirty = True
+    self.__class__._dirties.add(self)
     if type(value) in (int, float):
         value = Anchor(constant=value)
-        
-        '''
-        if css_attribute:
-            _css_setter(self, attribute, css_attribute, lambda value: f'{value}px', None, value)
-        else:
-            raise TypeError(f"Cannot set a plain number value to {attribute}")
-        '''
     if type(value) is Anchor:
+        comparisons = self._constraints[value.comparison]
         self._style_values.pop(css_attribute, None)
-        self._constraints.setdefault(attribute, list()).append(value)
+        if value.comparison == '=':
+            comparisons[attribute] = [value]
+        else:
+            comparisons.setdefault(attribute, list()).append(value)
+        for checklist in _checklists:
+            constraints = set(self._constraints.keys()).intersection(checklist)
+            if len(constraints) > 2:
+                raise RuntimeError(
+                    f'Too many constraints in one dimension: {constraints}'
+                )
     else:
         raise TypeError(f"Cannot set {value} as {attribute}")
 

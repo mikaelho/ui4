@@ -4,6 +4,8 @@
   'use strict';
 
   let gap = 8;
+  let allDependencies = {};
+  let animatedDependencies = {};
 
   const LEADING = "leading", TRAILING = "trailing", NEUTRAL = "neutral", CONSTANT = 'constant';
 
@@ -30,7 +32,8 @@
     "+": (a, b) => a + b,
     "-": (a, b) => a - b,
     "*": (a, b) => a * b,
-    "/": (a, b) => a / b
+    "/": (a, b) => a / b,
+    "%": (a, b) => a % b
   };
 
   const getValue = {
@@ -64,7 +67,7 @@
           right = Math.max(right, bbox.right);
         }
       }
-      if (!left) {
+      if (left === false) {
         right = left = 0;
       }
       return right - left + 2 * gap;
@@ -119,105 +122,179 @@
     }
   };
 
-  var allDependencies = {};
-
   ui4.checkDependencies = function() {
+    checkAllDependencies();
+    checkAnimationDependencies();
+  };
+    
+  function checkAllDependencies() {
     for (const [targetId, dependencies] of Object.entries(allDependencies)) {
       // Only apply the final value per property
       let finalValues = {};
-      dependencies.forEach( dependency => {
-        //console.log(JSON.stringify(dependency));
-        let sourceElem = document.getElementById(dependency.sourceId);
-        let targetElem = document.getElementById(targetId);
-        let targetStyle = window.getComputedStyle(targetElem);
-        
-        let sourceValue;
-        let contained = false;
-        
-        if (dependency.sourceId === CONSTANT) {
-          sourceValue = dependency.constant;
-        }
-        else {
-          let sourceStyle = window.getComputedStyle(sourceElem);
-          contained = targetElem.parentElement === sourceElem;
-  
-          let sourceContext = {
-            contained: contained,
-            getStyle: window.getComputedStyle(sourceElem),
-            parentStyle: window.getComputedStyle(sourceElem.parentElement),
-            targetElem: targetElem
-          };
-          sourceValue = getValue[dependency.sourceAttr](sourceContext);
-        }
-        
-        let targetContext = {
-          dependencies: dependencies,
-          getStyle: window.getComputedStyle(targetElem),
-          style: targetElem.style,
-          parentStyle: window.getComputedStyle(targetElem.parentElement),
-          contained: false,
-        };
-        let targetValue = getValue[dependency.targetAttr](targetContext);
-
-        let sourceType = attrType[dependency.sourceAttr];
-        let targetType = attrType[dependency.targetAttr];
-        if (dependency.operator) {
-          sourceValue = operators[dependency.operator](sourceValue, dependency.constant);
-        }
-        else if (contained) {
-          if (sourceType === LEADING && targetType === LEADING) {
-            sourceValue += gap;
-          }
-          else if (sourceType === TRAILING && targetType === TRAILING) {
-            sourceValue -= gap;
-          }
-        } else {
-          if (sourceType === LEADING && targetType === TRAILING) {
-            sourceValue -= gap;
-          }
-          else if (sourceType === TRAILING && targetType === LEADING) {
-            sourceValue += gap;
-          }
-        }
-        
-
-        if (comparisons[dependency.comparison](targetValue, sourceValue)) {
-          finalValues[dependency.targetAttr] = {
-            value: sourceValue,
-            context: targetContext
-          }
-        }
-      });
-      // Only apply the final value for each attribute
+      
+      checkAttribute(targetId, dependencies, finalValues)
+      
+      // Apply the final value for each attribute
       for (const [targetAttr, data] of Object.entries(finalValues)) {
-        setValue[targetAttr](data.context, data.value);
+        setValue[targetAttr](data.context, data.sourceValue);
       }
     }
-  };
+  }
+  
+  function checkAnimationDependencies() {
+    for (const [targetId, dependencies] of Object.entries(animatedDependencies)) {
+      // Only apply the final value per property
+      let values = {};
+      checkAttribute(targetId, dependencies, values)
+      
+      dependencies.forEach((dependency, index) => {
+        let data = values[dependency.targetAttr];
+        let currentValue;
+        const currentTime = Date.now();
+        //console.log(currentTime - dependency.readyBy);
+        if (currentTime >= dependency.readyBy) {
+          //console.log("done");
+          currentValue = data.sourceValue;
+          delete dependencies[index];
+          if (allDependencies[dependency.targetAttr]) {
+            allDependencies[dependency.targetAttr].push(dependency);
+          } else {
+            allDependencies[dependency.targetAttr] = [dependency];
+          }
+        } else {
+          const progress = (currentTime - dependency.previousTime)/(dependency.readyBy - dependency.previousTime);
+          dependency.previousTime = currentTime;
+          //console.log(progress);
+          const previousValue = data.targetValue;
+          currentValue = previousValue + (data.sourceValue - previousValue) * progress;
+        }
+        setValue[dependency.targetAttr](data.context, currentValue);
+      });
+      
+      if (Object.keys(animatedDependencies).length) {
+        //console.log("check again"); 
+        requestAnimationFrame(checkAnimationDependencies);
+      }
+    }
+  }
+      
+  function checkAttribute(targetId, dependencies, values) {
+    dependencies.forEach( dependency => {
+      //console.log(JSON.stringify(dependency));
+      let sourceElem = document.getElementById(dependency.sourceId);
+      let targetElem = document.getElementById(targetId);
+      let targetStyle = window.getComputedStyle(targetElem);
+      
+      let sourceValue;
+      let contained = false;
+      
+      if (dependency.sourceId === CONSTANT) {
+        sourceValue = dependency.constant;
+      }
+      else {
+        let sourceStyle = window.getComputedStyle(sourceElem);
+        contained = targetElem.parentElement === sourceElem;
+
+        let sourceContext = {
+          contained: contained,
+          getStyle: window.getComputedStyle(sourceElem),
+          parentStyle: window.getComputedStyle(sourceElem.parentElement),
+          targetElem: targetElem
+        };
+        sourceValue = getValue[dependency.sourceAttr](sourceContext);
+      }
+      
+      let targetContext = {
+        dependencies: dependencies,
+        getStyle: window.getComputedStyle(targetElem),
+        style: targetElem.style,
+        parentStyle: window.getComputedStyle(targetElem.parentElement),
+        contained: false,
+      };
+      let targetValue = getValue[dependency.targetAttr](targetContext);
+
+      let sourceType = attrType[dependency.sourceAttr];
+      let targetType = attrType[dependency.targetAttr];
+      if (dependency.operator) {
+        sourceValue = operators[dependency.operator](sourceValue, dependency.constant);
+      }
+      else if (contained) {
+        if (sourceType === LEADING && targetType === LEADING) {
+          sourceValue += gap;
+        }
+        else if (sourceType === TRAILING && targetType === TRAILING) {
+          sourceValue -= gap;
+        }
+      } else {
+        if (sourceType === LEADING && targetType === TRAILING) {
+          sourceValue -= gap;
+        }
+        else if (sourceType === TRAILING && targetType === LEADING) {
+          sourceValue += gap;
+        }
+      }
+
+      if (comparisons[dependency.comparison](targetValue, sourceValue)) {
+        values[dependency.targetAttr] = {
+          targetValue: targetValue,
+          sourceValue: sourceValue,
+          context: targetContext
+        }
+      }
+    });
+  }
 
   function setDependencies(node) {
     var targetId = node.id;
     if (!targetId) { return; }
 
     var ui4AttrValue = node.getAttribute("ui4");
-    if (!ui4AttrValue) { return; }
-
-    var dependencies = Array();
-    var specs = ui4AttrValue.split(" ");
-    specs.forEach( (spec) => {
-      let dependency = parseSpec(spec);
-      if (dependency) {
-        dependencies.push(dependency);
+    
+    if (ui4AttrValue) {
+      var dependencies = Array();
+      var specs = ui4AttrValue.split(" ");
+      specs.forEach( (spec) => {
+        let dependency = parseSpec(spec,false);
+        if (dependency) {
+          dependencies.push(dependency);
+        }
+      });
+      if (!dependencies.length) {
+        delete allDependencies[targetId];
+      } else {
+        allDependencies[targetId] = dependencies;
       }
-    });
-    if (!dependencies.length) {
-      delete allDependencies[targetId];
-    } else {
-      allDependencies[targetId] = dependencies;
+    }
+    
+    var ui4AnimatedValue = node.getAttribute("ui4anim");
+    
+    if (ui4AnimatedValue) {
+      var dependencies = Array();
+      var specs = ui4AnimatedValue.split(" ");
+      specs.forEach( (spec) => {
+        let dependency = parseSpec(spec, true);
+        if (dependency) {
+          dependencies.push(dependency);
+        }
+      });
+      if (dependencies.length) {
+        animatedDependencies[targetId] = dependencies;
+      }
     }
   }
       
-  function parseSpec(spec) {
+  function parseSpec(spec, getDurations) {
+    let previousTime = undefined;
+    let readyBy = undefined;
+    
+    if (getDurations) {
+      let subSpecs = spec.split("|");
+      const duration = parseFloat(subSpecs[0]);
+      previousTime = Date.now();
+      readyBy = previousTime + duration * 1000;
+      spec = subSpecs[1];
+    }
+    
     const mainRegex = /([^=<>]+)([=<>])(.+)/;
     //let tokens = spec.split(/(\W)/);
     let tokens = mainRegex.exec(spec);
@@ -231,7 +308,7 @@
     let sourceId, sourceAttr, constant, operator, modifier;
     
     if (isNaN(sourceSpec)) {
-      const sourceRegex = /([^\.]+)[\.]([^\+\-\/\*]+)([\+\-\/\*]?)(.*)/;
+      const sourceRegex = /([^\.]+)[\.]([^\+\-\/\*\%]+)([\+\-\/\*\%]?)(.*)/;
       let specTokens = sourceRegex.exec(sourceSpec);
       if (!specTokens || specTokens.length < 3) {
         console.error("Cannot parse source spec", spec);
@@ -265,7 +342,9 @@
       sourceId: sourceId, 
       sourceAttr: sourceAttr,
       operator: operator,
-      constant: constant
+      constant: constant,
+      previousTime: previousTime,
+      readyBy: readyBy
     };
   }
 
@@ -290,7 +369,7 @@
     observer.observe(document, {
       subtree: true,
       childList: true,
-      attributeFilter: ["ui4"]
+      attributeFilter: ["ui4", "ui4anim"]
     });
   };
 
@@ -302,14 +381,14 @@
       attributeFilter: ["style"]
     });
   };
-
+  
+ /*
   // Update constraints during CSS transitions
   const startTransitionEvent = "transitionstart"; //"htmx:beforeSwap";
   const endTransitionEvent = "transitionend"; //"htmx:afterSwap";
 
   var runningTransitions = 0;
   var animationFrame;
-
   window.addEventListener(startTransitionEvent, function (evt) {
     if (runningTransitions === 0) {
       const dependencyRunner = function () {
@@ -328,6 +407,7 @@
       cancelAnimationFrame(animationFrame);
     }
   });
+  */
 
   // Update constraints on window resize
   window.addEventListener('resize', function (evt) {
