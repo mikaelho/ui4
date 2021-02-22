@@ -19,6 +19,7 @@ def _css_getter(self, attribute):
     
 
 def _css_setter(self, attribute, css_attribute, to_css_func, normalize_func, value):
+    from ui4.view import View
     self.__class__._dirties.add(self)
     if normalize_func:
         value = normalize_func(value)
@@ -26,6 +27,8 @@ def _css_setter(self, attribute, css_attribute, to_css_func, normalize_func, val
     if to_css_func:
         value = to_css_func(value)
     self._style_values[css_attribute] = value
+    if View._animated:
+        self._transitions.append(css_attribute)
     
     
 def cssprop(normalize_func, to_css_func, attribute, css_attribute):
@@ -103,12 +106,13 @@ cssprop_px_or_str = partial(
 
 class Anchor:
     
-    def __init__(self, comparison='=', view=None, attribute='', operator='', constant=''):
+    def __init__(self, comparison='=', view=None, attribute='', operator='', constant='', duration=None):
         self.comparison = comparison
         self.view = view
         self.attribute = attribute
         self.operator = operator
         self.constant = constant
+        self.duration = duration
         
     def render(self, attribute):
         return (
@@ -119,6 +123,8 @@ class Anchor:
             f'{self.attribute}'
             f'{self.operator}'
             f'{self.constant}'
+            f'{self.duration and "|" or ""}'
+            f'{self.duration or ""}'
         )
         
     def clear(self):
@@ -161,10 +167,13 @@ _checklists = (
 )
 
 def _ui4_setter(self, attribute, css_attribute, value):
+    from ui4.view import View
     self.__class__._dirties.add(self)
     if type(value) in (int, float):
         value = Anchor(constant=value)
     if type(value) is Anchor:
+        if View._animated:
+            value.duration = .3
         comparisons = self._constraints[value.comparison]
         self._style_values.pop(css_attribute, None)
         if value.comparison == '=':

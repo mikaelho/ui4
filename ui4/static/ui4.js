@@ -6,6 +6,7 @@
   let gap = 8;
   let allDependencies = {};
   let animatedDependencies = {};
+  let latestValues = {};
 
   const LEADING = "leading", TRAILING = "trailing", NEUTRAL = "neutral", CONSTANT = 'constant';
 
@@ -137,13 +138,14 @@
       // Apply the final value for each attribute
       for (const [targetAttr, data] of Object.entries(finalValues)) {
         setValue[targetAttr](data.context, data.sourceValue);
+        latestValues[targetId + "." + targetAttr] = data.sourceValue;
       }
     }
   }
   
   function checkAnimationDependencies() {
     for (const [targetId, dependencies] of Object.entries(animatedDependencies)) {
-      // Only apply the final value per property
+      
       let values = {};
       checkAttribute(targetId, dependencies, values)
       
@@ -156,19 +158,23 @@
           //console.log("done");
           currentValue = data.sourceValue;
           delete dependencies[index];
-          if (allDependencies[dependency.targetAttr]) {
-            allDependencies[dependency.targetAttr].push(dependency);
+          if (allDependencies[dependency.targetId]) {
+            allDependencies[dependency.targetId].push(dependency);
           } else {
-            allDependencies[dependency.targetAttr] = [dependency];
+            allDependencies[dependency.targetId] = [dependency];
           }
         } else {
           const progress = (currentTime - dependency.previousTime)/(dependency.readyBy - dependency.previousTime);
           dependency.previousTime = currentTime;
           //console.log(progress);
-          const previousValue = data.targetValue;
+          let previousValue = latestValues[dependency.targetId + "." + dependency.targetAttr];
+          if (previousValue == undefined) {
+            previousValue = data.targetValue;
+          }
           currentValue = previousValue + (data.sourceValue - previousValue) * progress;
         }
         setValue[dependency.targetAttr](data.context, currentValue);
+        latestValues[targetId + "." + dependency.targetAttr] = currentValue;
       });
       
       if (Object.keys(animatedDependencies).length) {
@@ -182,6 +188,7 @@
     dependencies.forEach( dependency => {
       //console.log(JSON.stringify(dependency));
       let sourceElem = document.getElementById(dependency.sourceId);
+      //console.log(targetId);
       let targetElem = document.getElementById(targetId);
       let targetStyle = window.getComputedStyle(targetElem);
       
@@ -252,11 +259,16 @@
     
     if (ui4AttrValue) {
       var dependencies = Array();
+      var animDependencies = Array();
       var specs = ui4AttrValue.split(" ");
       specs.forEach( (spec) => {
-        let dependency = parseSpec(spec,false);
+        let dependency = parseSpec(spec, targetId);
         if (dependency) {
-          dependencies.push(dependency);
+          if (spec.includes("|")) {
+            animDependencies.push(dependency);
+          } else {
+            dependencies.push(dependency);
+          }
         }
       });
       if (!dependencies.length) {
@@ -264,35 +276,22 @@
       } else {
         allDependencies[targetId] = dependencies;
       }
-    }
-    
-    var ui4AnimatedValue = node.getAttribute("ui4anim");
-    
-    if (ui4AnimatedValue) {
-      var dependencies = Array();
-      var specs = ui4AnimatedValue.split(" ");
-      specs.forEach( (spec) => {
-        let dependency = parseSpec(spec, true);
-        if (dependency) {
-          dependencies.push(dependency);
-        }
-      });
-      if (dependencies.length) {
-        animatedDependencies[targetId] = dependencies;
+      if (animDependencies.length) {
+        animatedDependencies[targetId] = animDependencies;
       }
     }
   }
       
-  function parseSpec(spec, getDurations) {
+  function parseSpec(spec, targetId) {
     let previousTime = undefined;
     let readyBy = undefined;
     
-    if (getDurations) {
-      let subSpecs = spec.split("|");
-      const duration = parseFloat(subSpecs[0]);
+    let subSpecs = spec.split("|");
+    if (subSpecs.length == 2) {
+      const duration = parseFloat(subSpecs[1]);
       previousTime = Date.now();
       readyBy = previousTime + duration * 1000;
-      spec = subSpecs[1];
+      spec = subSpecs[0];
     }
     
     const mainRegex = /([^=<>]+)([=<>])(.+)/;
@@ -337,6 +336,7 @@
       sourceAttr = null;
     }
     return {
+      targetId: targetId,
       targetAttr: targetAttr,
       comparison: comparison,
       sourceId: sourceId, 

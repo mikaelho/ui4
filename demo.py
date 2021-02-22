@@ -36,6 +36,7 @@ error = View(
     dock=password.below,
     text="Please try again",
     text_color='red',
+    #background_color='red',
     alpha=0,
 )
 
@@ -48,11 +49,9 @@ submit = View(
 
 @submit
 def on_click(data):
-    submit.top = error.bottom
-    error.alpha = 1
-    submit.animated = True
-    
-    #after(2, fade)
+    with View.animated():
+        submit.top = error.bottom
+        error.alpha = 1
 
 
 app.background_color = 'lightgrey'

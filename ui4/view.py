@@ -2,6 +2,7 @@
 import copy
 
 from collections.abc import Sequence
+from contextlib import contextmanager
 from pathlib import Path
 from string import Template
 
@@ -22,6 +23,7 @@ class View:
     _id_counter = 0
     _views = {}
     _dirties = set()
+    _animated = False
     
     _event_methods = {        
         'on_click': 'click',
@@ -49,7 +51,8 @@ class View:
         self._z_min = _z_max = 0
         
         self.text = None
-        self.animated = False
+        #self._animated = False
+        self._transitions = []
     
         for key in kwargs:
             setattr(self, key, kwargs[key])
@@ -208,6 +211,13 @@ class View:
         event_method = getattr(self, f'on_{event_name}', None)
         event_method and event_method(event_data)
         return self._render_updates()
+    
+    @classmethod
+    @contextmanager    
+    def animated(cls):
+        cls._animated = True
+        yield 
+        cls._animated = False
         
     def _render_updates(self):
         roots = set()
@@ -285,7 +295,12 @@ class View:
             for key, value
             in self._style_values.items()
         ])
-        if self.animated:
-            styles += ' transition-property: all; transition-duration: 0.3s;'
+        if self._transitions:
+            styles += (
+                f' transition-property: {",".join(self._transitions)}; '
+                'transition-duration: 1.0s;'
+            )
+            self._transitions = []
+
         return styles
 
