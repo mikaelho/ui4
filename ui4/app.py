@@ -56,13 +56,13 @@ class ServerRunner:
 
 class PythonistaRunner(ServerRunner):
         
-    def run(self):
+    def run(self, cache=True):
         import wkwebview
         
         try:
             self.run_server()
             webview = wkwebview.WKWebView()
-            webview.load_url(f'{self.protocol}://{self.host}:{self.port}/', no_cache=True)
+            webview.load_url(f'{self.protocol}://{self.host}:{self.port}/', no_cache=not cache)
             webview.present('fullscreen')
             
             webview.wait_modal()
@@ -130,9 +130,12 @@ def index():
 def send_js():
     return app.flask.send_static_file('ui4.js')
     
-@app.flask.route('/event')
-def handle_event():
-    view_id = flask.request.args.get('id')
+@app.flask.route('/event/<event_name>', methods=['GET', 'POST'])
+def handle_event(event_name):
+    print(event_name)
+    print(flask.request.values)
+    view_id = flask.request.values.get('id')
     view = View._views.get(view_id)
-    return view and view._process_event(flask.request.args.get('event_name', 'click'))
+    value = flask.request.values.get(view_id)
+    return view and view._process_event(event_name, value)
 

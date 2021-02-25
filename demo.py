@@ -32,14 +32,6 @@ password = TextField(
     placeholder="Enter password",
 )
 
-error = View(
-    dock=password.below,
-    text="Please try again",
-    text_color='red',
-    #background_color='red',
-    alpha=0,
-)
-
 submit = View(
     dock=password.below,
     text="Login",
@@ -50,8 +42,10 @@ submit = View(
 @submit
 def on_click(data):
     with View.animated():
-        submit.top = error.bottom
-        error.alpha = 1
+        if email.value == "aa" and password.value == "bb":
+            submit.background_color = 'green'
+        else:
+            submit.background_color = 'red'
 
 
 app.background_color = 'lightgrey'
