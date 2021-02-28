@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import threading
@@ -5,6 +6,7 @@ import time
 
 from pathlib import Path
 from string import Template
+import urllib.parse
 
 import flask
 from werkzeug.serving import make_server
@@ -56,7 +58,7 @@ class ServerRunner:
 
 class PythonistaRunner(ServerRunner):
         
-    def run(self, cache=True):
+    def run(self, cache=False):
         import wkwebview
         
         try:
@@ -130,12 +132,14 @@ def index():
 def send_js():
     return app.flask.send_static_file('ui4.js')
     
-@app.flask.route('/event/<event_name>', methods=['GET', 'POST'])
-def handle_event(event_name):
+@app.flask.route('/event', methods=['GET', 'POST'])
+def handle_event():
+    # print(flask.request.values)
+    view_id = flask.request.headers.get('Hx-Trigger')
+    event_header = urllib.parse.unquote(flask.request.headers.get('Triggering-Event'))
+    event_name = json.loads(event_header)['type']
     print(event_name)
-    print(flask.request.values)
-    view_id = flask.request.values.get('id')
     view = View._views.get(view_id)
-    value = flask.request.values.get(view_id)
-    return view and view._process_event(event_name, value)
+    value = flask.request.values.get(view_id, view)
+    return view._process_event(event_name, value)
 

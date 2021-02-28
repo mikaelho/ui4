@@ -10,6 +10,7 @@
   <script src="https://unpkg.com/htmx.org@1.1.0"
   integrity="sha384-JVb/MVb+DiMDoxpTmoXWmMYSpQD2Z/1yiruL8+vC6Ri9lk6ORGiQqKSqfmCBbpbX" 
   crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/htmx.org@1.2.1/dist/ext/event-header.js"></script>
   
   <script src="ui4" type="text/javascript">
   </script>
@@ -49,7 +50,7 @@
   </style>
 </head>
 
-<body>
+<body hx-ext="event-header" >
 <noscript>JavaScript is required for ui4 apps to function at all.</noscript>
 $content
 </body>

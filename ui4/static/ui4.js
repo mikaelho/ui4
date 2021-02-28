@@ -7,6 +7,7 @@
   let allDependencies = {};
   let animatedDependencies = {};
   let latestValues = {};
+  let transitioning = {};
 
   const LEADING = "leading", TRAILING = "trailing", NEUTRAL = "neutral", CONSTANT = 'constant';
 
@@ -163,6 +164,7 @@
           } else {
             allDependencies[dependency.targetId] = [dependency];
           }
+          checkAnimationStepComplete(dependency.targetId);
         } else {
           const progress = (currentTime - dependency.previousTime)/(dependency.readyBy - dependency.previousTime);
           dependency.previousTime = currentTime;
@@ -347,6 +349,40 @@
       readyBy: readyBy
     };
   }
+  
+  function setTransitionHandlers(node) {
+    node.addEventListener(
+      'transitionrun',
+      function (evt) {
+        if (this.id) {
+          transitioning[this.id] = (transitioning[this.id] || 0) + 1;
+        }
+      });
+    node.addEventListener(
+      'transitionend',
+      function (evt) {
+        if (this.id) {
+          transitioning[this.id] -= 1;
+          if (transitioning[this.id] == 0) {
+            console.log(this.id + "." + evt.propertyName + " complete");
+            checkAnimationStepComplete(this.id);
+          }
+        }
+      });
+  }
+  
+  function checkAnimationStepComplete(nodeId) {
+    const transitionState = transitioning[nodeId];
+    const animationState = animatedDependencies[nodeId];
+    
+    const transitionsComplete = (transitionState == undefined || transitionState == 0);
+    const animationsComplete = (animationState == undefined || animationState.length == 0);
+    
+    if (transitionsComplete && animationsComplete) {
+      const elem = document.getElementById(nodeId);
+      elem.dispatchEvent(new Event('next'));
+    }
+  }
 
   function classChangeHandler(mutations, observer) {
     mutations.forEach( (mutation) => {
@@ -354,11 +390,14 @@
         case 'childList':
           mutation.addedNodes.forEach( (node) => {
             setDependencies(node);
+            setTransitionHandlers(node);
           });
+          
           //console.log(mutation.removedNodes)
           break;
         case 'attributes':
         setDependencies(mutation.target);
+          setTransitionHandlers(mutation.target);
           break;
       }
     });
@@ -382,32 +421,12 @@
     });
   };
   
- /*
-  // Update constraints during CSS transitions
-  const startTransitionEvent = "transitionstart"; //"htmx:beforeSwap";
-  const endTransitionEvent = "transitionend"; //"htmx:afterSwap";
+  // Know when we are making CSS transitions
+  const startTransitionEvent = "transitionstart";
+  const endTransitionEvent = "transitionend";
 
   var runningTransitions = 0;
   var animationFrame;
-  window.addEventListener(startTransitionEvent, function (evt) {
-    if (runningTransitions === 0) {
-      const dependencyRunner = function () {
-        ui4.checkDependencies();
-        animationFrame = requestAnimationFrame(dependencyRunner);
-      };
-      dependencyRunner();
-      runningTransitions++;
-    }
-  });
-
-  window.addEventListener(endTransitionEvent, function () {
-    runningTransitions--;
-    if (runningTransitions <= 0) {
-      runningTransitions = 0;
-      cancelAnimationFrame(animationFrame);
-    }
-  });
-  */
 
   // Update constraints on window resize
   window.addEventListener('resize', function (evt) {

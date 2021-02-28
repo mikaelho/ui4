@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from string import Template
+from types import GeneratorType
 
 import ui4.constants as constants
 
@@ -24,6 +25,7 @@ class View:
     _views = {}
     _dirties = set()
     _animated = False
+    _event_generator = None
     
     _event_methods = {  
         'on_change': 'change',      
@@ -210,8 +212,19 @@ class View:
         return f
         
     def _process_event(self, event_name, value=None):
-        event_method = getattr(self, f'on_{event_name}', None)
-        event_method and event_method(value)
+        if event_name == 'next' and self._event_generator:
+            try:
+                next(self._event_generator)
+            except StopIteration:
+                self._event_generator = None
+        else:
+            self._event_generator = None
+            event_method = getattr(self, f'on_{event_name}', None)
+            if event_method:
+                event_generator = event_method(value)
+                if isinstance(event_generator, GeneratorType):
+                    next(event_generator)
+                    self._event_generator = event_generator
         return self._render_updates()
     
     @classmethod
@@ -243,8 +256,7 @@ class View:
         constraints = self._render__constraints()
         styles = self._render__styles()
         events = self._render__events()
-        print(events)
-        data = self._render__data()
+        # data = self._render__data()
         oob = oob and 'hx-swap-oob="true"'
         rendered_children = ''.join([
             child._render()
@@ -254,17 +266,18 @@ class View:
         template = Template(
             Path(f'ui4/static/{self._render_template}').read_text()
         )
-        return self._render_result(constraints, styles, events, data, oob, rendered_children, template)
+        return self._render_result(constraints, styles, events, oob, rendered_children, template)
         
-    def _render_result(self, constraints, styles, events, data, oob, rendered_children, template):
+    def _render_result(self, constraints, styles, events, oob, rendered_children, template):
         additional_values = self._render__additional_values()
         
         html = template.safe_substitute(
+            tag='div',
             id=self.id,
             viewclass = self._css_class,
             constraints=constraints,
             events=events,
-            data=data,
+            # data=data,
             oob=oob,
             styles=styles,
             content=rendered_children or self.text or "",
@@ -287,27 +300,21 @@ class View:
                 ]))
         return " ".join(constraints)
         
-    def _render__data(self):
-        if not self.data:
-            return ""
-        if not issubclass(type(self.data), Sequence):
-            self.data = [self.data]
-        item_list = ",".join([
-            f"[name='{item.id}']"
-            for item in self.data
-        ])
-        data_include = f'hx-include="{item_list}"'
-        return data_include
-        
     def _render__events(self):
-        for method_name, event in self._event_methods.items():
-            if hasattr(self, method_name):
-                return (
-                    f"hx-post='/event/{event}' "
-                    f"hx-trigger='{event}' "
-                    f"hx-vals='{{\"id\": \"{self.id}\"}}'"
-                )
-        return ""
+        triggers = [
+            event
+            for method_name, event in self._event_methods.items()
+            if hasattr(self, method_name)
+        ]
+        if self._event_generator:
+            triggers.append('next')
+
+        trigger_str = ",".join(triggers)
+
+        return (
+            f"hx-post='/event' "
+            f"hx-trigger='{trigger_str}' "
+        ) if trigger_str else ""
                 
     def _render__styles(self):
         styles = " ".join([
