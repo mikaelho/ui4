@@ -1,8 +1,5 @@
 import json
-import logging
-import os
 import threading
-import time
 
 from pathlib import Path
 from string import Template
@@ -57,10 +54,14 @@ class ServerRunner:
         
 
 class PythonistaRunner(ServerRunner):
-        
+
+    def __init__(self, protocol, host, port, quiet=False, **kwargs):
+        import wkwebview
+        super().__init__(protocol, host, port, quiet, **kwargs)
+
     def run(self, cache=False):
         import wkwebview
-        
+
         try:
             self.run_server()
             webview = wkwebview.WKWebView()
@@ -76,7 +77,9 @@ class BrowserRunner(ServerRunner):
     
     def run(self):
         import webbrowser
-        
+
+        self.run_server()
+
         webbrowser.open(f'{self.protocol}://{self.host}:{self.port}')
            
 
@@ -87,7 +90,7 @@ class App(View):
     def __init__(
         self, 
         name="UI4 App",
-        runner_class=PythonistaRunner,
+        runner_class=None,
         protocol="http",
         host="127.0.0.1",
         port=8080,
@@ -96,17 +99,26 @@ class App(View):
         super().__init__(
             **kwargs)
         self.name = name
-        self.runner = runner_class(protocol, host, port)
+        self.runner = runner_class and runner_class(protocol, host, port) or self._detect_runner(protocol, host, port)
         self.flask = self.runner.flask
-        
+
+    def _detect_runner(self, protocol, host, port):
+        try:
+            return PythonistaRunner(protocol, host, port)
+        except ImportError:
+            pass
+
+        return BrowserRunner(protocol, host, port)
+
+
     def run(self):
         self.runner.run()
         
-    def _render(self):
+    def _render(self, oob=''):
         if not self.children and not self.text:
             raise ValueError('app has no content')
         else:
-            page_content = super()._render()
+            page_content = super()._render(oob)
             #print(page_content)
             return page_content
 
