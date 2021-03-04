@@ -1,5 +1,3 @@
-import random
-
 from ui4 import *
 
 
