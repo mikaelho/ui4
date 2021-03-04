@@ -32,13 +32,25 @@ class Color(list):
             value = args
         if len(value) == 3:
             value = list(value)
-            value.append(alpha if alpha is not None else 1.0)
+            if alpha:
+                value.append(alpha)
+            elif not all((component <= 1.0) for component in value):
+                value.append(255)
+            else:
+                value.append(1.0)
+        elif len(value) == 4:
+            value = list(value)
         elif alpha is not None:
             value[3] = alpha
         if not all((component <= 1.0) for component in value):
-            for i in range(3):
+            for i in range(len(value)):
                 value[i] /= 255.0
         super().__init__(value)
+
+    def __eq__(self, other):
+        if type(other) is tuple:
+            other = list(other)
+        return super().__eq__(other)
 
     @prop
     def r(self, *args):
@@ -78,8 +90,7 @@ class Color(list):
         if args:
             self.css = args[0]
         else:
-            return (int(self.r * 255), int(self.g * 255), int(self.b * 255),
-                    self.a)
+            return (int(self.r * 255), int(self.g * 255), int(self.b * 255), int(self.a * 255))
 
     @prop
     def css(self, *args):
