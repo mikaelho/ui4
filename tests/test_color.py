@@ -16,8 +16,14 @@ def test_init_values():
 
 
 def test_init_with_alpha():
-    c = color.Color('red', alpha=125)
-    assert c == pytest.approx([1, 0, 0, 0.5], abs=0.01)
+    c = color.Color('red', alpha=127.5)
+    assert c == [1, 0, 0, 0.5]
 
-    c = color.Color(125, 255, 0, 125)
-    assert c == pytest.approx((0.5, 1, 0, 0.5), abs=0.01)
+    c = color.Color(127.5, 255, 0, 127.5)
+    assert c == (0.5, 1, 0, 0.5)
+    
+    
+def test_convert_to_name():
+    c = color.Color(255, 255, 255)
+    assert c.name == 'white'
+

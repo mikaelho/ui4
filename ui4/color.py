@@ -1,6 +1,6 @@
 #coding: utf-8
-from ui4.lib.webcolor import *
-
+# from ui4.lib.webcolor import *
+from webcolors import *
 
 def prop(func):
     return property(func, func)
