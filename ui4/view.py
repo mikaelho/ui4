@@ -1,5 +1,4 @@
 # Base view class
-import copy
 
 from collections.abc import Sequence
 from contextlib import contextmanager
@@ -55,7 +54,6 @@ class View:
         
         self.text = None
         self.data = []
-        #self._animated = False
         self._transitions = []
     
         for key in kwargs:
@@ -77,7 +75,7 @@ class View:
         if self._parent:
             self._parent.children.remove(self)
         self._parent = value
-        if self._parent and not self in self._parent.children:
+        if self._parent and self not in self._parent.children:
             self._parent.children.append(self)
         
     # Layout properties
@@ -274,7 +272,7 @@ class View:
         html = template.safe_substitute(
             tag='div',
             id=self.id,
-            viewclass = self._css_class,
+            viewclass=self._css_class,
             constraints=constraints,
             events=events,
             # data=data,
@@ -330,4 +328,3 @@ class View:
             self._transitions = []
 
         return styles
-
