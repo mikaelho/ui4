@@ -279,6 +279,7 @@ class View:
             oob=oob,
             styles=styles,
             content=rendered_children or self.text or "",
+            rendered_attributes='',
             **additional_values
         )
         

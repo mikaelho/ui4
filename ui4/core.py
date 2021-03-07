@@ -65,23 +65,69 @@ class Hierarchy(Identity):
 
 class Render(Hierarchy):
     
-    _ui4_spec = {
-        targetId: targetId,
-        targetAttr: targetAttr,
-        comparison: comparison,
-        sourceId: sourceId, 
-        sourceAttr: sourceAttr,
-        operator: operator,
-        constant: constant,
-        previousTime: previousTime,
-        readyBy: readyBy
-    }
+    _renderers = []
     
-    """
-    Renders a view, recursively rendering the child views first.
-    """
-    ...
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+    
+    def _render(self, htmx_oob=False):
+        """
+        Renders a view, recursively rendering the child views.
+        
+        If htmx_oob is True, the view is marked as the "out-of-band" root
+        of swapped content.
+        """
+        rendered_attributes = ' '.join([
+            renderer() for renderer
+            in self._renderers
+        ])
+        
+        htmx_oob = htmx_oob and 'hx-swap-oob="true"' or ''
+        
+        rendered_children = ''.join([
+            child._render()
+            for child in self.children
+        ])
+         
+        template = Template(
+            Path(f'ui4/static/{self._render_template}').read_text()
+        )
+        return self._render_result(rendered_attributes, oob, rendered_children, template)
+        
+    def _render_result(self, rendered_attributes, oob, rendered_children,
+    template):       
+        html = template.safe_substitute(
+            tag='div',
+            id=self.id,
+            viewclass=self._css_class,
+            rendered_attributes=rendered_attributes,
+            oob=oob,
+            events='', constraints='', styles='',
+            content=rendered_children or self.text or "",
+        )
+        
+        return html
+    
+    @classmethod
+    def _register(cls, f):
+        """
+        Decorator for registering additional functions for rendering.
+        """
+        cls._renderers.append(f)
+        return f
 
+
+class Anchors(Render):
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+    
+    
+class Styles(Render):
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
 
 class Events(Render):
     """
@@ -99,7 +145,8 @@ class Events(Render):
 
     # All known and accepted events from the front-end
     # Maps an event handler method name to JS event
-    # "next" is special case, custom event that we use to trigger the next step in an event handler generator.
+    # "next" is special case, custom event that we use to trigger the 
+    # next step in an event handler generator.
     _event_methods = {
         'on_change': 'change',
         'on_click': 'click',
@@ -155,9 +202,26 @@ class Events(Render):
         return "".join([
             root._render(oob=True) for root in roots
         ])
+        
+    @Render._register
+    def _render_events(self):
+        triggers = [
+            event
+            for method_name, event in self._event_methods.items()
+            if hasattr(self, method_name)
+        ]
+        if self._event_generator:
+            triggers.append('next')
+
+        trigger_str = ",".join(triggers)
+
+        return (
+            f"hx-post='/event' "
+            f"hx-trigger='{trigger_str}'"
+        ) if trigger_str else ""
 
 
-class Core(Events):
+class Core(Anchors, Styles, Events):
     """
     This class is here simply to collect the different mechanical parts of the core view class for inheritance.
     """

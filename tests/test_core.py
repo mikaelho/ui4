@@ -37,6 +37,12 @@ def test_hierarchy():
     assert not view3.children
     
     
+def test_renderers():
+    view = Core()
+    
+    assert len(view._renderers) == 1
+    
+    
 def test_event_handler_decorator():    
     view = Core()
     
@@ -50,6 +56,11 @@ def test_event_handler_decorator():
         pass
         
     assert inspect.isfunction(view.on_click)
+    
+    assert (
+        view._render_events() == \
+        "hx-post='/event' hx-trigger='click'"
+    )
 
 
 def test_event_generator():

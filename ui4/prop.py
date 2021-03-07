@@ -127,6 +127,18 @@ class Anchor:
             f'{self.duration or ""}'
         )
         
+    def as_dict(self, view, attribute):
+        return {
+            'targetId': view.id,
+            'targetAttr': attribute,
+            'comparison': self.comparison,
+            'sourceId': self.view.id, 
+            'sourceAttr': self.attribute,
+            'operator': self.operator,
+            'constant': self.constant,
+            'duration': self.duration,
+        }
+        
     def clear(self):
         for comparisons in self.view._constraints.values():
             comparisons.pop(self.attribute, None)
