@@ -35,6 +35,56 @@
 	      font-size: 14px;
 	      text-align: center;
       }
+      .flow-container {
+	      position: absolute;
+	      display: flex;
+	      flex-wrap: wrap;
+	      align-items: flex-start;
+	      align-content: flex-start;
+	      box-sizing: border-box;
+	      overflow: hidden;
+	      text-overflow: ellipsis;
+	      /*pointer-events: none;*/
+	      margin: 0;
+	      padding: 0 8px 8px 0;
+      }
+      .flow-view {
+	      position: static;
+	      flex-grow: 1;
+	      flex-shrink: 1;
+	      box-sizing: border-box;
+	      overflow: hidden;
+	      text-overflow: ellipsis;
+	      /*pointer-events: none;*/
+	      margin: 8px 0 0 8px;
+	      padding: 8px;
+	      font-family: Verdana;
+	      font-size: 14px;
+	      text-align: center;
+      }
+      .grid-container {
+	      position: absolute;
+		  display: grid;
+		  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+		  grid-gap: 8px;
+	      box-sizing: border-box;
+	      overflow: hidden;
+	      text-overflow: ellipsis;
+	      /*pointer-events: none;*/
+	      margin: 0;
+	      padding: 8px;
+      }
+      .grid-view {
+	      position: static;
+	      box-sizing: border-box;
+	      overflow: hidden;
+	      text-overflow: ellipsis;
+	      /*pointer-events: none;*/
+	      padding: 8px;
+	      font-family: Verdana;
+	      font-size: 14px;
+	      text-align: center;
+      }
       .rootApp {
 	      position: absolute;
 	      top: 0;
@@ -46,6 +96,9 @@
 	      overflow: hidden;
 	      text-overflow: ellipsis;
 	      /*pointer-events: none;*/
+	      font-family: Verdana;
+	      font-size: 14px;
+	      text-align: center;
       }
   </style>
 </head>

@@ -33,8 +33,7 @@ password = TextField(
 submit = Button(
     dock=password.below,
     text="Login",
-    #background_color='#28184e',
-    background_color='#6abfff',
+    background_color='#28184e',
     text_color='white',
 )
 
@@ -46,7 +45,7 @@ def on_click(data):
         else:
             submit.background_color = 'red'
         yield
-        submit.background_color = '#6abfff'
+        submit.background_color = '#28184e'
 
 
 app.background_color = 'lightgrey'

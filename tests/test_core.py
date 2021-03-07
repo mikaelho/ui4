@@ -1,3 +1,5 @@
+import inspect
+
 import pytest
 
 from ui4.core import Core
@@ -33,3 +35,25 @@ def test_hierarchy():
     assert view1 in view4.children
     assert view2 in view4.children
     assert not view3.children
+    
+    
+def test_event_handler_decorator():    
+    view = Core()
+    
+    with pytest.raises(ValueError):
+        @view
+        def on_nonexistent_event(data):
+            pass
+            
+    @view
+    def on_click(data):
+        pass
+        
+    assert inspect.isfunction(view.on_click)
+
+
+def test_event_generator():
+    view = Core()
+    
+    assert view._event_generator is None
+

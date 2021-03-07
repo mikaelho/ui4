@@ -64,6 +64,19 @@ class Hierarchy(Identity):
 
 
 class Render(Hierarchy):
+    
+    _ui4_spec = {
+        targetId: targetId,
+        targetAttr: targetAttr,
+        comparison: comparison,
+        sourceId: sourceId, 
+        sourceAttr: sourceAttr,
+        operator: operator,
+        constant: constant,
+        previousTime: previousTime,
+        readyBy: readyBy
+    }
+    
     """
     Renders a view, recursively rendering the child views first.
     """
@@ -100,7 +113,10 @@ class Events(Render):
         if f.__name__ in self._event_methods.keys():
             setattr(self, f.__name__, f)
         else:
-            raise ValueError(f'{f.__name__} is not an event handler name: {self._event_methods.keys()}')
+            raise ValueError(
+                f"{f.__name__} is not an event handler name: "
+                f"{self._event_methods.keys()}"
+            )
         return f
 
     def _process_event(self, event_name, value=None):
