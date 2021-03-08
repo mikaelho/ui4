@@ -2,6 +2,8 @@
 Contains behind-the-scenes machinery that all views share.
 """
 
+from pathlib import Path
+from string import Template
 from types import GeneratorType
 from weakref import WeakValueDictionary
 
@@ -35,12 +37,19 @@ class Identity:
 class Hierarchy(Identity):
     """
     Contains logic for managing the hierarchy between parent and child views.
+    
+    Containers get special pass-through treatment unless the view is marked as chrome.
     """
 
-    def __init__(self, parent=None, children=None, **kwargs):
+    def __init__(self, parent=None, children=None, container=None, is_chrome=False, **kwargs):
         super().__init__(**kwargs)
+        self._container = None
         self._parent = None
         self._children = list()
+        self.is_chrome = is_chrome
+        
+        self.container = container
+        
         self.parent = parent
 
         children = children or []
@@ -50,25 +59,67 @@ class Hierarchy(Identity):
     @prop
     def parent(self, *value):
         if value:
+            new_parent = value[0]
+            if (
+                hasattr(new_parent, 'container') and
+                new_parent.container and
+                not self.is_chrome
+            ):
+                new_parent = new_parent.container
             if self._parent:
-                self._parent._children.remove(self)  # noqa
-            self._parent = value[0]
+                self._parent._children.remove(self)
+            self._parent = new_parent
             if self._parent and self not in self._parent._children:
                 self._parent._children.append(self)
         else:
+            if self._parent and self._parent.is_container:
+                return self._parent._parent
             return self._parent
 
     @property
     def children(self):
-        return tuple(self._children)
+        """
+        Returns an immutable sequence of the view's children, unless
+        the view is a frame, in which case return its container's children.
+        """
+        container = getattr(self, 'container', None)
+        children = container._children if container else self._children
+
+        return tuple(children)
+        
+    @prop
+    def container(self, *value):
+        if value:
+            container = value[0]
+            if container:
+                container.is_chrome = True
+                container.parent = self
+            self._container = container
+        else:
+            return self._container
+        
+    @property
+    def is_container(self):
+        """
+        Return True if this view is a container within a frame.
+        """
+        return (
+            self._parent and
+            hasattr(self._parent, 'container') and
+            self._parent.container == self
+        )
 
 
 class Render(Hierarchy):
     
     _renderers = []
+    _render_template = 'view_template.html'
+    _css_class = 'view'
+    _tag = 'div'
     
-    def __init__(self, **kwargs):
+    def __init__(self, text=None, **kwargs):
         super().__init__(**kwargs)
+        self.text = text
     
     def _render(self, htmx_oob=False):
         """
@@ -78,30 +129,31 @@ class Render(Hierarchy):
         of swapped content.
         """
         rendered_attributes = ' '.join([
-            renderer() for renderer
+            renderer(self) for renderer
             in self._renderers
         ])
         
         htmx_oob = htmx_oob and 'hx-swap-oob="true"' or ''
         
+        # Must use private _children not to be fooled by a container
         rendered_children = ''.join([
             child._render()
-            for child in self.children
+            for child in self._children
         ])
          
         template = Template(
             Path(f'ui4/static/{self._render_template}').read_text()
         )
-        return self._render_result(rendered_attributes, oob, rendered_children, template)
+        return self._render_result(rendered_attributes, htmx_oob, rendered_children, template)
         
-    def _render_result(self, rendered_attributes, oob, rendered_children,
+    def _render_result(self, rendered_attributes, htmx_oob, rendered_children,
     template):       
         html = template.safe_substitute(
             tag='div',
             id=self.id,
             viewclass=self._css_class,
             rendered_attributes=rendered_attributes,
-            oob=oob,
+            oob=htmx_oob,
             events='', constraints='', styles='',
             content=rendered_children or self.text or "",
         )

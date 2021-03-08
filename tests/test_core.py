@@ -37,7 +37,30 @@ def test_hierarchy():
     assert not view3.children
     
     
-def test_renderers():
+def test_container_hierarchy():
+    parent = Core(
+        container=Core()
+    )
+    child = Core(parent=parent)
+    
+    assert child.parent == parent
+    assert child._parent == parent.container
+    assert parent.children == (child,)
+    assert parent._children == [parent.container]
+    
+    
+def test_container_rendering():
+    parent = Core(
+        container=Core()
+    )
+    child = Core(parent=parent)
+
+    render_result = parent._render()
+    for view_id in (parent.id, parent.container.id, child.id):
+        assert view_id in render_result
+    
+    
+def test_renderer_registration():
     view = Core()
     
     assert len(view._renderers) == 1
@@ -56,7 +79,6 @@ def test_event_handler_decorator():
         pass
         
     assert inspect.isfunction(view.on_click)
-    
     assert (
         view._render_events() == \
         "hx-post='/event' hx-trigger='click'"
@@ -65,6 +87,35 @@ def test_event_handler_decorator():
 
 def test_event_generator():
     view = Core()
-    
     assert view._event_generator is None
+
+    @view
+    def on_click(view):
+        view.value = 1
+        yield
+        view.value = 2
+    
+    # Basic flow    
+    view._process_event('click', view)
+    assert view.value == 1
+    assert inspect.isgenerator(view._event_generator)
+    assert (
+        view._render_events() == 
+        "hx-post='/event' hx-trigger='click,next'"
+    )
+    view._process_event('next', view)
+    assert view.value == 2
+    assert view._event_generator is None
+
+    # Restart
+    view._process_event('click', view)
+    assert view.value == 1
+    view._process_event('click', view)
+    assert view.value == 1
+    view._process_event('next', view)
+    assert view.value == 2
+    
+    view.value = 0
+    view._process_event('next', view)
+    assert view.value == 0
 

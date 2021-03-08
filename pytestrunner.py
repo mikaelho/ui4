@@ -7,5 +7,5 @@ from pathlib import Path
 import pytest
 
 
-pytest.main(["-p", "no:faulthandler", str(Path(__file__).parent / "tests")])
+pytest.main(["-p", "no:faulthandler", "-v", str(Path(__file__).parent / "tests")])
 
