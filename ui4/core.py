@@ -2,6 +2,9 @@
 Contains behind-the-scenes machinery that all views share.
 """
 
+import inspect
+
+from contextlib import contextmanager
 from pathlib import Path
 from string import Template
 from types import GeneratorType
@@ -171,7 +174,12 @@ class Render(Hierarchy):
 
 class Anchors(Render):
     
-    def __init__(self, **kwargs):
+    default_gap = 8
+    
+    def __init__(self, gap=None, flow=False, **kwargs):
+        self.gap = self.default_gap if gap is None else gap
+        self.halfgap = self.gap/2
+        self.flow = flow
         super().__init__(**kwargs)
     
     
@@ -279,3 +287,29 @@ class Core(Anchors, Styles, Events):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        
+        
+_ui4_animation_context_variable = '_ui4_animation_context_variable'
+        
+@contextmanager
+def animation(duration=0.3, ease_func=None):
+    frame = inspect.currentframe().f_back.f_back
+    animation_specs = frame.f_locals.get(_ui4_animation_context_variable, [])
+    animation_specs.append((duration, ease_func))
+    frame.f_locals[_ui4_animation_context_variable] = animation_specs
+
+    yield
+    
+    animation_specs.pop()
+    if not animation_specs:
+        del frame.f_locals[_ui4_animation_context_variable]
+    
+    
+def _current_animation_spec():
+    frame = inspect.currentframe()
+    while frame:
+        animation_specs = frame.f_locals.get(_ui4_animation_context_variable)
+        if animation_specs:
+            return animation_specs[-1]
+        frame = frame.f_back
+    return None
