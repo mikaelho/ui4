@@ -376,7 +376,7 @@ class Anchor:
     def __init__(self,
                  target_view=None,
                  target_attribute=None,
-                 comparison='=',
+                 comparison=None,
                  source_view=None,
                  source_attribute=None,
                  multiplier=None,
@@ -404,28 +404,59 @@ class Anchor:
         if type(other) == Anchor:
             self.source_view = other.target_view
             self.source_attribute = other.target_attribute
-            for attribute in "multiplier modifier duration ease_func".split():
+            for attribute in "comparison multiplier modifier duration ease_func".split():
                 setattr(self, attribute, getattr(other, attribute))
         elif isinstance(other, Number):
             self.modifier = other
         else:
             raise TypeError("Invalid value in Anchor comparison, should be Anchor or Number", other)
 
+    def __eq__(self, other):
+        self._update_from(other)
+        self.comparison = "="
+        return self
+        
+    @prop
+    def eq(self, *other):
+        if other:
+            return self.__eq__(other[0])
+        else:
+            self.comparison = self.comparison or '='
+            return self
+
     def __gt__(self, other):
         self._update_from(other)
-        self.comparison = ">"
+        self.comparison = '>'
         return self
 
-    def __ge__(self, other):
-        return self.__gt__(other)
+    __ge__ = __gt__
+                        
+    @prop
+    def gt(self, *other):
+        if other:
+            return self.__gt__(other[0])
+        else:
+            self.comparison = self.comparison or '>'
+            return self
+        
+    ge = gt
 
     def __lt__(self, other):
         self._update_from(other)
-        self.comparison = "<"
+        self.comparison = '<'
         return self
-
-    def __le__(self, other):
-        return self.__lt__(other)
+        
+    __le__ = __lt__
+        
+    @prop
+    def lt(self, *other):
+        if other:
+            return self.__lt__(other[0])
+        else:
+            self.comparison = self.comparison or '<'
+            return self
+        
+    le = lt
 
     def clear(self):
         # for comparisons in self.target_view._constraints.values():

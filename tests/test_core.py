@@ -2,7 +2,7 @@ import inspect
 
 import pytest
 
-from core import Anchor
+from ui4.core import Anchor
 from ui4.core import Color
 from ui4.core import Core
 from ui4.core import animation
@@ -100,18 +100,39 @@ class TestAnchors:
 
     def test_anchor_comparisons(self):
         anchor = Anchor(target_view="foo", target_attribute="bar")
+        
+        assert anchor.comparison is None
 
         anchor > 100
         assert anchor.comparison == '>'
         assert anchor.modifier == 100
+        
+        anchor.lt = 200
+        assert anchor.comparison == '<'
+        assert anchor.modifier == 200
 
-        anchor <= Anchor(target_view="true", target_attribute="far", multiplier=5)
+        anchor <= Anchor(target_view="true", target_attribute="far") * 5
+
         assert anchor.target_view == "foo"
         assert anchor.target_attribute == "bar"
         assert anchor.comparison == '<'
         assert anchor.source_view == "true"
         assert anchor.source_attribute == "far"
         assert anchor.multiplier == 5
+        
+        anchor.gt = Anchor(
+            target_view="shoe", 
+            target_attribute="car", 
+            duration=0.5
+        ) + 16
+        
+        assert anchor.target_view == "foo"
+        assert anchor.target_attribute == "bar"
+        assert anchor.comparison == '>'
+        assert anchor.source_view == "shoe"
+        assert anchor.source_attribute == "car"
+        assert anchor.modifier == 16
+        assert anchor.duration == 0.5
 
     def test_anchors_init(self):
         view = Core()
