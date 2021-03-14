@@ -177,17 +177,6 @@ class Render(Hierarchy):
         return f
 
 
-class Anchors(Render):
-    
-    default_gap = 8
-    
-    def __init__(self, gap=None, flow=False, **kwargs):
-        self.gap = self.default_gap if gap is None else gap
-        self.halfgap = self.gap/2
-        self.flow = flow
-        super().__init__(**kwargs)
-    
-
 class Events(Render):
     """
     Class for the mechanics of defining and responding to UI events.
@@ -373,6 +362,17 @@ class Props(Events):
                 value, css_true_value,
             )()
         )
+
+
+class Anchors(Render):
+    
+    default_gap = 8
+    
+    def __init__(self, gap=None, flow=False, **kwargs):
+        self.gap = self.default_gap if gap is None else gap
+        self.halfgap = self.gap/2
+        self.flow = flow
+        super().__init__(**kwargs)
 
 
 class Core(Anchors, Props):
