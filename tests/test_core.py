@@ -2,6 +2,7 @@ import inspect
 
 import pytest
 
+from core import Anchor
 from ui4.core import Color
 from ui4.core import Core
 from ui4.core import animation
@@ -10,14 +11,19 @@ from ui4.core import _animation_context
 
 class TestIdentity:
 
-    def test_identity(self):
+    def test_identity(self, is_view_id):
         view1 = Core()
         view2 = Core()
+
+        class NotView:
+            id = 'foobar'
     
-        assert view1.id == 'id1'
-        assert view2.id == 'id2'
-    
-        assert Core.views['id2'] == view2
+        assert NotView().id != is_view_id
+        assert view1.id == is_view_id
+        assert view2.id == is_view_id
+        assert view1.id != view2.id
+
+        assert Core.views[view2.id] == view2
 
 
 class TestHierarchy:
@@ -74,8 +80,40 @@ class TestRender:
     
     
 class TestAnchors:
-    
-    def test_anchor_init(self):
+
+    def test_anchor_as_dict(self, is_view_id):
+        view = Core()
+        anchor = Anchor(target_view=view, target_attribute='bar')
+
+        assert anchor.as_dict() == {
+            'target_view': is_view_id,
+            'target_attribute': 'bar',
+            'comparison': '=',
+        }
+
+    def test_anchor_multipliers_and_modifiers(self):
+        anchor = Anchor()
+        anchor * 12 / 4 + 3 - 1
+
+        assert anchor.multiplier == 3
+        assert anchor.modifier == 2
+
+    def test_anchor_comparisons(self):
+        anchor = Anchor(target_view="foo", target_attribute="bar")
+
+        anchor > 100
+        assert anchor.comparison == '>'
+        assert anchor.modifier == 100
+
+        anchor <= Anchor(target_view="true", target_attribute="far", multiplier=5)
+        assert anchor.target_view == "foo"
+        assert anchor.target_attribute == "bar"
+        assert anchor.comparison == '<'
+        assert anchor.source_view == "true"
+        assert anchor.source_attribute == "far"
+        assert anchor.multiplier == 5
+
+    def test_anchors_init(self):
         view = Core()
         assert view.halfgap == 4
 

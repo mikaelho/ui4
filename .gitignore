@@ -1,0 +1,6 @@
+.DS_Store
+.idea
+ui4/.DS_Store
+ui4/__pycache__/
+ui4/lib/__pycache__/
+venv

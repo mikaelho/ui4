@@ -6,6 +6,7 @@ import inspect
 
 from contextlib import contextmanager
 from functools import partial
+from numbers import Number
 from pathlib import Path
 from string import Template
 from types import GeneratorType
@@ -150,7 +151,7 @@ class Render(Hierarchy):
         ])
          
         template = Template(
-            Path(f'ui4/static/{self._render_template}').read_text()
+            (Path(__file__).parent / "static" / self._render_template).read_text()
         )
         return self._render_result(rendered_attributes, htmx_oob, rendered_children, template)
         
@@ -176,6 +177,111 @@ class Render(Hierarchy):
         cls._renderers.append(f)
         return f
 
+
+class Anchor:
+    """
+    Utility class that holds the information about a single anchor.
+
+    "Anchor" refers to a single view size & position parameter, like view.width or view.left.
+    """
+    def __init__(self,
+                 target_view=None,
+                 target_attribute=None,
+                 comparison='=',
+                 source_view=None,
+                 source_attribute=None,
+                 multiplier=None,
+                 modifier=None,
+                 duration=None,
+                 ease_func=None):
+        self.target_view = target_view
+        self.target_attribute = target_attribute
+        self.comparison = comparison
+        self.source_view = source_view
+        self.source_attribute = source_attribute
+        self.multiplier = multiplier
+        self.modifier = modifier
+        self.duration = duration
+        self.ease_func = ease_func
+
+    def as_dict(self):
+        return {
+            key: getattr(value, "id", value)
+            for key, value in self.__dict__.items()
+            if value is not None
+        }
+
+    def _update_from(self, other):
+        if type(other) == Anchor:
+            self.source_view = other.target_view
+            self.source_attribute = other.target_attribute
+            for attribute in "multiplier modifier duration ease_func".split():
+                setattr(self, attribute, getattr(other, attribute))
+        elif isinstance(other, Number):
+            self.modifier = other
+        else:
+            raise TypeError("Invalid value in Anchor comparison, should be Anchor or Number", other)
+
+    def __gt__(self, other):
+        self._update_from(other)
+        self.comparison = ">"
+        return self
+
+    def __ge__(self, other):
+        return self.__gt__(other)
+
+    def __lt__(self, other):
+        self._update_from(other)
+        self.comparison = "<"
+        return self
+
+    def __le__(self, other):
+        return self.__lt__(other)
+
+    def clear(self):
+        # for comparisons in self.target_view._constraints.values():
+        #    comparisons.pop(self.attribute, None)
+        ...
+
+    def __add__(self, other):
+        if self.modifier is None:
+            self.modifier = other
+        else:
+            self.modifier += other
+        return self
+
+    def __sub__(self, other):
+        if self.modifier is None:
+            self.modifier = -other
+        else:
+            self.modifier -= other
+        return self
+
+    def __mul__(self, other):
+        if self.multiplier is None:
+            self.multiplier = other
+        else:
+            self.multiplier *= other
+        return self
+
+    def __truediv__(self, other):
+        if self.multiplier is None:
+            self.multiplier = 1/other
+        else:
+            self.multiplier /= other
+        return self
+
+
+class Anchors(Render):
+    
+    default_gap = 8
+    
+    def __init__(self, gap=None, flow=False, **kwargs):
+        self.gap = self.default_gap if gap is None else gap
+        self.halfgap = self.gap/2
+        self.flow = flow
+        super().__init__(**kwargs)
+    
 
 class Events(Render):
     """
@@ -285,7 +391,8 @@ class Props(Events):
         ])
         transitions = ",".join([
             f"{css_name} {duration}s {ease_func or 'default-ease'}"
-            for css_name, duration, ease_func in self._transitions
+            for css_name, duration, ease_func
+            in sorted(list(self._transitions), key=lambda value: value[0])
         ])
         self._transitions.clear()
         
