@@ -5,10 +5,15 @@ Contains behind-the-scenes machinery that all views share.
 import inspect
 
 from contextlib import contextmanager
+from functools import partial
 from pathlib import Path
 from string import Template
 from types import GeneratorType
+from types import SimpleNamespace
 from weakref import WeakValueDictionary
+
+from ui4.color import Color
+from ui4.theme import DefaultTheme
 
 
 def prop(func):
@@ -182,12 +187,6 @@ class Anchors(Render):
         self.flow = flow
         super().__init__(**kwargs)
     
-    
-class Styles(Render):
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        
 
 class Events(Render):
     """
@@ -244,20 +243,20 @@ class Events(Render):
 
     def _mark_dirty(self):
         Events._dirties.add(self)
-
+        
     def _render_updates(self):
         roots = set()
 
         # Determine roots of the subtrees that need refreshing
-        for dirty in self._dirties:
+        for dirty in Events._dirties:
             parent = dirty.parent
             while parent:
-                if parent in self._dirties:
+                if parent in Events._dirties:
                     continue
                 parent = parent.parent
             roots.add(dirty)
 
-        self._dirties.clear()
+        Events._dirties.clear()
 
         return "".join([
             root._render(oob=True) for root in roots
@@ -281,7 +280,102 @@ class Events(Render):
         ) if trigger_str else ""
 
 
-class Core(Anchors, Styles, Events):
+class Props(Events):
+    
+    def __init__(self, **kwargs):
+        self._properties = {}
+        self._css_properties = {}
+        self._transitions = set()
+        super().__init__(**kwargs)
+        
+    @Render._register
+    def _render_props(self):
+        styles = ";".join([
+            f"{name}:{value}"
+            for name, value in self._css_properties.items()
+        ])
+        transitions = ",".join([
+            f"{css_name} {duration}s {ease_func or 'default-ease'}"
+            for css_name, duration, ease_func in self._transitions
+        ])
+        self._transitions.clear()
+        
+        return ";transition:".join([
+            styles, transitions,
+        ])
+        
+    def _set_property(
+        self,
+        property_name,
+        property_value,
+        css_name=None,
+        css_value=None
+    ):
+        self._properties[property_name] = property_value
+        if css_name:
+            self._css_properties[css_name] = css_value
+            self._mark_dirty()
+        duration, ease_function = _animation_context() or (None, None)
+        if duration:
+            self._transitions.add((
+                css_name, duration, ease_function,
+            ))
+        
+    def _style_getter(self, attribute):
+        """
+        Note we do not return the CSS value.
+        """
+        return self._properties.get(attribute)
+
+    def _style_setter(self, property_name, css_name, value):
+        css_value = value
+        if type(css_value) in (int, float):
+            css_value = f"{css_value}px"
+        self._set_property(property_name, value, css_name, css_value)
+        
+    def _css_plain_prop(property_name, css_name):
+        return property(
+            lambda self: partial(
+                Props._style_getter, self, property_name,
+            )(),
+            lambda self, value: partial(
+                Props._style_setter, self, property_name, css_name, value,
+            )()
+        )
+        
+    def _style_color_setter(self, property_name, css_name, value):
+        if not type(value) is Color:
+            value = Color(value)
+        css_value = value.css
+        self._set_property(property_name, value, css_name, css_value)
+        
+    def _css_color_prop(property_name, css_name):
+        return property(
+            lambda self: partial(
+                Props._style_getter, self, property_name,
+            )(),
+            lambda self, value: partial(
+                Props._style_color_setter, self, property_name, css_name, value,
+            )()
+        )
+    
+    def _style_bool_setter(self, property_name, css_name, value, true_value):
+        css_value = value and true_value or None
+        self._set_property(property_name, value, css_name, css_value)
+        
+    def _css_bool_prop(property_name, css_name, css_true_value):
+        return property(
+            lambda self: partial(
+                Props._style_getter, self, property_name,
+            )(),
+            lambda self, value: partial(
+                Props._style_bool_setter, self, property_name, css_name,
+                value, css_true_value,
+            )()
+        )
+
+
+class Core(Anchors, Props):
     """
     This class is here simply to collect the different mechanical parts of the core view class for inheritance.
     """
@@ -305,7 +399,7 @@ def animation(duration=0.3, ease_func=None):
         del frame.f_locals[_ui4_animation_context_variable]
     
     
-def _current_animation_spec():
+def _animation_context():
     frame = inspect.currentframe()
     while frame:
         animation_specs = frame.f_locals.get(_ui4_animation_context_variable)
@@ -313,3 +407,4 @@ def _current_animation_spec():
             return animation_specs[-1]
         frame = frame.f_back
     return None
+

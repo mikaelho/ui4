@@ -7,5 +7,11 @@ from pathlib import Path
 import pytest
 
 
-pytest.main(["-p", "no:faulthandler", "-v", "-rfE", str(Path(__file__).parent / "tests")])
+pytest.main([
+    "-p", "no:faulthandler",
+    "-v",
+    "-rfE",
+    "--disable-warnings", 
+    str(Path(__file__).parent / "tests")
+])
 

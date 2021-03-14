@@ -1,5 +1,4 @@
 #coding: utf-8
-# from ui4.lib.webcolor import *
 from webcolors import *
 
 def prop(func):
@@ -137,8 +136,8 @@ class Color(list):
                        high_brightness_color='white'):
         r, g, b, a = self
         return Color(low_brightness_color) if (
-            (r * 255 * 299 + g * 255 * 587 + b * 255 * 114) /
-            1000) > 150 else Color(high_brightness_color)
+            ((r * 255 * 299 + g * 255 * 587 + b * 255 * 114) / 1000) > 150
+        ) else Color(high_brightness_color)
 
 
 def parse(cls, *args, alpha=None):
