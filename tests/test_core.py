@@ -83,12 +83,12 @@ class TestAnchors:
 
     def test_anchor_as_dict(self, is_view_id):
         view = Core()
-        anchor = Anchor(target_view=view, target_attribute='bar')
+        anchor = Anchor(target_view=view, target_attribute='bar', modifier=16)
 
         assert anchor.as_dict() == {
-            'target_view': is_view_id,
-            'target_attribute': 'bar',
-            'comparison': '=',
+            'a0': is_view_id,
+            'a1': 'bar',
+            'a6': 16
         }
 
     def test_anchor_multipliers_and_modifiers(self):

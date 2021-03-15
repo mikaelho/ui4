@@ -372,6 +372,11 @@ class Anchor:
 
     "Anchor" refers to a single view size & position parameter, like view.width or view.left.
     """
+    
+    key_order = (
+        "target_view target_attribute comparison "
+        "source_view source_attribute multiplier modifier duration ease_func"
+    ).split()
 
     def __init__(self,
                  target_view=None,
@@ -394,11 +399,16 @@ class Anchor:
         self.ease_func = ease_func
 
     def as_dict(self):
-        return {
-            key: getattr(value, "id", value)
-            for key, value in self.__dict__.items()
-            if value is not None
-        }
+        """
+        Returns anchor values where defined, with shortened keys.
+        """
+        d = {}
+        for i, key in enumerate(self.key_order):
+            value = getattr(self, key)
+            if not value is None:
+                value = getattr(value, "id", value)
+                d[f'a{i}'] = value
+        return d
 
     def _update_from(self, other):
         if type(other) == Anchor:
@@ -493,6 +503,7 @@ class Anchor:
 
 
 class Anchors(Render):
+    
     default_gap = 8
 
     def __init__(self, gap=None, flow=False, **kwargs):
@@ -500,6 +511,80 @@ class Anchors(Render):
         self.halfgap = self.gap / 2
         self.flow = flow
         super().__init__(**kwargs)
+
+    def _anchor_getter(self, attribute):
+        return Anchor(target_view=self, target_attribute=attribute)
+
+    def _anchor_setter(self, attribute, value):
+        self._mark_dirty()
+        if isinstance(value, Number):
+            value = Anchor(modifier=value)
+        if type(value) is Anchor:
+            anim_context = _animation_context()
+            if anim_context:
+                value.duration, value.ease_func = anim_context
+            comparisons = self._constraints[value.comparison]
+            if value.comparison == '=':
+                comparisons[attribute] = [value]
+            else:
+                comparisons.setdefault(attribute, list()).append(value)
+            for checklist in (
+                set('left right center_x width'.split()),
+                set('top bottom center_y height'.split()),
+            ):
+                constraints = set(self._constraints.keys()).intersection(checklist)
+                if len(constraints) > 2:
+                    raise RuntimeError(
+                        f'Too many constraints in one dimension: {constraints}'
+                    )
+        else:
+            raise TypeError(f"Cannot set {value} as {attribute}")
+
+    def anchorprop(attribute):
+        return property(
+            lambda self:
+                partial(_anchor_getter, self, attribute)(),
+            lambda self, value:
+                partial(
+                    _anchor_setter, 
+                    self, 
+                    attribute, 
+                    value,
+                )()
+        )
+    
+# Additional docking attributes are read-only
+    
+def ui4dock(attribute):
+    return property(
+        lambda self:
+            partial(_ui4_getter, self, attribute)()
+    )
+    
+    
+# Multi-attribute property creator
+    
+def _ui4_multiple_getter(self, attributes):
+    return [getattr(self, attribute) for attribute in attributes]
+
+
+def _ui4_multiple_setter(self, attributes, values):
+    for attribute, value in zip(attributes, values):
+        setattr(self, attribute, value)
+
+
+def ui4props(*attributes):
+    return property(
+        lambda self:
+            partial(_ui4_multiple_getter, self, attributes)(),
+        lambda self, value:
+            partial(
+                _ui4_multiple_setter, 
+                self, 
+                attributes, 
+                value,
+            )()
+    )
 
 
 class Core(Anchors, Props):
