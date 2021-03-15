@@ -3,6 +3,7 @@ import inspect
 import pytest
 
 from ui4.core import Anchor
+from ui4.core import Anchors
 from ui4.core import Color
 from ui4.core import Core
 from ui4.core import animation
@@ -138,13 +139,22 @@ class TestAnchors:
         view = Core()
         assert view.halfgap == 4
 
-    def test_basic_anchor_attribute(self):
+    def test_basic_anchor_attributes(self):
         class AnchorCore(Core):
-            center_x = Anchor.anchorprop('center_x')
-            center_y = Anchor.anchorprop('center_y')
-            center = Anchor.anchorprops('center_x', 'center_y')
-            
+            center_x = Anchors.anchorprop('center_x')
+            center_y = Anchors.anchorprop('center_y')
+            center = Anchors.anchorprops('center_x', 'center_y')
+            top_left = Anchors.anchordock('top_left')
 
+        view1 = AnchorCore()
+        view2 = AnchorCore()
+        view3 = AnchorCore()
+
+        view1.center_x = view2.center_x
+
+        view2.center = view1.center
+
+        view3.dock = view1.top_left
     
 class TestEvents:
     

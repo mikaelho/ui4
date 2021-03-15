@@ -3,6 +3,7 @@ Contains behind-the-scenes machinery that all views share.
 """
 
 import inspect
+from collections import Sequence
 
 from contextlib import contextmanager
 from functools import partial
@@ -10,11 +11,10 @@ from numbers import Number
 from pathlib import Path
 from string import Template
 from types import GeneratorType
-from types import SimpleNamespace
 from weakref import WeakValueDictionary
 
+from ui4.constants import PARENT_DOCK_SPECS
 from ui4.color import Color
-from ui4.theme import DefaultTheme
 
 
 def prop(func):
@@ -513,8 +513,7 @@ class Anchors(Render):
         self.gap = self.default_gap if gap is None else gap
         self.halfgap = self.gap / 2
         self.flow = flow
-        
-        self._constraints = {}
+        self._constraints = {'=': {}, '>': {}, '<': {}}
         super().__init__(**kwargs)
 
     def _anchor_getter(self, attribute):
@@ -545,51 +544,89 @@ class Anchors(Render):
         else:
             raise TypeError(f"Cannot set {value} as {attribute}")
 
+    @staticmethod
     def anchorprop(attribute):
         return property(
             lambda self:
-                partial(_anchor_getter, self, attribute)(),
+                partial(Anchors._anchor_getter, self, attribute)(),
             lambda self, value:
                 partial(
-                    _anchor_setter, 
+                    Anchors._anchor_setter,
                     self, 
                     attribute, 
                     value,
                 )()
         )
     
-
     # Additional docking attributes are read-only
+    @staticmethod
     def anchordock(attribute):
         return property(
             lambda self:
-                partial(_anchor_getter, self, attribute)()
+                partial(Anchors._anchor_getter, self, attribute)()
         )
-        
     
     # Multi-attribute property creator
     # e.g. center = center_x + center_y
     def _anchor_multiple_getter(self, attributes):
         return [getattr(self, attribute) for attribute in attributes]
-    
-    
+
     def _anchor_multiple_setter(self, attributes, values):
         for attribute, value in zip(attributes, values):
             setattr(self, attribute, value)
-    
-    
+
+    @staticmethod
     def anchorprops(*attributes):
         return property(
             lambda self:
-                partial(_anchor_multiple_getter, self, attributes)(),
+                partial(Anchors._anchor_multiple_getter, self, attributes)(),
             lambda self, value:
                 partial(
-                    _anchor_multiple_setter, 
-                    self, 
-                    attributes, 
+                    Anchors._anchor_multiple_setter,
+                    self,
+                    attributes,
                     value,
                 )()
         )
+
+    @prop
+    def dock(self, *value):
+        if value:
+            value = value[0]
+            self._dock = value
+            if issubclass(type(value), Sequence) and len(value) == 2:
+                value = value[0]
+                value.attribute = 'center'
+            if not type(value) is Anchor:
+                raise TypeError(f'Dock value must be an Anchor, not {value}')
+            other = value.target_view
+            dock_type = value.target_attribute
+            if dock_type in PARENT_DOCK_SPECS:
+                self.parent = other
+                for attribute in PARENT_DOCK_SPECS[dock_type]:
+                    setattr(self, attribute, getattr(other, attribute))
+            else:
+                self.parent = other.parent
+                if dock_type == 'above':
+                    self.center_x = other.center_x
+                    self.bottom = other.top
+                    self.width = other.width
+                elif dock_type == 'below':
+                    self.center_x = other.center_x
+                    self.top = other.bottom
+                    self.width = other.width
+                elif dock_type == 'left_of':
+                    self.center_y = other.center_y
+                    self.right = other.left
+                    self.height = other.height
+                elif dock_type == 'right_of':
+                    self.center_y = other.center_y
+                    self.left = other.right
+                    self.height = other.height
+                else:
+                    raise ValueError(f'Unknown docking type {dock_type}')
+        else:
+            return self._dock
 
 
 class Core(Anchors, Props):
