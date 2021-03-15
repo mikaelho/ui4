@@ -138,6 +138,13 @@ class TestAnchors:
         view = Core()
         assert view.halfgap == 4
 
+    def test_basic_anchor_attribute(self):
+        class AnchorCore(Core):
+            center_x = Anchor.anchorprop('center_x')
+            center_y = Anchor.anchorprop('center_y')
+            center = Anchor.anchorprops('center_x', 'center_y')
+            
+
     
 class TestEvents:
     

@@ -411,6 +411,9 @@ class Anchor:
         return d
 
     def _update_from(self, other):
+        """
+        Copy values from the other anchor on assignment or comparison.
+        """
         if type(other) == Anchor:
             self.source_view = other.target_view
             self.source_attribute = other.target_attribute
@@ -510,6 +513,8 @@ class Anchors(Render):
         self.gap = self.default_gap if gap is None else gap
         self.halfgap = self.gap / 2
         self.flow = flow
+        
+        self._constraints = {}
         super().__init__(**kwargs)
 
     def _anchor_getter(self, attribute):
@@ -553,38 +558,38 @@ class Anchors(Render):
                 )()
         )
     
-# Additional docking attributes are read-only
-    
-def ui4dock(attribute):
-    return property(
-        lambda self:
-            partial(_ui4_getter, self, attribute)()
-    )
-    
-    
-# Multi-attribute property creator
-    
-def _ui4_multiple_getter(self, attributes):
-    return [getattr(self, attribute) for attribute in attributes]
 
-
-def _ui4_multiple_setter(self, attributes, values):
-    for attribute, value in zip(attributes, values):
-        setattr(self, attribute, value)
-
-
-def ui4props(*attributes):
-    return property(
-        lambda self:
-            partial(_ui4_multiple_getter, self, attributes)(),
-        lambda self, value:
-            partial(
-                _ui4_multiple_setter, 
-                self, 
-                attributes, 
-                value,
-            )()
-    )
+    # Additional docking attributes are read-only
+    def anchordock(attribute):
+        return property(
+            lambda self:
+                partial(_anchor_getter, self, attribute)()
+        )
+        
+    
+    # Multi-attribute property creator
+    # e.g. center = center_x + center_y
+    def _anchor_multiple_getter(self, attributes):
+        return [getattr(self, attribute) for attribute in attributes]
+    
+    
+    def _anchor_multiple_setter(self, attributes, values):
+        for attribute, value in zip(attributes, values):
+            setattr(self, attribute, value)
+    
+    
+    def anchorprops(*attributes):
+        return property(
+            lambda self:
+                partial(_anchor_multiple_getter, self, attributes)(),
+            lambda self, value:
+                partial(
+                    _anchor_multiple_setter, 
+                    self, 
+                    attributes, 
+                    value,
+                )()
+        )
 
 
 class Core(Anchors, Props):
