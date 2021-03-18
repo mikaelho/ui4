@@ -3,7 +3,7 @@ Contains behind-the-scenes machinery that all views share.
 """
 
 import inspect
-from collections import Sequence
+from collections.abc import Sequence
 
 from contextlib import contextmanager
 from functools import partial
@@ -40,7 +40,7 @@ class Identity:
 
     @classmethod
     def __getitem__(cls, item):
-       return Identity.views[item]
+        return Identity.views[item]
 
 
 class Hierarchy(Identity):
@@ -330,7 +330,8 @@ class Props(Events):
         if type(css_value) in (int, float):
             css_value = f"{css_value}px"
         self._set_property(property_name, value, css_name, css_value)
-        
+
+    @staticmethod
     def _css_plain_prop(property_name, css_name):
         return property(
             lambda self: partial(
@@ -346,7 +347,8 @@ class Props(Events):
             value = Color(value)
         css_value = value.css
         self._set_property(property_name, value, css_name, css_value)
-        
+
+    @staticmethod
     def _css_color_prop(property_name, css_name):
         return property(
             lambda self: partial(
@@ -360,7 +362,8 @@ class Props(Events):
     def _style_bool_setter(self, property_name, css_name, value, true_value):
         css_value = value and true_value or None
         self._set_property(property_name, value, css_name, css_value)
-        
+
+    @staticmethod
     def _css_bool_prop(property_name, css_name, css_true_value):
         return property(
             lambda self: partial(
@@ -428,45 +431,19 @@ class Anchor:
                 d[f'a{i}'] = value
         return d
 
-    def _update_from(self, other, comparison):
-        """
-        Copy values from the other anchor on assignment or comparison.
-        """
-        if type(other) == Anchor:
-            self.source_view = other.target_view
-            self.source_attribute = other.target_attribute
-            for attribute in "comparison multiplier modifier duration ease_func".split():
-                setattr(self, attribute, getattr(other, attribute))
-        elif isinstance(other, Number):
-            self.modifier = other
-        else:
-            raise TypeError(
-                "Invalid value in Anchor comparison, need Anchor or Number",
-                other
-            )
-        self.comparison = comparison
-        self.target_view._anchor_setter(self, self.target_attribute, value)
-
     def __eq__(self, other):
         self.target_view._anchor_setter(
-            self,
             self.target_attribute,
             other,
             comparison='='
         )
         return self
-        
-    @prop
-    def eq(self, *other):
-        if other:
-            return self.__eq__(other[0])
-        else:
-            self.comparison = self.comparison or '='
-            return self
+
+    def eq(self, other):
+        return self.__eq__(other)
 
     def __gt__(self, other):
         self.target_view._anchor_setter(
-            self,
             self.target_attribute,
             other,
             comparison='>'
@@ -475,19 +452,13 @@ class Anchor:
 
     __ge__ = __gt__
                         
-    @prop
-    def gt(self, *other):
-        if other:
-            return self.__gt__(other[0])
-        else:
-            self.comparison = self.comparison or '>'
-            return self
+    def gt(self, other):
+        return self.__gt__(other)
         
     ge = gt
 
     def __lt__(self, other):
         self.target_view._anchor_setter(
-            self,
             self.target_attribute,
             other,
             comparison='<'
@@ -496,14 +467,9 @@ class Anchor:
         
     __le__ = __lt__
         
-    @prop
-    def lt(self, *other):
-        if other:
-            return self.__lt__(other[0])
-        else:
-            self.comparison = self.comparison or '<'
-            return self
-        
+    def lt(self, other):
+        return self.__lt__(other)
+
     le = lt
 
     def clear(self):
@@ -540,7 +506,26 @@ class Anchor:
         return self
 
 
-class Anchors(Render):
+def _set_comparison(anchor, comparison):
+    anchor.comparison = comparison
+    return anchor
+
+
+def eq(anchor):
+    return _set_comparison(anchor, '=')
+
+
+def gt(anchor):
+    return _set_comparison(anchor, '>')
+ge = gt
+
+
+def lt(anchor):
+    return _set_comparison(anchor, '<')
+le = lt
+
+
+class Anchors(Events):
     
     default_gap = 8
 
@@ -554,7 +539,7 @@ class Anchors(Render):
     def _anchor_getter(self, attribute):
         return Anchor(target_view=self, target_attribute=attribute)
 
-    def _anchor_setter(self, attribute, value, comparison='='):
+    def _anchor_setter(self, attribute, value, comparison=None):
         self._mark_dirty()
         if isinstance(value, Number):
             value = Anchor(modifier=value)
@@ -563,13 +548,14 @@ class Anchors(Render):
             value.source_attribute = value.target_attribute
             value.target_view = self
             value.target_attribute = attribute
+            value.comparison = comparison or value.comparison or '='
             
             anim_context = _animation_context()
             if anim_context:
                 value.duration, value.ease_func = anim_context
             
-            comparisons = self._constraints[comparison]
-            if comparison == '=':
+            comparisons = self._constraints[value.comparison]
+            if value.comparison == '=':
                 comparisons[attribute] = [value]
             else:
                 comparisons.setdefault(attribute, list()).append(value)

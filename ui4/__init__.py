@@ -1,5 +1,6 @@
 from ui4.app import app, run
 from ui4.button import Button
+from ui4.core import eq, gt, ge, lt, le
 from ui4.flow import FlowContainer
 from ui4.flow import FlowView
 from ui4.flow import GridContainer

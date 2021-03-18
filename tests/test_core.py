@@ -2,13 +2,13 @@ import inspect
 
 import pytest
 
-from ui4.color import Color
+from ui4 import ge
+from ui4 import le
 from ui4.core import Anchor
-from ui4.core import Anchors
 from ui4.core import Core
 from ui4.core import Events
-from ui4.core import animation
 from ui4.core import _animation_context
+from ui4.core import animation
 
 
 class TestIdentity:
@@ -100,42 +100,6 @@ class TestAnchor:
         assert anchor.multiplier == 3
         assert anchor.modifier == 2
 
-    def test_anchor_comparisons(self):
-        anchor = Anchor(target_view="foo", target_attribute="bar")
-        
-        assert anchor.comparison is None
-
-        anchor > 100
-        assert anchor.comparison == '>'
-        assert anchor.modifier == 100
-        
-        anchor.lt = 200
-        assert anchor.comparison == '<'
-        assert anchor.modifier == 200
-
-        anchor <= Anchor(target_view="true", target_attribute="far") * 5
-
-        assert anchor.target_view == "foo"
-        assert anchor.target_attribute == "bar"
-        assert anchor.comparison == '<'
-        assert anchor.source_view == "true"
-        assert anchor.source_attribute == "far"
-        assert anchor.multiplier == 5
-        
-        anchor.gt = Anchor(
-            target_view="shoe", 
-            target_attribute="car", 
-            duration=0.5
-        ) + 16
-        
-        assert anchor.target_view == "foo"
-        assert anchor.target_attribute == "bar"
-        assert anchor.comparison == '>'
-        assert anchor.source_view == "shoe"
-        assert anchor.source_attribute == "car"
-        assert anchor.modifier == 16
-        assert anchor.duration == 0.5
-
 
 class TestAnchorProperties:
 
@@ -181,24 +145,51 @@ class TestAnchorProperties:
         assert left_anchor.source_view == view1
         assert left_anchor.source_attribute == 'left'
         
-    def test_anchors_relative(self, anchor_view):
+    def test_anchors_gt(self, anchor_view):
         view1 = anchor_view()
         view2 = anchor_view()
         view3 = anchor_view()
         view4 = anchor_view()
     
-        view2.left > view1.center_x
-        view3.left = view1.center_x.gt
-        view4.left.gt = view1.center_x
-        
-        print(view2._constraints)
-        print(view3._constraints)
-        print(view4._constraints)
+        view2.left.gt(view1.center_x)
+        view3.left = ge(view1.center_x)
+        view4.left > view1.center_x  # noqa: Optional syntactic sugar (or poison)
+
         view2_left = view2._constraints['>']['left'][0]
         view3_left = view3._constraints['>']['left'][0]
         view4_left = view4._constraints['>']['left'][0]
         assert view2_left == view3_left == view4_left
-        
+
+    def test_anchors_lt(self, anchor_view):
+        view1 = anchor_view()
+        view2 = anchor_view()
+        view3 = anchor_view()
+        view4 = anchor_view()
+
+        view2.left.lt(view1.center_x)
+        view3.left = le(view1.center_x)
+        view4.left < view1.center_x  # noqa: Optional syntactic sugar (or poison)
+
+        view2_left = view2._constraints['<']['left'][0]
+        view3_left = view3._constraints['<']['left'][0]
+        view4_left = view4._constraints['<']['left'][0]
+        assert view2_left == view3_left == view4_left
+
+    def test_anchors_eq(self, anchor_view):
+        view1 = anchor_view()
+        view2 = anchor_view()
+        view3 = anchor_view()
+        view4 = anchor_view()
+
+        view2.left.eq(view1.center_x)
+        view3.left = view1.center_x
+        view4.left == view1.center_x  # noqa: Optional syntactic sugar (or poison)
+
+        view2_left = view2._constraints['=']['left'][0]
+        view3_left = view3._constraints['=']['left'][0]
+        view4_left = view4._constraints['=']['left'][0]
+        assert view2_left == view3_left == view4_left
+
     
 class TestEvents:
     
@@ -214,12 +205,9 @@ class TestEvents:
         def on_click(data):
             pass
             
-        assert inspect.isfunction(view.on_click)
-        assert (
-            view._render_events() == \
-            "hx-post='/event' hx-trigger='click'"
-        )
-        
+        assert inspect.isfunction(view.on_click)  # noqa: Too clever for PyCharm
+        assert view._render_events() == "hx-post='/event' hx-trigger='click'"
+
     def test_get_roots(self):
         Events._dirties = set()
         
