@@ -2,10 +2,11 @@ import inspect
 
 import pytest
 
+from ui4.color import Color
 from ui4.core import Anchor
 from ui4.core import Anchors
-from ui4.core import Color
 from ui4.core import Core
+from ui4.core import Events
 from ui4.core import animation
 from ui4.core import _animation_context
 
@@ -80,7 +81,7 @@ class TestRender:
             assert view_id in render_result
     
     
-class TestAnchors:
+class TestAnchor:
 
     def test_anchor_as_dict(self, is_view_id):
         view = Core()
@@ -135,26 +136,69 @@ class TestAnchors:
         assert anchor.modifier == 16
         assert anchor.duration == 0.5
 
+
+class TestAnchorProperties:
+
     def test_anchors_init(self):
         view = Core()
         assert view.halfgap == 4
 
-    def test_basic_anchor_attributes(self):
-        class AnchorCore(Core):
-            center_x = Anchors.anchorprop('center_x')
-            center_y = Anchors.anchorprop('center_y')
-            center = Anchors.anchorprops('center_x', 'center_y')
-            top_left = Anchors.anchordock('top_left')
+    def test_anchors_basic(self, anchor_view):
+        view1 = anchor_view()
+        view2 = anchor_view()
+        
+        empty_constraints = {'=': {}, '>': {}, '<': {}}
+        assert view1._constraints == empty_constraints
 
-        view1 = AnchorCore()
-        view2 = AnchorCore()
-        view3 = AnchorCore()
-
-        view1.center_x = view2.center_x
+        view1.center_x = view2.left
+        anchor = view1._constraints['=']['center_x'][0]
+        assert type(anchor) == Anchor
+        assert anchor.target_view == view1
+        assert anchor.target_attribute == 'center_x'
+        assert anchor.source_view == view2
+        assert anchor.source_attribute == 'left'
+        
+    def test_anchors_combo(self, anchor_view):
+        view1 = anchor_view()
+        view2 = anchor_view()
 
         view2.center = view1.center
+        
+        assert view2._constraints['=']['center_x'][0].source_attribute == 'center_x'
+        assert view2._constraints['=']['center_y'][0].source_attribute == 'center_y'
 
-        view3.dock = view1.top_left
+    def test_anchors_dock(self, anchor_view):
+        view1 = anchor_view()
+        view2 = anchor_view()
+        
+        view2.dock = view1.top_left
+        assert view2.parent == view1
+        
+        top_anchor = view2._constraints['=']['top'][0]
+        assert top_anchor.source_view == view1
+        assert top_anchor.source_attribute == 'top'
+        left_anchor = view2._constraints['=']['left'][0]
+        assert left_anchor.source_view == view1
+        assert left_anchor.source_attribute == 'left'
+        
+    def test_anchors_relative(self, anchor_view):
+        view1 = anchor_view()
+        view2 = anchor_view()
+        view3 = anchor_view()
+        view4 = anchor_view()
+    
+        view2.left > view1.center_x
+        view3.left = view1.center_x.gt
+        view4.left.gt = view1.center_x
+        
+        print(view2._constraints)
+        print(view3._constraints)
+        print(view4._constraints)
+        view2_left = view2._constraints['>']['left'][0]
+        view3_left = view3._constraints['>']['left'][0]
+        view4_left = view4._constraints['>']['left'][0]
+        assert view2_left == view3_left == view4_left
+        
     
 class TestEvents:
     
@@ -175,6 +219,24 @@ class TestEvents:
             view._render_events() == \
             "hx-post='/event' hx-trigger='click'"
         )
+        
+    def test_get_roots(self):
+        Events._dirties = set()
+        
+        view1 = Core()
+        view2 = Core(parent=view1)
+        view3 = Core(parent=view2)
+        view4 = Core(parent=view1)
+        
+        assert Core._get_roots() == set()
+        view4._mark_dirty()
+        assert Core._get_roots() == {view4}
+        view3._mark_dirty()
+        assert Core._get_roots() == {view3, view4}
+        view2._mark_dirty()
+        assert Core._get_roots() == {view2, view4}
+        view1._mark_dirty()
+        assert Core._get_roots() == {view1}
 
     def test_event_generator(self):
         view = Core()

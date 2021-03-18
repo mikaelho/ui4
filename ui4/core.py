@@ -40,7 +40,7 @@ class Identity:
 
     @classmethod
     def __getitem__(cls, item):
-        return Identity.views[item]
+       return Identity.views[item]
 
 
 class Hierarchy(Identity):
@@ -235,22 +235,29 @@ class Events(Render):
         Events._dirties.add(self)
         
     def _render_updates(self):
-        roots = set()
+        roots = self._get_roots()
+        Events._dirties.clear()
 
-        # Determine roots of the subtrees that need refreshing
+        return "".join([
+            root._render(htmx_oob=True) for root in roots
+        ])
+    
+    @staticmethod    
+    def _get_roots():    
+        """
+        Get root views of the subtrees that need refreshing.
+        """
+        roots = set()
         for dirty in Events._dirties:
             parent = dirty.parent
             while parent:
                 if parent in Events._dirties:
-                    continue
+                    break
                 parent = parent.parent
-            roots.add(dirty)
+            else:
+                roots.add(dirty)
+        return roots
 
-        Events._dirties.clear()
-
-        return "".join([
-            root._render(oob=True) for root in roots
-        ])
         
     @Render._register
     def _render_events(self):
@@ -398,6 +405,17 @@ class Anchor:
         self.duration = duration
         self.ease_func = ease_func
 
+    def __repr__(self):
+        items = ", ".join([
+            f"{key}: {getattr(value, 'id', value)}"
+            for key, value in zip(
+                self.key_order,
+                [getattr(self, key2) for key2 in self.key_order]
+            )
+            if value is not None
+        ])
+        return f"<{self.__class__.__name__} ({items})>"
+
     def as_dict(self):
         """
         Returns anchor values where defined, with shortened keys.
@@ -410,7 +428,7 @@ class Anchor:
                 d[f'a{i}'] = value
         return d
 
-    def _update_from(self, other):
+    def _update_from(self, other, comparison):
         """
         Copy values from the other anchor on assignment or comparison.
         """
@@ -422,11 +440,20 @@ class Anchor:
         elif isinstance(other, Number):
             self.modifier = other
         else:
-            raise TypeError("Invalid value in Anchor comparison, should be Anchor or Number", other)
+            raise TypeError(
+                "Invalid value in Anchor comparison, need Anchor or Number",
+                other
+            )
+        self.comparison = comparison
+        self.target_view._anchor_setter(self, self.target_attribute, value)
 
     def __eq__(self, other):
-        self._update_from(other)
-        self.comparison = "="
+        self.target_view._anchor_setter(
+            self,
+            self.target_attribute,
+            other,
+            comparison='='
+        )
         return self
         
     @prop
@@ -438,8 +465,12 @@ class Anchor:
             return self
 
     def __gt__(self, other):
-        self._update_from(other)
-        self.comparison = '>'
+        self.target_view._anchor_setter(
+            self,
+            self.target_attribute,
+            other,
+            comparison='>'
+        )
         return self
 
     __ge__ = __gt__
@@ -455,8 +486,12 @@ class Anchor:
     ge = gt
 
     def __lt__(self, other):
-        self._update_from(other)
-        self.comparison = '<'
+        self.target_view._anchor_setter(
+            self,
+            self.target_attribute,
+            other,
+            comparison='<'
+        )
         return self
         
     __le__ = __lt__
@@ -519,19 +554,26 @@ class Anchors(Render):
     def _anchor_getter(self, attribute):
         return Anchor(target_view=self, target_attribute=attribute)
 
-    def _anchor_setter(self, attribute, value):
+    def _anchor_setter(self, attribute, value, comparison='='):
         self._mark_dirty()
         if isinstance(value, Number):
             value = Anchor(modifier=value)
         if type(value) is Anchor:
+            value.source_view = value.target_view
+            value.source_attribute = value.target_attribute
+            value.target_view = self
+            value.target_attribute = attribute
+            
             anim_context = _animation_context()
             if anim_context:
                 value.duration, value.ease_func = anim_context
-            comparisons = self._constraints[value.comparison]
-            if value.comparison == '=':
+            
+            comparisons = self._constraints[comparison]
+            if comparison == '=':
                 comparisons[attribute] = [value]
             else:
                 comparisons.setdefault(attribute, list()).append(value)
+            
             for checklist in (
                 set('left right center_x width'.split()),
                 set('top bottom center_y height'.split()),
