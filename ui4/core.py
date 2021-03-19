@@ -14,7 +14,7 @@ from string import Template
 from types import GeneratorType
 from weakref import WeakValueDictionary
 
-from ui4.constants import PARENT_DOCK_SPECS
+import ui4.constants as constants
 from ui4.color import Color
 
 
@@ -385,7 +385,7 @@ class Anchor:
     """
     
     key_order = (
-        "target_view target_attribute comparison "
+        "target_attribute comparison "
         "source_view source_attribute multiplier modifier duration ease_func"
     ).split()
 
@@ -638,9 +638,9 @@ class Anchors(Events):
                 raise TypeError(f'Dock value must be an Anchor, not {value}')
             other = value.target_view
             dock_type = value.target_attribute
-            if dock_type in PARENT_DOCK_SPECS:
+            if dock_type in constants.PARENT_DOCK_SPECS:
                 self.parent = other
-                for attribute in PARENT_DOCK_SPECS[dock_type]:
+                for attribute in constants.PARENT_DOCK_SPECS[dock_type]:
                     setattr(self, attribute, getattr(other, attribute))
             else:
                 self.parent = other.parent
@@ -704,7 +704,7 @@ class Core(Anchors, Props):
 _ui4_animation_context_variable = '_ui4_animation_context_variable'
         
 @contextmanager
-def animation(duration=0.3, ease_func=None):
+def animation(duration=0.3, ease_func=constants.ANIMATION_LINEAR):
     frame = inspect.currentframe().f_back.f_back
     animation_specs = frame.f_locals.get(_ui4_animation_context_variable, [])
     animation_specs.append((duration, ease_func))

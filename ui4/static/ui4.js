@@ -25,7 +25,7 @@
   
   // If true, set target to source
   const comparisons = {
-    "=": (a, b) => a != b,
+    "=": (a, b) => a !== b,
     "<": (a, b) => a >= b,
     ">": (a, b) => a <= b
   };
@@ -131,11 +131,7 @@
     
   function checkAllDependencies() {
     for (const [targetId, dependencies] of Object.entries(allDependencies)) {
-      // Only apply the final value per property
-      let finalValues = {};
-      
-      checkAttribute(targetId, dependencies, finalValues)
-      
+      let finalValues = checkAttribute(targetId, dependencies);
       // Apply the final value for each attribute
       for (const [targetAttr, data] of Object.entries(finalValues)) {
         setValue[targetAttr](data.context, data.sourceValue);
@@ -146,17 +142,24 @@
   
   function checkAnimationDependencies() {
     for (const [targetId, dependencies] of Object.entries(animatedDependencies)) {
-      
-      let values = {};
-      checkAttribute(targetId, dependencies, values)
+
+      let values = checkAttribute(targetId, dependencies);
       
       dependencies.forEach((dependency, index) => {
         let data = values[dependency.targetAttr];
+        let from = {};
+        from[dependency.targetAttr] = data.targetValue;
+        let to = {};
+        to[dependency.targetAttr] = data.sourceValue;
+
+        let animation = data.targetElem.animate(
+         [from, to],
+         {duration: dependency.duration, easing: dependency.easeFunc}
+        );
+        setValue[dependency.targetAttr](data.context, data.sourceValue);
         let currentValue;
         const currentTime = Date.now();
-        //console.log(currentTime - dependency.readyBy);
         if (currentTime >= dependency.readyBy) {
-          //console.log("done");
           currentValue = data.sourceValue;
           delete dependencies[index];
           if (allDependencies[dependency.targetId]) {
@@ -168,9 +171,8 @@
         } else {
           const progress = (currentTime - dependency.previousTime)/(dependency.readyBy - dependency.previousTime);
           dependency.previousTime = currentTime;
-          //console.log(progress);
           let previousValue = latestValues[dependency.targetId + "." + dependency.targetAttr];
-          if (previousValue == undefined) {
+          if (previousValue === undefined) {
             previousValue = data.targetValue;
           }
           currentValue = previousValue + (data.sourceValue - previousValue) * progress;
@@ -180,28 +182,25 @@
       });
       
       if (Object.keys(animatedDependencies).length) {
-        //console.log("check again"); 
         requestAnimationFrame(checkAnimationDependencies);
       }
     }
   }
       
-  function checkAttribute(targetId, dependencies, values) {
+  function checkAttribute(targetId, dependencies) {
+    let values = {};
+
     dependencies.forEach( dependency => {
       //console.log(JSON.stringify(dependency));
       let sourceElem = document.getElementById(dependency.sourceId);
-      //console.log(targetId);
       let targetElem = document.getElementById(targetId);
-      let targetStyle = window.getComputedStyle(targetElem);
-      
       let sourceValue;
       let contained = false;
       
-      if (dependency.sourceId === CONSTANT) {
-        sourceValue = dependency.constant;
+      if (dependency.sourceId === undefined) {
+        sourceValue = dependency.modifier;
       }
       else {
-        let sourceStyle = window.getComputedStyle(sourceElem);
         contained = targetElem.parentElement === sourceElem;
 
         let sourceContext = {
@@ -215,6 +214,7 @@
       
       let targetContext = {
         dependencies: dependencies,
+        targetElem: targetElem,
         getStyle: window.getComputedStyle(targetElem),
         style: targetElem.style,
         parentStyle: window.getComputedStyle(targetElem.parentElement),
@@ -224,22 +224,26 @@
 
       let sourceType = attrType[dependency.sourceAttr];
       let targetType = attrType[dependency.targetAttr];
-      if (dependency.operator) {
-        sourceValue = operators[dependency.operator](sourceValue, dependency.constant);
+
+      if (dependency.multiplier !== undefined) {
+        sourceValue = sourceValue * dependency.multiplier;
       }
-      else if (contained) {
+
+      let modifier = dependency.modifier !== undefined ? dependency.modifier : gap;
+
+      if (contained) {
         if (sourceType === LEADING && targetType === LEADING) {
-          sourceValue += gap;
+          sourceValue += modifier;
         }
         else if (sourceType === TRAILING && targetType === TRAILING) {
-          sourceValue -= gap;
+          sourceValue -= modifier;
         }
       } else {
         if (sourceType === LEADING && targetType === TRAILING) {
-          sourceValue -= gap;
+          sourceValue -= modifier;
         }
         else if (sourceType === TRAILING && targetType === LEADING) {
-          sourceValue += gap;
+          sourceValue += modifier;
         }
       }
 
@@ -248,9 +252,11 @@
           targetValue: targetValue,
           sourceValue: sourceValue,
           context: targetContext
-        }
+        };
       }
     });
+
+    return values;
   }
 
   function setDependencies(node) {
@@ -266,7 +272,7 @@
       specs.forEach( (spec) => {
         let dependency = parseSpec(spec, targetId);
         if (dependency) {
-          if (spec.includes("|")) {
+          if (spec.duration) {
             animDependencies.push(dependency);
           } else {
             dependencies.push(dependency);
@@ -283,71 +289,21 @@
       }
     }
   }
-      
+
+  const constraintKeys = "targetAttr comparison sourceId sourceAttr multiplier modifier duration easeFunc";
+  const constraintMapping = constraintKeys.split(" ");
+
   function parseSpec(spec, targetId) {
-    let previousTime = undefined;
-    let readyBy = undefined;
-    
-    let subSpecs = spec.split("|");
-    if (subSpecs.length == 2) {
-      const duration = parseFloat(subSpecs[1]);
-      previousTime = Date.now();
-      readyBy = previousTime + duration * 1000;
-      spec = subSpecs[0];
-    }
-    
-    const mainRegex = /([^=<>]+)([=<>])(.+)/;
-    //let tokens = spec.split(/(\W)/);
-    let tokens = mainRegex.exec(spec);
-    if (!tokens || tokens.length != 4) {
-      console.error("Cannot parse:", spec, " - tokens:", tokens);
-      return;
-    }
-    let targetAttr = tokens[1];
-    let comparison = tokens[2];
-    let sourceSpec = tokens[3];
-    let sourceId, sourceAttr, constant, operator, modifier;
-    
-    if (isNaN(sourceSpec)) {
-      const sourceRegex = /([^\.]+)[\.]([^\+\-\/\*\%]+)([\+\-\/\*\%]?)(.*)/;
-      let specTokens = sourceRegex.exec(sourceSpec);
-      if (!specTokens || specTokens.length < 3) {
-        console.error("Cannot parse source spec", spec);
-        return;
+    let parsedSpec = {targetId: targetId};
+
+    constraintMapping.forEach((key, index) => {
+      const value = spec["a" + index];
+      if (value !== undefined) {
+        parsedSpec[key] = value;
       }
-      sourceId = specTokens[1];
-      sourceAttr = specTokens[2];
-      if (specTokens.length == 4) {
-        console.error("Missing modifier value", spec);
-        return;
-      }
-      if (specTokens.length == 5) {
-        operator = specTokens[3];
-        if (isNaN(specTokens[4])) {
-          console.error("Modifier is not a number", spec);
-          return;
-        }
-        constant = parseFloat(specTokens[4]);
-      } else {
-        operator = false;
-        constant = 0;
-      }
-    } else {
-      constant = parseFloat(sourceSpec);
-      sourceId = CONSTANT; 
-      sourceAttr = null;
-    }
-    return {
-      targetId: targetId,
-      targetAttr: targetAttr,
-      comparison: comparison,
-      sourceId: sourceId, 
-      sourceAttr: sourceAttr,
-      operator: operator,
-      constant: constant,
-      previousTime: previousTime,
-      readyBy: readyBy
-    };
+    });
+
+    return parsedSpec;
   }
   
   function setTransitionHandlers(node) {
@@ -363,7 +319,7 @@
       function (evt) {
         if (this.id) {
           transitioning[this.id] -= 1;
-          if (transitioning[this.id] == 0) {
+          if (transitioning[this.id] === 0) {
             console.log(this.id + "." + evt.propertyName + " complete");
             checkAnimationStepComplete(this.id);
           }
@@ -375,8 +331,8 @@
     const transitionState = transitioning[nodeId];
     const animationState = animatedDependencies[nodeId];
     
-    const transitionsComplete = (transitionState == undefined || transitionState == 0);
-    const animationsComplete = (animationState == undefined || animationState.length == 0);
+    const transitionsComplete = (transitionState === undefined || transitionState === 0);
+    const animationsComplete = (animationState === undefined || animationState.length === 0);
     
     if (transitionsComplete && animationsComplete) {
       const elem = document.getElementById(nodeId);

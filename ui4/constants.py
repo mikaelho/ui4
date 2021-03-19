@@ -17,3 +17,8 @@ PARENT_DOCK_SPECS = {
     'all': ('top', 'left', 'right', 'bottom'),
 }
 
+ANIMATION_LINEAR = 'linear'
+ANIMATION_EASE = 'ease'
+ANIMATION_EASE_IN = 'ease-in'
+ANIMATION_EASE_OUT = 'ease-out'
+ANIMATION_EASE_IN_OUT = 'ease-in-out'

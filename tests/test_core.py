@@ -88,9 +88,8 @@ class TestAnchor:
         anchor = Anchor(target_view=view, target_attribute='bar', modifier=16)
 
         assert anchor.as_dict() == {
-            'a0': view.id,
-            'a1': 'bar',
-            'a6': 16
+            'a0': 'bar',
+            'a5': 16
         }
         
     def test_anchor_as_json(self):
@@ -103,8 +102,7 @@ class TestAnchor:
             ease_func='ease-in'
         )
         
-        assert (anchor.as_json() == 
-        f'{{"a0":"{view.id}","a1":"bar","a5":2,"a7":0.5,"a8":"ease-in"}}')
+        assert (anchor.as_json() == f'{{"a0":"bar","a4":2,"a6":0.5,"a7":"ease-in"}}')
 
     def test_anchor_multipliers_and_modifiers(self):
         anchor = Anchor()
@@ -211,11 +209,11 @@ class TestEvents:
         
         with pytest.raises(ValueError):
             @view
-            def on_nonexistent_event(data):
+            def on_nonexistent_event(_):
                 pass
                 
         @view
-        def on_click(data):
+        def on_click(_):
             pass
             
         assert inspect.isfunction(view.on_click)  # noqa: Too clever for PyCharm
@@ -244,10 +242,10 @@ class TestEvents:
         assert view._event_generator is None
     
         @view
-        def on_click(view):
-            view.value = 1
+        def on_click(data):
+            data.value = 1
             yield
-            view.value = 2
+            data.value = 2
         
         # Basic flow    
         view._process_event('click', view)
@@ -364,5 +362,4 @@ class TestStyleProperties:
         assert view._css_properties['font-weight'] == 'bold'
         
         view.bold = False
-        assert view._css_properties['font-weight'] == None
-
+        assert view._css_properties['font-weight'] is None
