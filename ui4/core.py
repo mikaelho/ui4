@@ -3,6 +3,7 @@ Contains behind-the-scenes machinery that all views share.
 """
 
 import inspect
+import json
 from collections.abc import Sequence
 
 from contextlib import contextmanager
@@ -430,6 +431,13 @@ class Anchor:
                 value = getattr(value, "id", value)
                 d[f'a{i}'] = value
         return d
+        
+    def as_json(self):
+        return json.dumps(
+            self.as_dict(), 
+            check_circular=False, 
+            separators=(',', ':')
+        )
 
     def __eq__(self, other):
         self.target_view._anchor_setter(
@@ -534,6 +542,7 @@ class Anchors(Events):
         self.halfgap = self.gap / 2
         self.flow = flow
         self._constraints = {'=': {}, '>': {}, '<': {}}
+        self._fit = False
         super().__init__(**kwargs)
 
     def _anchor_getter(self, attribute):
@@ -656,6 +665,33 @@ class Anchors(Events):
         else:
             return self._dock
 
+    @prop
+    def fit(self, *value):
+        if value:
+            value = value[0]
+            self._fit = value
+            if isinstance(value, Number):
+                extra_width = extra_height = value
+                value = True
+            else:
+                extra_width = extra_height = 0
+            if value not in ('width', 'height', True):
+                raise ValueError(f'Invalid value for fit: {value}')
+            if value in ('width', True):
+                setattr(self, 'width', Anchor(
+                    target_view=self, 
+                    target_attribute='fitWidth',
+                    modifier=extra_width,
+                ))
+            if value in ('height', True):
+                setattr(self, 'height', Anchor(
+                    target_view=self, 
+                    target_attribute='fitHeight',
+                    modifier=extra_height,
+                ))
+        else:
+            return self._fit
+            
 
 class Core(Anchors, Props):
     """

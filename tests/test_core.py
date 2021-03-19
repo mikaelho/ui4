@@ -88,10 +88,23 @@ class TestAnchor:
         anchor = Anchor(target_view=view, target_attribute='bar', modifier=16)
 
         assert anchor.as_dict() == {
-            'a0': is_view_id,
+            'a0': view.id,
             'a1': 'bar',
             'a6': 16
         }
+        
+    def test_anchor_as_json(self):
+        view = Core()
+        anchor = Anchor(
+            target_view=view, 
+            target_attribute='bar', 
+            multiplier=2,
+            duration=0.5,
+            ease_func='ease-in'
+        )
+        
+        assert (anchor.as_json() == 
+        f'{{"a0":"{view.id}","a1":"bar","a5":2,"a7":0.5,"a8":"ease-in"}}')
 
     def test_anchor_multipliers_and_modifiers(self):
         anchor = Anchor()
