@@ -1,5 +1,5 @@
 """
-Test runner for executing pytest tests in the Pythonista iOS app.
+Test runner for executing pytest test in the Pythonista iOS app.
 """
 
 from pathlib import Path
@@ -12,6 +12,6 @@ pytest.main([
     "-v",
     "-rfE",
     "--disable-warnings", 
-    str(Path(__file__).parent / "tests")
+    str(Path(__file__).parent / "test")
 ])
 
