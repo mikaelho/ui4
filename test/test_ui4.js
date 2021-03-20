@@ -12,12 +12,26 @@ MutationObserver = function MutationObserver(func) {
 
 require("../ui4/static/ui4.js");
 
+const test = window.ui4._privateForTesting;
+
 assert = require('assert');
 
-it('should not fail', async () => {
-  const one = 1;
-  const two = 2;
-
-  // Assert
-  assert.equal(one, one);
+describe("#parseSpec", () => {
+  it('should parse spec from backend', async () => {
+    const spec = {
+      a0: "left",
+      a5: 200
+    };
+    
+    const result = test.parseSpec(spec, "id22");
+    
+    const expected = {
+      targetId: 'id22',
+      targetAttr: 'left',
+      comparison: '=',
+      modifier: 200
+    };
+    
+    assert.deepEqual(result, expected);
+  });
 });

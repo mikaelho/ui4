@@ -285,6 +285,9 @@
         parsedSpec[key] = value;
       }
     });
+    if (!parsedSpec.comparison) {
+      parsedSpec.comparison = '=';
+    }
 
     return parsedSpec;
   }
@@ -376,6 +379,11 @@
   document.addEventListener('DOMContentLoaded', ui4.startTracking);
 
   ui4.startClassObserver();
+  
+  ui4._privateForTesting = {
+    parseSpec: parseSpec
+  };
+  
 } ( window.ui4 = window.ui4 || {} ));
 
 
