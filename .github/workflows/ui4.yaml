@@ -1,4 +1,4 @@
-name: ui4
+name: ui4 Python tests
 
 on: [push]
 
