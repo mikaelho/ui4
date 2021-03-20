@@ -704,7 +704,7 @@ class Core(Anchors, Props):
 _ui4_animation_context_variable = '_ui4_animation_context_variable'
         
 @contextmanager
-def animation(duration=0.3, ease_func=constants.ANIMATION_LINEAR):
+def animation(duration=0.3, ease_func=None):
     frame = inspect.currentframe().f_back.f_back
     animation_specs = frame.f_locals.get(_ui4_animation_context_variable, [])
     animation_specs.append((duration, ease_func))
