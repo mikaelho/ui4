@@ -8,6 +8,7 @@
   let animatedDependencies = {};
   let latestValues = {};
   let transitioning = {};
+  let animating = {};
 
   const LEADING = "leading", TRAILING = "trailing", NEUTRAL = "neutral", CONSTANT = 'constant';
 
@@ -150,13 +151,18 @@
          ],
          {duration: dependency.duration, easing: dependency.easeFunc}
         );
-        animating[targetId]
+        if (animating[targetId]) {
+          animating[targetId].push(animation);
+        } else {
+          animating[targetId] = [animation];
+        }
         animation.onfinish(() => {
-          if (allDependencies[dependency.targetId]) {
-            allDependencies[dependency.targetId].push(dependency);
+          if (allDependencies[targetId]) {
+            allDependencies[targetId].push(dependency);
           } else {
-            allDependencies[dependency.targetId] = [dependency];
+            allDependencies[targetId] = [dependency];
           }
+          animating[targetId].pop();
           checkAnimationStepComplete(dependency.targetId);
         });
       });
@@ -306,7 +312,7 @@
   
   function checkAnimationStepComplete(nodeId) {
     const transitionState = transitioning[nodeId];
-    const animationState = animatedDependencies[nodeId];
+    const animationState = animating[nodeId];
     
     const transitionsComplete = (transitionState === undefined || transitionState === 0);
     const animationsComplete = (animationState === undefined || animationState.length === 0);
