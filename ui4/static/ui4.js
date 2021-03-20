@@ -94,25 +94,24 @@
     right: function(context, value) { return {right: parseFloat(context.parentStyle.width) - value + 'px'};},
     top: function(context, value) { return {top: value + 'px'};},
     bottom: function(context, value) { return {bottom: parseFloat(context.parentStyle.height) - value + 'px'};},
-
     centerX: function(context, value) {
       if (context.dependencies.find(item => item.targetAttr === 'left')) {  // left locked, width must give
-        context.style.width = 2 * (value - parseFloat(context.getStyle.left)) + 'px';
+        return {width: 2 * (value - parseFloat(context.getStyle.left)) + 'px'};
       } else if (context.dependencies.find(item => item.targetAttr === 'right')) {  // right locked, width must give)
-        context.style.width =
-            2 * (parseFloat(context.parentStyle.width) - parseFloat(context.getStyle.right) - value) + 'px';
+        return {width:
+            2 * (parseFloat(context.parentStyle.width) - parseFloat(context.getStyle.right) - value) + 'px'};
       } else {  // Neither locked, move left
-        context.style.left = value - parseFloat(context.getStyle.width) / 2 + 'px';
+        return {left: value - parseFloat(context.getStyle.width) / 2 + 'px'};
       }
     },
     centerY: function(context, value) {
       if (context.dependencies.find(item => item.targetAttr === 'top')) {  // top locked, height must give
-        context.style.height = 2 * (value - parseFloat(context.getStyle.top)) + 'px';
+        return {height: 2 * (value - parseFloat(context.getStyle.top)) + 'px'};
       } else if (context.dependencies.find(item => item.targetAttr === 'bottom')) {  // bottom locked, height must give)
-        context.style.height =
-            2 * (parseFloat(context.parentStyle.height) - parseFloat(context.getStyle.bottom) - value) + 'px';
+        return {height:
+            2 * (parseFloat(context.parentStyle.height) - parseFloat(context.getStyle.bottom) - value) + 'px'};
       } else {  // Neither locked, move top
-        context.style.top = value - parseFloat(context.getStyle.height) / 2 + 'px';
+        return {top: value - parseFloat(context.getStyle.height) / 2 + 'px'};
       }
     }
   };
@@ -127,7 +126,10 @@
       let finalValues = checkAttribute(targetId, dependencies);
       // Apply the final value for each attribute
       for (const [targetAttr, data] of Object.entries(finalValues)) {
-        setValue[targetAttr](data.context, data.sourceValue);
+        const updates = setValue[targetAttr](data.context, data.sourceValue);
+        for (const [key, value] of Object.entries(updates)) {
+          data.context.style[key] = value;
+        }
         latestValues[targetId + "." + targetAttr] = data.sourceValue;
       }
     }
@@ -140,43 +142,25 @@
       
       dependencies.forEach((dependency, index) => {
         let data = values[dependency.targetAttr];
-        let from = {};
-        from[dependency.targetAttr] = data.targetValue;
-        let to = {};
-        to[dependency.targetAttr] = data.sourceValue;
 
         let animation = data.targetElem.animate(
-         [from, to],
+         [
+             setValue[dependency.targetAttr](data.context, data.targetValue),
+             setValue[dependency.targetAttr](data.context, data.sourceValue)
+         ],
          {duration: dependency.duration, easing: dependency.easeFunc}
         );
-        setValue[dependency.targetAttr](data.context, data.sourceValue);
-        let currentValue;
-        const currentTime = Date.now();
-        if (currentTime >= dependency.readyBy) {
-          currentValue = data.sourceValue;
-          delete dependencies[index];
+        animating[targetId]
+        animation.onfinish(() => {
           if (allDependencies[dependency.targetId]) {
             allDependencies[dependency.targetId].push(dependency);
           } else {
             allDependencies[dependency.targetId] = [dependency];
           }
           checkAnimationStepComplete(dependency.targetId);
-        } else {
-          const progress = (currentTime - dependency.previousTime)/(dependency.readyBy - dependency.previousTime);
-          dependency.previousTime = currentTime;
-          let previousValue = latestValues[dependency.targetId + "." + dependency.targetAttr];
-          if (previousValue === undefined) {
-            previousValue = data.targetValue;
-          }
-          currentValue = previousValue + (data.sourceValue - previousValue) * progress;
-        }
-        setValue[dependency.targetAttr](data.context, currentValue);
-        latestValues[targetId + "." + dependency.targetAttr] = currentValue;
+        });
       });
-      
-      if (Object.keys(animatedDependencies).length) {
-        requestAnimationFrame(checkAnimationDependencies);
-      }
+      animatedDependencies = {};
     }
   }
       
