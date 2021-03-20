@@ -31,3 +31,4 @@ def anchor_view():
         top_left = Anchors.anchordock('top_left')
         
     yield AnchorCore
+
