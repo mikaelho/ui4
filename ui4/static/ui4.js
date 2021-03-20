@@ -30,14 +30,6 @@
     ">": (a, b) => a <= b
   };
   
-  const operators = {
-    "+": (a, b) => a + b,
-    "-": (a, b) => a - b,
-    "*": (a, b) => a * b,
-    "/": (a, b) => a / b,
-    "%": (a, b) => a % b
-  };
-
   const getValue = {
     width: (context) => parseFloat(context.getStyle.width),
     height: (context) => parseFloat(context.getStyle.height),
@@ -96,12 +88,13 @@
   };
 
   const setValue = {
-    width: function(context, value) { context.style.width = value + 'px'; },
-    height: function(context, value) { context.style.height = value + 'px'; },
-    left: function(context, value) { context.style.left = value + 'px'; },
-    right: function(context, value) { context.style.right = parseFloat(context.parentStyle.width) - value + 'px'; },
-    top: function(context, value) { context.style.top = value + 'px'; },
-    bottom: function(context, value) { context.style.bottom = parseFloat(context.parentStyle.height) - value + 'px'; },
+    width: function(context, value) { return {width: value + 'px'};},
+    height: function(context, value) { return {height: value + 'px'};},
+    left: function(context, value) { return {left: value + 'px'};},
+    right: function(context, value) { return {right: parseFloat(context.parentStyle.width) - value + 'px'};},
+    top: function(context, value) { return {top: value + 'px'};},
+    bottom: function(context, value) { return {bottom: parseFloat(context.parentStyle.height) - value + 'px'};},
+
     centerX: function(context, value) {
       if (context.dependencies.find(item => item.targetAttr === 'left')) {  // left locked, width must give
         context.style.width = 2 * (value - parseFloat(context.getStyle.left)) + 'px';
