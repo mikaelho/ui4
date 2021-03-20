@@ -5,5 +5,4 @@ ui4/__pycache__/
 ui4/lib/__pycache__/
 venv
 node_modules/
-package.json
 package-lock.json
