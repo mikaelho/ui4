@@ -1,27 +1,27 @@
-from ui4 import *
+import ui4
 
 
-demo_ui = GridContainer(
-    dock=app.all,
+demo_ui = ui4.GridContainer(
+    dock=ui4.app.all,
     #fit='height',
     background_color='#d3ffd3',
 )
 
-GridView(
+ui4.GridView(
     parent=demo_ui,
     width=200,
     text=f"Something specific",
     background_color='lightgrey',
 )
 
-GridView(
+ui4.GridView(
     parent=demo_ui,
     width=200,
     text=f"TextField",
     background_color='lightgrey',
 )
 
-app.background_color = 'grey'
+ui4.app.background_color = 'grey'
 
-app.run()
+ui4.app.run()
 
