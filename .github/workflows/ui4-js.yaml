@@ -1,4 +1,4 @@
-name: Test ui4 JS component
+name: ui4 JS tests
 
 on: [push]
 
