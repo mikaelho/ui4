@@ -83,6 +83,51 @@ class TestRender:
     
 class TestAnchor:
 
+    def test_anchor_identity(self):
+        view1 = Core()
+        view2 = Core()
+
+        a = Anchor(target_view=view1, target_attribute='left')
+        b = Anchor(target_view=view1, target_attribute='left')
+
+        assert a == b
+
+        a = Anchor(target_view=view1, target_attribute='left')
+        b = Anchor(target_view=view2, target_attribute='left')
+
+        assert a != b
+
+        a = Anchor(target_view=view1, target_attribute='left', source_view=view2, source_attribute='right')
+        b = Anchor(target_view=view1, target_attribute='left', source_view=view2, source_attribute='left')
+
+        assert a == b
+
+        a = Anchor(target_view=view1, target_attribute='left')
+        b = Anchor(target_view=view1, target_attribute='left', comparison='>')
+
+        assert a != b
+
+        a = Anchor(target_view=view1, target_attribute='left', comparison='>',
+                   source_view=view2, source_attribute='right')
+        b = Anchor(target_view=view1, target_attribute='left', comparison='>',
+                   source_view=view2, source_attribute='right')
+
+        assert a == b
+
+        a = Anchor(target_view=view1, target_attribute='left', comparison='>',
+                   source_view=view2, source_attribute='right')
+        b = Anchor(target_view=view1, target_attribute='left', comparison='>',
+                   source_view=view2, source_attribute='left')
+
+        assert a != b
+
+        a = Anchor(target_view=view1, target_attribute='left', comparison='>',
+                   source_view=view2, source_attribute='right')
+        b = Anchor(target_view=view1, target_attribute='left', comparison='<',
+                   source_view=view2, source_attribute='right')
+
+        assert a != b
+
     def test_anchor_as_dict(self, is_view_id):
         view = Core()
         anchor = Anchor(target_view=view, target_attribute='bar', modifier=16)
@@ -121,15 +166,15 @@ class TestAnchorProperties:
     def test_anchors_basic(self, anchor_view):
         view1 = anchor_view()
         view2 = anchor_view()
-        
-        empty_constraints = {'=': {}, '>': {}, '<': {}}
-        assert view1._constraints == empty_constraints
+        assert view1._constraints == set()
 
         view1.center_x = view2.left
-        anchor = view1._constraints['=']['center_x'][0]
+
+        anchor = view1._constraints.pop()
         assert type(anchor) == Anchor
         assert anchor.target_view == view1
         assert anchor.target_attribute == 'center_x'
+        assert anchor.comparison == '='
         assert anchor.source_view == view2
         assert anchor.source_attribute == 'left'
         
@@ -138,9 +183,12 @@ class TestAnchorProperties:
         view2 = anchor_view()
 
         view2.center = view1.center
-        
-        assert view2._constraints['=']['center_x'][0].source_attribute == 'center_x'
-        assert view2._constraints['=']['center_y'][0].source_attribute == 'center_y'
+
+        anchor_x = Anchor(target_view=view2, target_attribute='center_x', comparison='=',
+                          source_view=view1, source_attribute='center_x')
+        anchor_y = Anchor(target_view=view2, target_attribute='center_y', comparison='=',
+                          source_view=view1, source_attribute='center_y')
+        assert view2._constraints == {anchor_x, anchor_y}
 
     def test_anchors_dock(self, anchor_view):
         view1 = anchor_view()
@@ -149,27 +197,34 @@ class TestAnchorProperties:
         view2.dock = view1.top_left
         assert view2.parent == view1
         
-        top_anchor = view2._constraints['=']['top'][0]
-        assert top_anchor.source_view == view1
-        assert top_anchor.source_attribute == 'top'
-        left_anchor = view2._constraints['=']['left'][0]
-        assert left_anchor.source_view == view1
-        assert left_anchor.source_attribute == 'left'
+        top_anchor = Anchor(target_view=view2, target_attribute='top', comparison='=',
+                            source_view=view1, source_attribute='top')
+        left_anchor = Anchor(target_view=view2, target_attribute='left', comparison='=',
+                             source_view=view1, source_attribute='left')
+        assert view2._constraints == {top_anchor, left_anchor}
         
     def test_anchors_gt(self, anchor_view):
         view1 = anchor_view()
         view2 = anchor_view()
         view3 = anchor_view()
         view4 = anchor_view()
+
+        anchor = Anchor(target_view=view2, target_attribute='left', comparison='>',
+                        source_view=view1, source_attribute='center_x')
     
         view2.left.gt(view1.center_x)
+
+        assert view2._constraints == {anchor}
+
         view3.left = ge(view1.center_x)
+
+        anchor.target_view = view3
+        assert view3._constraints == {anchor}
+
         view4.left > view1.center_x  # noqa: Optional syntactic sugar (or poison)
 
-        view2_left = view2._constraints['>']['left'][0]
-        view3_left = view3._constraints['>']['left'][0]
-        view4_left = view4._constraints['>']['left'][0]
-        assert view2_left == view3_left == view4_left
+        anchor.target_view = view4
+        assert view4._constraints == {anchor}
 
     def test_anchors_lt(self, anchor_view):
         view1 = anchor_view()
@@ -177,22 +232,22 @@ class TestAnchorProperties:
         view3 = anchor_view()
         view4 = anchor_view()
 
+        anchor = Anchor(target_view=view2, target_attribute='left', comparison='<',
+                        source_view=view1, source_attribute='center_x')
+
         view2.left.lt(view1.center_x)
+
+        assert view2._constraints == {anchor}
+
         view3.left = le(view1.center_x)
+
+        anchor.target_view = view3
+        assert view3._constraints == {anchor}
+
         view4.left < view1.center_x  # noqa: Optional syntactic sugar (or poison)
 
-        view2_left = view2._constraints['<']['left'][0]
-        view3_left = view3._constraints['<']['left'][0]
-        view4_left = view4._constraints['<']['left'][0]
-        assert view2_left == view3_left == view4_left
-
-    def test_anchors_equal(self, anchor_view):
-        view1 = anchor_view()
-        view2 = anchor_view()
-
-        view2.left = view1.center_x
-
-        assert view2._constraints['=']['left'][0].source_view == view1
+        anchor.target_view = view4
+        assert view4._constraints == {anchor}
 
     
 class TestEvents:

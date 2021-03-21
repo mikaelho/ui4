@@ -548,18 +548,17 @@ class Anchors(Events):
         self.gap = self.default_gap if gap is None else gap
         self.halfgap = self.gap / 2
         self.flow = flow
-        self._constraints = {'=': {}, '>': {}, '<': {}}
+        self._constraints = set()
         self._fit = False
         super().__init__(**kwargs)
         
     @Render._register
     def _render_anchors(self):
         constraints = [
-            anchor.as_str()
-            for anchor_type in self._constraints.values()
-            for anchor in anchor_type
+            anchor.as_dict()
+            for anchor in self._constraints
         ]
-        return f"ui4='{' '.join(constraints)}'"
+        return f"ui4='{json.dumps(constraints)}'"
 
     def _anchor_getter(self, attribute):
         return Anchor(target_view=self, target_attribute=attribute)
@@ -578,21 +577,19 @@ class Anchors(Events):
             anim_context = _animation_context()
             if anim_context:
                 value.duration, value.ease_func = anim_context
-            
-            comparisons = self._constraints[value.comparison]
-            if value.comparison == '=':
-                comparisons[attribute] = [value]
-            else:
-                comparisons.setdefault(attribute, list()).append(value)
-            
+
+            self._constraints.discard(value)  # Overwrite "similar" anchor, see Anchor.__hash__
+            self._constraints.add(value)
+
+            constrained_attributes = set([anchor.target_attribute for anchor in self._constraints])
             for checklist in (
                 set('left right center_x width'.split()),
                 set('top bottom center_y height'.split()),
             ):
-                constraints = set(self._constraints.keys()).intersection(checklist)
-                if len(constraints) > 2:
+                constraints_per_dimension = constrained_attributes.intersection(checklist)
+                if len(constraints_per_dimension) > 2:
                     raise RuntimeError(
-                        f'Too many constraints in one dimension: {constraints}'
+                        f'Too many constraints in one dimension: {constraints_per_dimension}'
                     )
         else:
             raise TypeError(f"Cannot set {value} as {attribute}")
@@ -611,7 +608,7 @@ class Anchors(Events):
                 )()
         )
     
-    # Additional docking attributes are read-only
+    # Docking attributes are read-only
     @staticmethod
     def anchordock(attribute):
         return property(
