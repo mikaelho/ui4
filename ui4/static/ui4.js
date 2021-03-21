@@ -251,7 +251,7 @@
     if (ui4AttrValue) {
       var dependencies = Array();
       var animDependencies = Array();
-      var specs = ui4AttrValue.split(" ");
+      var specs = JSON.parse(ui4AttrValue);
       specs.forEach( (spec) => {
         let dependency = parseSpec(spec, targetId);
         if (dependency) {

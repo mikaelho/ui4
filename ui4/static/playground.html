@@ -3,27 +3,13 @@
 <script type="text/javascript">
   function init() {
       d = document.getElementById("daa");
-      d.baa = 0;
-      
-      alert(undefined + "haa");
-      
-      function rock() {
-        d.style.top = (d.baa*300.0) + "px";
-        console.log(d.baa);
-        if (d.baa < 1.0) {
-          requestAnimationFrame(rock);
-        }
-      }
-      rock();
-      
-      d.animate([
-        {baa: 0.0},
-        {baa: 1.0}
-      ], 100);
+      var ui4AttrValue = d.getAttribute("ui4");
+      data = JSON.parse(ui4AttrValue);
+      alert(data.a0);
   }
 </script>
 </head>
 <body onload="init();">
-<div style="position: absolute;" id="daa">DAA!</div>
+<div style="position: absolute;" id="daa" ui4='{"a0":"left","a2":"id130","a3":"right","a5":16}'>DAA!</div>
 </body>
 </html>

@@ -439,16 +439,23 @@ class Anchor:
             separators=(',', ':')
         )
 
-    def __eq__(self, other):
-        self.target_view._anchor_setter(
-            self.target_attribute,
-            other,
-            comparison='='
-        )
-        return self
+    def __hash__(self):
+        if self.comparison in (None, '='):
+            return hash(
+                f'{self.target_view and self.target_view.id}'
+                f'{self.target_attribute}'
+            )
+        else:
+            return hash(
+                f'{self.target_view and self.target_view.id}'
+                f'{self.target_attribute}'
+                f'{self.comparison}'
+                f'{self.source_view and self.source_view.id}'
+                f'{self.source_attribute}'
+            )
 
-    def eq(self, other):
-        return self.__eq__(other)
+    def __eq__(self, other):
+        return hash(self) == hash(other)
 
     def __gt__(self, other):
         self.target_view._anchor_setter(
@@ -544,6 +551,15 @@ class Anchors(Events):
         self._constraints = {'=': {}, '>': {}, '<': {}}
         self._fit = False
         super().__init__(**kwargs)
+        
+    @Render._register
+    def _render_anchors(self):
+        constraints = [
+            anchor.as_str()
+            for anchor_type in self._constraints.values()
+            for anchor in anchor_type
+        ]
+        return f"ui4='{' '.join(constraints)}'"
 
     def _anchor_getter(self, attribute):
         return Anchor(target_view=self, target_attribute=attribute)

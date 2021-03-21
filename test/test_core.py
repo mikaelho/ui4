@@ -68,7 +68,7 @@ class TestRender:
     def test_renderer_registration(self):
         view = Core()
         
-        assert len(view._renderers) == 2
+        assert len(view._renderers) == 3
     
     def test_container_rendering(self):
         parent = Core(
@@ -186,20 +186,13 @@ class TestAnchorProperties:
         view4_left = view4._constraints['<']['left'][0]
         assert view2_left == view3_left == view4_left
 
-    def test_anchors_eq(self, anchor_view):
+    def test_anchors_equal(self, anchor_view):
         view1 = anchor_view()
         view2 = anchor_view()
-        view3 = anchor_view()
-        view4 = anchor_view()
 
-        view2.left.eq(view1.center_x)
-        view3.left = view1.center_x
-        view4.left == view1.center_x  # noqa: Optional syntactic sugar (or poison)
+        view2.left = view1.center_x
 
-        view2_left = view2._constraints['=']['left'][0]
-        view3_left = view3._constraints['=']['left'][0]
-        view4_left = view4._constraints['=']['left'][0]
-        assert view2_left == view3_left == view4_left
+        assert view2._constraints['=']['left'][0].source_view == view1
 
     
 class TestEvents:
