@@ -25,7 +25,7 @@ class TestIdentity:
         assert view2.id == is_view_id
         assert view1.id != view2.id
 
-        assert Core.views[view2.id] == view2
+        assert Core.get_view(view2.id) == view2
 
 
 class TestHierarchy:
@@ -203,6 +203,13 @@ class TestAnchorProperties:
                              source_view=view1, source_attribute='left')
         assert view2._constraints == {top_anchor, left_anchor}
         
+    def test_anchors_center(self, anchor_view):
+        view1 = anchor_view()
+        view2 = anchor_view()
+        
+        view2.dock = view1.center
+        assert view2.parent == view1
+        
     def test_anchors_gt(self, anchor_view):
         view1 = anchor_view()
         view2 = anchor_view()
@@ -268,7 +275,7 @@ class TestEvents:
         assert view._render_events() == "hx-post='/event' hx-trigger='click'"
 
     def test_get_roots(self):
-        Events._dirties = set()
+        Events._clear_dirties()
         
         view1 = Core()
         view2 = Core(parent=view1)
@@ -342,7 +349,7 @@ class TestStyleProperties:
     def test_base_setter_and_render(self):
         view = Core()
         
-        assert view not in Core._dirties
+        assert view not in Core._get_dirties()
         
         view._set_property(
             'text_color',
@@ -351,7 +358,7 @@ class TestStyleProperties:
             'rgba(255,255,255,255)',
         )
         
-        assert view in Core._dirties
+        assert view in Core._get_dirties()
         
         with animation(1.0):
             view._set_property(

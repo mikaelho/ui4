@@ -12,6 +12,7 @@ from numbers import Number
 from pathlib import Path
 from string import Template
 from types import GeneratorType
+from weakref import WeakSet
 from weakref import WeakValueDictionary
 
 import ui4.constants as constants
@@ -22,26 +23,41 @@ def prop(func):
     return property(func, func)
 
 
+def current_user_id():
+    return 'c7d7ab3a-7ea1-46ab-8517-fe7cf9672fc7'
+    
+
 class Identity:
     """
     Contains logic for view identity.
     """
-    _id_counter = 0
-    views = WeakValueDictionary()
+    _id_counter = {}
+    views = {}
+    get_user_id = current_user_id
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.id = self._get_id()
+        user_id = Identity.get_user_id()
+        self.id = self._get_next_id()
+        Identity.views.setdefault(
+            user_id, WeakValueDictionary()
+        )[self.id] = self
+        
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
-    def _get_id(self):
-        Identity._id_counter += 1
-        view_id = f'id{Identity._id_counter}'
-        Identity.views[view_id] = self
+    def _get_next_id(self):
+        user_id = Identity.get_user_id()
+        id_counter = Identity._id_counter.setdefault(user_id, 0)
+        id_counter += 1
+        Identity._id_counter[user_id] = id_counter
+        view_id = f'id{id_counter}'
         return view_id
-
-    @classmethod
-    def __getitem__(cls, item):
-        return Identity.views[item]
+    
+    @staticmethod    
+    def get_view(view_id):
+        user_id = Identity.get_user_id()
+        views = Identity.views.get(user_id)
+        return views and views.get(view_id)
 
 
 class Hierarchy(Identity):
@@ -52,7 +68,6 @@ class Hierarchy(Identity):
     """
 
     def __init__(self, parent=None, children=None, container=None, is_chrome=False, **kwargs):
-        super().__init__(**kwargs)
         self._container = None
         self._parent = None
         self._children = list()
@@ -65,6 +80,8 @@ class Hierarchy(Identity):
         children = children or []
         for child in children:
             child.parent = self
+            
+        super().__init__(**kwargs)
 
     @prop
     def parent(self, *value):
@@ -187,11 +204,11 @@ class Events(Render):
     we manage the dialog with the browser with custom "next" events.
     """
     # Views that have changes
-    _dirties = set()
+    _dirties = dict()
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
         self._event_generator = None
+        super().__init__(**kwargs)
 
     # All known and accepted events from the front-end
     # Maps an event handler method name to JS event
@@ -233,11 +250,22 @@ class Events(Render):
         return self._render_updates()
 
     def _mark_dirty(self):
-        Events._dirties.add(self)
+        user_id = Identity.get_user_id()
+        Events._dirties.setdefault(user_id, set()).add(self)
+        
+    @staticmethod
+    def _get_dirties():
+        user_id = Identity.get_user_id()
+        return Events._dirties.get(user_id, set())
+        
+    @staticmethod
+    def _clear_dirties():
+        user_id = Identity.get_user_id()
+        Events._dirties[user_id] = set()
         
     def _render_updates(self):
         roots = self._get_roots()
-        Events._dirties.clear()
+        Events._clear_dirties()
 
         return "".join([
             root._render(htmx_oob=True) for root in roots
@@ -249,10 +277,11 @@ class Events(Render):
         Get root views of the subtrees that need refreshing.
         """
         roots = set()
-        for dirty in Events._dirties:
+        dirties = Events._get_dirties()
+        for dirty in Events._get_dirties():
             parent = dirty.parent
             while parent:
-                if parent in Events._dirties:
+                if parent in dirties:
                     break
                 parent = parent.parent
             else:
@@ -646,7 +675,7 @@ class Anchors(Events):
             self._dock = value
             if issubclass(type(value), Sequence) and len(value) == 2:
                 value = value[0]
-                value.attribute = 'center'
+                value.target_attribute = 'center'
             if not type(value) is Anchor:
                 raise TypeError(f'Dock value must be an Anchor, not {value}')
             other = value.target_view

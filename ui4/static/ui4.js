@@ -249,6 +249,7 @@
     var ui4AttrValue = node.getAttribute("ui4");
     
     if (ui4AttrValue) {
+      console.log(ui4AttrValue);
       var dependencies = Array();
       var animDependencies = Array();
       var specs = JSON.parse(ui4AttrValue);
@@ -386,6 +387,8 @@
   
 } ( window.ui4 = window.ui4 || {} ));
 
+
+console.log("JS reached");
 
 /*
 const mql = window.matchMedia("(prefers-color-scheme: dark)");
