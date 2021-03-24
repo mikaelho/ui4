@@ -97,11 +97,11 @@ class FlaskRunner:
     
     def handle_event(self):
         # print(flask.request.values)
-        view_id = request.headers.get('Hx-Trigger')
-        event_header = urllib.parse.unquote(request.headers.get('Triggering-Event'))
+        view_id = flask.request.headers.get('Hx-Trigger')
+        event_header = urllib.parse.unquote(flask.request.headers.get('Triggering-Event'))
         event_name = json.loads(event_header)['type']
-        view = View[view_id]
-        value = request.values.get(view_id, view)
+        view = View2.get_view(view_id)
+        value = flask.request.values.get(view_id, view)
         return view._process_event(event_name, value)
         
 
