@@ -332,7 +332,7 @@ class Props(Events):
         ])
             
         if items:      
-            return f'style="{styles}"'
+            return f'style="{items}"'
         else:
             return ''
         

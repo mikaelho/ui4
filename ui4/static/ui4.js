@@ -386,7 +386,7 @@
   
 } ( window.ui4 = window.ui4 || {} ));
 
-ui4.startClassObserver();
+window.ui4.startClassObserver();
 
 /*
 const mql = window.matchMedia("(prefers-color-scheme: dark)");
