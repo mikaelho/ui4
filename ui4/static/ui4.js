@@ -351,7 +351,7 @@
     observer.observe(document, {
       subtree: true,
       childList: true,
-      attributeFilter: ["ui4", "ui4anim"]
+      attributeFilter: ["ui4"]
     });
   };
 
@@ -371,15 +371,14 @@
   var runningTransitions = 0;
   var animationFrame;
 
+  ui4.initialize = function() {
+    ui4.startTracking();
+  }
+    
   // Update constraints on window resize
   window.addEventListener('resize', function (evt) {
     ui4.checkDependencies();
   });
-
-  // Start reacting to node additions, deletions and style changes
-  document.addEventListener('DOMContentLoaded', ui4.startTracking);
-
-  ui4.startClassObserver();
   
   ui4._privateForTesting = {
     parseSpec: parseSpec
@@ -387,8 +386,7 @@
   
 } ( window.ui4 = window.ui4 || {} ));
 
-
-console.log("JS reached");
+ui4.startClassObserver();
 
 /*
 const mql = window.matchMedia("(prefers-color-scheme: dark)");

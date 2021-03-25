@@ -379,10 +379,12 @@ class TestStyleProperties:
         rendered = view._render_props()
         
         assert rendered == (
-            "color:rgba(255,255,255,255);"
-            "border-radius:50%;"
-            "opacity:50%;"
-            "transition:border-radius 1.0s default-ease,opacity 2.0s ease-func"
+            'style="'
+            'color:rgba(255,255,255,255);'
+            'border-radius:50%;'
+            'opacity:50%;'
+            'transition:border-radius 1.0s default-ease,opacity 2.0s ease-func'
+            '"'
         )
 
     def test_properties__generic(self):

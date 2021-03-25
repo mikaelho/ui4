@@ -5,7 +5,7 @@ def main(root):
     ui4.View2(
         dock=root.center,
         background_color='palegreen',
-        text='Test',
+        text='Hello world',
     )
 
 ui4.run(main)

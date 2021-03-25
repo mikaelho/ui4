@@ -181,7 +181,6 @@ class Render(Hierarchy):
             viewclass=self._css_class,
             rendered_attributes=rendered_attributes,
             oob=htmx_oob,
-            events='', constraints='', styles='',
             content=rendered_children or self.text or "",
         )
         
@@ -328,9 +327,14 @@ class Props(Events):
         ])
         self._transitions.clear()
         
-        return ";transition:".join([
-            styles, transitions,
+        items = ";transition:".join([
+            c for c in (styles, transitions) if c
         ])
+            
+        if items:      
+            return f'style="{styles}"'
+        else:
+            return ''
         
     def _set_property(
         self,
@@ -587,7 +591,16 @@ class Anchors(Events):
             anchor.as_dict()
             for anchor in self._constraints
         ]
-        return f"ui4='{json.dumps(constraints)}'"
+        
+        if constraints:
+            as_json = json.dumps(
+                constraints, 
+                check_circular=False, 
+                separators=(',', ':'),
+            )
+            return f"ui4='{as_json}'"
+        else:
+            return ''
 
     def _anchor_getter(self, attribute):
         return Anchor(target_view=self, target_attribute=attribute)
