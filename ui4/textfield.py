@@ -1,5 +1,6 @@
+from ui4.theme import TextInputStyle
+from ui4.view import prop
 from ui4.view import View
-from ui4.prop import prop
 
 
 class TextField(View):
@@ -11,6 +12,7 @@ class TextField(View):
     PHONE = 'tel'
     
     _render_template = 'textfield_template.html'
+    _style = TextInputStyle
     
     def __init__(self, type=NORMAL, placeholder="", **kwargs):
         self.type = type

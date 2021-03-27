@@ -10,7 +10,7 @@ import flask
 from werkzeug.serving import make_server
 
 from ui4.core import Identity
-from ui4.view import View2
+from ui4.view import View
 
 
 class ServerThread(threading.Thread):
@@ -89,7 +89,7 @@ class FlaskRunner:
             app_name=self.app.name,
             content=root._render()
         )
-        View2._clear_dirties()
+        View._clear_dirties()
         return index_html
     
     def send_js(self):
@@ -100,7 +100,7 @@ class FlaskRunner:
         view_id = flask.request.headers.get('Hx-Trigger')
         event_header = urllib.parse.unquote(flask.request.headers.get('Triggering-Event'))
         event_name = json.loads(event_header)['type']
-        view = View2.get_view(view_id)
+        view = View.get_view(view_id)
         value = flask.request.values.get(view_id, view)
         return view._process_event(event_name, value)
         
@@ -135,7 +135,7 @@ class BrowserRunner(FlaskRunner):
         webbrowser.open(f'{self.protocol}://{self.host}:{self.port}')
            
            
-class Root(View2):
+class Root(View):
     
     _css_class = 'rootApp'
     

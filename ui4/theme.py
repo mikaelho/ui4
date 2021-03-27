@@ -1,6 +1,9 @@
 from ui4.color import Color
 
 
+white = Color('white')
+black = Color('black')
+
 # Curated colors from Tailwind
 
 # Blue Gray
@@ -273,27 +276,33 @@ class Theme:
     Defines a "graphically consistent" set of colors and other 
     visual attributes of the views.
     """
-    primary = Color('red')
-    background = Color('white')
-
-    """
-    primary = Color('#2196F3')
-    variant = '#1976D2' 
-    accent = '#EF5350'
-
-    tinted_background = ...
-    """
+    pass
   
  
-class Green(Theme):
+class Green:
     
     primary = green_800
     variant = green_600
     accent = red_500
+    tinted = green_50
     alert = red_900
+    background = white
     
 
-class DefaultTheme(Theme):
+class DefaultColor(Green):
+    pass
+    
+    
+class DefaultFont:
+    font = 'Menlo'
+    font_m = 14
+    
+    
+class DefaultShape:
+    corner_s = 2
+
+
+class DefaultTheme(DefaultColor, DefaultFont, DefaultShape):
     pass
 
 
@@ -318,7 +327,6 @@ class Style:
     Defines pseudo style properties for a view, expected to be mostly 
     callable references to the active Theme.
     """
-    
     current_theme = DefaultTheme
         
     
@@ -326,13 +334,19 @@ class BaseStyle(Style):
     
     text_alignment = 'center'
     font = theme.font
-    font_size = theme('font_medium')
-    text_color = contrast('background')
+    font_size = theme('font_m')
     
     
 class TextInputStyle(BaseStyle):
     
     text_alignment = 'left'
-    background_color = theme('background')
+    background_color = theme.background
     shadow = theme('inner_shadow')
     
+    
+class ButtonStyle(BaseStyle):
+    
+    background_color = theme('primary')
+    text_color = contrast('primary')
+    corner_radius = theme('corner_s')
+
