@@ -308,6 +308,9 @@ class Events(Render):
 
 class Props(Events):
     
+    _style = None
+    _css_value_funcs = {}
+    
     def __init__(self, **kwargs):
         self._properties = {}
         self._css_properties = {}
@@ -316,12 +319,16 @@ class Props(Events):
         
     @Render._register
     def _render_props(self):
+        
+        css_properties = self._fill_from_theme()
+        
         styles = ";".join([
             f"{name}:{value}"
-            for name, value in self._css_properties.items()
+            for name, value in css_properties.items()
         ])
+        
         transitions = ",".join([
-            f"{css_name} {duration}s {ease_func or 'default-ease'}"
+            f"{css_name} {duration}s {ease_func or 'ease'}"
             for css_name, duration, ease_func
             in sorted(list(self._transitions), key=lambda value: value[0])
         ])
@@ -335,6 +342,25 @@ class Props(Events):
             return f'style="{items}"'
         else:
             return ''
+            
+    def _fill_from_theme(self):
+        css_properties = dict(self._css_properties)
+        
+        if not self._style:
+            return css_properties
+        
+        for key in dir(self._style):
+            if key in css_properties:
+                continue
+            css_spec = Props._css_value_funcs.get(key)
+            if css_spec:
+                css_name, css_value_func = css_spec
+                value = getattr(self._style, key)
+                if callable(value):
+                    value = value(self._style)
+                css_properties[css_name] = css_value_func(value)
+        
+        return css_properties
         
     def _set_property(
         self,
@@ -359,53 +385,72 @@ class Props(Events):
         """
         return self._properties.get(attribute)
 
-    def _style_setter(self, property_name, css_name, value):
-        css_value = value
-        if type(css_value) in (int, float):
-            css_value = f"{css_value}px"
+    def _style_setter(self, property_name, css_name, value, css_value_func):
+        css_value = css_value_func(value)
         self._set_property(property_name, value, css_name, css_value)
 
     @staticmethod
     def _css_plain_prop(property_name, css_name):
+        def css_value_func(value):
+            css_value = value
+            if type(css_value) in (int, float):
+                css_value = f"{css_value}px"
+            return css_value
+        Props._css_value_funcs[property_name] = css_name, css_value_func
         return property(
             lambda self: partial(
                 Props._style_getter, self, property_name,
             )(),
             lambda self, value: partial(
-                Props._style_setter, self, property_name, css_name, value,
+                Props._style_setter, 
+                self, 
+                property_name, 
+                css_name, 
+                value, 
+                css_value_func,
             )()
         )
         
-    def _style_color_setter(self, property_name, css_name, value):
+    def _style_color_setter(self, property_name, css_name, value, css_value_func):
         if not type(value) is Color:
             value = Color(value)
-        css_value = value.css
+        css_value = css_value_func(value)
         self._set_property(property_name, value, css_name, css_value)
 
     @staticmethod
     def _css_color_prop(property_name, css_name):
+        def css_value_func(value):
+            return value.css
+        Props._css_value_funcs[property_name] = css_name, css_value_func
         return property(
             lambda self: partial(
                 Props._style_getter, self, property_name,
             )(),
             lambda self, value: partial(
-                Props._style_color_setter, self, property_name, css_name, value,
+                Props._style_color_setter, 
+                self,
+                property_name,
+                css_name,
+                value,
+                css_value_func,
             )()
         )
     
-    def _style_bool_setter(self, property_name, css_name, value, true_value):
-        css_value = value and true_value or None
-        self._set_property(property_name, value, css_name, css_value)
-
     @staticmethod
     def _css_bool_prop(property_name, css_name, css_true_value):
+        def css_value_func(value):
+            return value and css_true_value or None
+        Props._css_value_funcs[property_name] = css_name, css_value_func
         return property(
             lambda self: partial(
                 Props._style_getter, self, property_name,
             )(),
             lambda self, value: partial(
-                Props._style_bool_setter, self, property_name, css_name,
-                value, css_true_value,
+                Props._style_setter,
+                self, property_name, 
+                css_name,
+                value,
+                css_value_func,
             )()
         )
 
@@ -521,9 +566,11 @@ class Anchor:
     le = lt
 
     def clear(self):
-        # for comparisons in self.target_view._constraints.values():
-        #    comparisons.pop(self.attribute, None)
-        ...
+        self.target_view._constraints.difference_update({
+            constraint
+            for constraint in self.target_view._constraints
+            if constraint.target_attribute == self.target_attribute
+        })
 
     def __add__(self, other):
         if self.modifier is None:

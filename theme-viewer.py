@@ -13,9 +13,12 @@ def main(root):
     
     @button
     def on_click(data):
-        print('bling')
-        with ui4.animation(1.0):
-            view.center_x = root.right
+        view.center_y.clear()
+        with ui4.animation(0.5):
+            view.text_color = 'white'
+            view.background_color = 'red'
+            view.top = view.parent.top
+
 
 ui4.run(main)
 

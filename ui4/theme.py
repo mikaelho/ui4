@@ -307,18 +307,16 @@ class DefaultTheme(DefaultColor, DefaultFont, DefaultShape):
 
 
 def theme(property_name):
-    return property(
-        lambda self: lambda: getattr(self.__class__.current_theme, property_name)
-    )
+    return lambda cls: getattr(cls.current_theme, property_name)
+
 theme.background = theme('background')
 theme.font = theme('font')
     
 def contrast(property_name):
-    return property(
-        lambda self: lambda: getattr(
-            self.__class__.current_theme, property_name
-        ).contrast_color()
-    )
+    return lambda cls: getattr(
+        cls.current_theme, property_name
+    ).contrast_color()
+        
 contrast.background = contrast('background')
 
 

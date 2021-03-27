@@ -90,6 +90,7 @@ class FlaskRunner:
             content=root._render()
         )
         View._clear_dirties()
+        #print(index_html)
         return index_html
     
     def send_js(self):
@@ -102,7 +103,10 @@ class FlaskRunner:
         event_name = json.loads(event_header)['type']
         view = View.get_view(view_id)
         value = flask.request.values.get(view_id, view)
-        return view._process_event(event_name, value)
+        
+        update_html = view._process_event(event_name, value)
+        #print(update_html)
+        return update_html
         
 
 class PythonistaRunner(FlaskRunner):

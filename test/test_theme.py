@@ -14,16 +14,16 @@ class TestStyles:
             background_color = theme.background
             text_color = contrast.background
         
-        style = SomeStyle()
+        style = SomeStyle
         
         assert callable(style.background_color)
-        assert style.background_color() == Color('white')
-        assert style.text_color() == Color('black')
+        assert style.background_color(style) == Color('white')
+        assert style.text_color(style) == Color('black')
         
         class OtherTheme(Theme):
             background = Color('blue')
         Style.current_theme = OtherTheme
         
-        assert style.background_color() == Color('blue')
-        assert style.text_color() == Color('white')
+        assert style.background_color(style) == Color('blue')
+        assert style.text_color(style) == Color('white')
 

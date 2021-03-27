@@ -383,7 +383,7 @@ class TestStyleProperties:
             'color:rgba(255,255,255,255);'
             'border-radius:50%;'
             'opacity:50%;'
-            'transition:border-radius 1.0s default-ease,opacity 2.0s ease-func'
+            'transition:border-radius 1.0s ease,opacity 2.0s ease-func'
             '"'
         )
 
