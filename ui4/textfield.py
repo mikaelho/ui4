@@ -1,3 +1,6 @@
+from string import Template
+
+from ui4.core import Render
 from ui4.theme import TextInputStyle
 from ui4.view import prop
 from ui4.view import View
@@ -11,14 +14,19 @@ class TextField(View):
     URL = 'url'
     PHONE = 'tel'
     
-    _render_template = 'textfield_template.html'
-    _style = TextInputStyle
+    _template = Template(
+        '<input id="$id" name="$id" class="$viewclass" '
+        '$rendered_attributes '
+        '$oob hx-swap="none" '
+        'value="$content"></input>'
+    )
+    style = TextInputStyle
     
     def __init__(self, type=NORMAL, placeholder="", **kwargs):
         self.type = type
         self.placeholder = placeholder
         super().__init__(**kwargs)
-        self._style_values['user-select'] = 'auto'
+        self._css_properties['user-select'] = 'auto'
         self.align = 'left'
         self._value = ""
 
@@ -28,7 +36,7 @@ class TextField(View):
             return self._type
         else:
             self._type = value
-            View._dirties.add(self)
+            self._mark_dirty()
             
     @prop
     def placeholder(self, value=prop.none):
@@ -36,7 +44,7 @@ class TextField(View):
             return self._placeholder
         else:
             self._placeholder = value
-            View._dirties.add(self)
+            self._mark_dirty()
             
     @prop
     def value(self, value=prop.none):
@@ -44,14 +52,16 @@ class TextField(View):
             return self._value
         else:
             self._value = value
-            View._dirties.add(self)
+            self._mark_dirty()
     
     def on_change(self, value):
         self._value = value
     
-    def _render__additional_values(self):
-        return {
+    def _additional_attributes(self):
+        add = super()._additional_attributes()
+        add.update({
             'type': self._type,
             'placeholder': self._placeholder,
-        }
+        })
+        return add
 

@@ -272,7 +272,10 @@ class TestEvents:
             pass
             
         assert inspect.isfunction(view.on_click)  # noqa: Too clever for PyCharm
-        assert view._render_events() == "hx-post='/event' hx-trigger='click'"
+        assert view._render_events() == {
+            'hx-post': '/event',
+            'hx-trigger': 'click'
+        }
 
     def test_get_roots(self):
         Events._clear_dirties()
@@ -306,10 +309,10 @@ class TestEvents:
         view._process_event('click', view)
         assert view.value == 1
         assert inspect.isgenerator(view._event_generator)
-        assert (
-            view._render_events() == 
-            "hx-post='/event' hx-trigger='click,next'"
-        )
+        assert view._render_events() == {
+            'hx-post': '/event',
+            'hx-trigger': 'click,next'
+        }
         view._process_event('next', view)
         assert view.value == 2
         assert view._event_generator is None
@@ -378,14 +381,12 @@ class TestStyleProperties:
             
         rendered = view._render_props()
         
-        assert rendered == (
-            'style="'
-            'color:rgba(255,255,255,255);'
+        assert rendered == {
+            'style': 'color:rgba(255,255,255,255);'
             'border-radius:50%;'
             'opacity:50%;'
             'transition:border-radius 1.0s ease,opacity 2.0s ease-func'
-            '"'
-        )
+        }
 
     def test_properties__generic(self):
         Core.corner_radius = Core._css_plain_prop('corner_radius', 'border-radius')

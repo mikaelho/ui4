@@ -294,15 +294,29 @@ class DefaultColor(Green):
     
     
 class DefaultFont:
-    font = 'Menlo'
+    font = (
+        '-apple-system,'
+        'BlinkMacSystemFont,'
+        '"Segoe UI",'
+        'Roboto,'
+        'Helvetica,'
+        'Arial,'
+        'sans-serif,'
+        '"Apple Color Emoji",'
+        '"Segoe UI Emoji",'
+        '"Segoe UI Symbol"'
+    )
     font_m = 14
     
     
-class DefaultShape:
+class DefaultLook:
     corner_s = 2
+    button_border_width = 1
+    button_border_style = 'none'
+    inner_shadow = 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);'
 
 
-class DefaultTheme(DefaultColor, DefaultFont, DefaultShape):
+class DefaultTheme(DefaultColor, DefaultFont, DefaultLook):
     pass
 
 
@@ -340,6 +354,7 @@ class TextInputStyle(BaseStyle):
     text_alignment = 'left'
     background_color = theme.background
     shadow = theme('inner_shadow')
+    border_color = theme('primary')
     
     
 class ButtonStyle(BaseStyle):
@@ -347,4 +362,13 @@ class ButtonStyle(BaseStyle):
     background_color = theme('primary')
     text_color = contrast('primary')
     corner_radius = theme('corner_s')
+    border_width = theme('button_border_width')
+    border_color = theme('primary')
+    border_style = theme('button_border_style')
+    
+
+class VariantButtonStyle(ButtonStyle):
+    
+    background_color = theme('variant')
+    text_color = contrast('variant')
 

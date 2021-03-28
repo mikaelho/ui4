@@ -57,7 +57,7 @@ class Identity:
     def get_view(view_id):
         user_id = Identity.get_user_id()
         views = Identity.views.get(user_id)
-        return views and views.get(view_id)
+        return views.get(view_id)
 
 
 class Hierarchy(Identity):
@@ -140,7 +140,10 @@ class Hierarchy(Identity):
 class Render(Hierarchy):
     
     _renderers = []
-    _render_template = 'view_template.html'
+    _template = Template(
+        '<$tag id="$id" class="$viewclass" $rendered_attributes '
+        '$oob hx-swap="none">$content</$tag>'
+    )
     _css_class = 'view'
     _tag = 'div'
     
@@ -155,9 +158,10 @@ class Render(Hierarchy):
         If htmx_oob is True, the view is marked as the "out-of-band" root
         of swapped content.
         """
-        rendered_attributes = ' '.join([
-            renderer(self) for renderer
-            in self._renderers
+        subrendered_attributes = ' '.join([
+            f"{key}='{value}'"
+            for key, value
+            in self._subrenderer_results().items()
         ])
         
         htmx_oob = htmx_oob and 'hx-swap-oob="true"' or ''
@@ -167,15 +171,23 @@ class Render(Hierarchy):
             child._render()
             for child in self._children
         ])
-         
-        template = Template(
-            (Path(__file__).parent / "static" / self._render_template).read_text()
-        )
-        return self._render_result(rendered_attributes, htmx_oob, rendered_children, template)
         
-    def _render_result(self, rendered_attributes, htmx_oob, rendered_children,
-    template):       
-        html = template.safe_substitute(
+        return self._render_result(subrendered_attributes, htmx_oob, rendered_children)
+        
+    def _subrenderer_results(self):
+        subrenderer_results = {}
+        for renderer in self._renderers:
+                subrenderer_results.update(renderer(self))
+                
+        subrenderer_results.update(self._additional_attributes())
+        
+        return subrenderer_results
+        
+    def _additional_attributes(self):
+        return {}
+        
+    def _render_result(self, rendered_attributes, htmx_oob, rendered_children):
+        html = self._template.safe_substitute(
             tag='div',
             id=self.id,
             viewclass=self._css_class,
@@ -300,15 +312,15 @@ class Events(Render):
 
         trigger_str = ",".join(triggers)
 
-        return (
-            f"hx-post='/event' "
-            f"hx-trigger='{trigger_str}'"
-        ) if trigger_str else ""
+        return {
+            'hx-post': '/event',
+            'hx-trigger': trigger_str,
+        } if trigger_str else {}
 
 
 class Props(Events):
     
-    _style = None
+    style = None
     _css_value_funcs = {}
     
     def __init__(self, **kwargs):
@@ -319,7 +331,6 @@ class Props(Events):
         
     @Render._register
     def _render_props(self):
-        
         css_properties = self._fill_from_theme()
         
         styles = ";".join([
@@ -339,25 +350,27 @@ class Props(Events):
         ])
             
         if items:      
-            return f'style="{items}"'
+            return {
+                'style': items,
+            }
         else:
-            return ''
+            return {}
             
     def _fill_from_theme(self):
         css_properties = dict(self._css_properties)
         
-        if not self._style:
+        if not self.style:
             return css_properties
         
-        for key in dir(self._style):
+        for key in dir(self.style):
             if key in css_properties:
                 continue
             css_spec = Props._css_value_funcs.get(key)
             if css_spec:
                 css_name, css_value_func = css_spec
-                value = getattr(self._style, key)
+                value = getattr(self.style, key)
                 if callable(value):
-                    value = value(self._style)
+                    value = value(self.style)
                 css_properties[css_name] = css_value_func(value)
         
         return css_properties
@@ -645,9 +658,11 @@ class Anchors(Events):
                 check_circular=False, 
                 separators=(',', ':'),
             )
-            return f"ui4='{as_json}'"
+            return {
+                'ui4': as_json,
+            }
         else:
-            return ''
+            return {}
 
     def _anchor_getter(self, attribute):
         return Anchor(target_view=self, target_attribute=attribute)

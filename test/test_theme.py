@@ -1,4 +1,5 @@
 from ui4.core import Color
+from ui4.core import Core
 from ui4.theme import Style
 from ui4.theme import Theme
 from ui4.theme import contrast
@@ -27,3 +28,29 @@ class TestStyles:
         assert style.background_color(style) == Color('blue')
         assert style.text_color(style) == Color('white')
 
+    def test_style_fill(self):
+        Core.text_color = Core._css_color_prop('text_color', 'color')
+        Core.background_color = Core._css_color_prop('background_color', 'background-color')
+        
+        class SomeStyle(Style):
+            background_color = theme.background
+            
+        class OtherTheme(Theme):
+            background = Color('indigo')
+            
+        Style.current_theme = OtherTheme
+            
+        Core.style = SomeStyle
+            
+        view = Core()
+        view.text_color = 'black'
+        
+        assert 'color' in view._css_properties
+        assert len(view._css_properties) == 1
+        
+        css_properties = view._fill_from_theme()
+        
+        assert 'background-color' in css_properties
+        assert len(css_properties) == 2
+        assert css_properties['background-color'] == Color('indigo').css
+        
