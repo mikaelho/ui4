@@ -526,7 +526,7 @@ class Anchor:
         ])
         return f"<{self.__class__.__name__} ({items})>"
 
-    def as_dict(self, gap):
+    def as_dict(self, gap=None):
         """
         Returns anchor values where defined, with shortened keys.
         """
@@ -612,7 +612,7 @@ class Anchor:
         return self
 
     def __sub__(self, other):
-        return self.add(other and -other)
+        return self.__add__(other and -other)
 
     def __mul__(self, other):
         if self.multiplier is None:

@@ -159,10 +159,6 @@ class TestAnchor:
 
 class TestAnchorProperties:
 
-    def test_anchors_init(self):
-        view = Core()
-        assert view.halfgap == 4
-
     def test_anchors_basic(self, anchor_view):
         view1 = anchor_view()
         view2 = anchor_view()
@@ -354,7 +350,7 @@ class TestStyleProperties:
         
         assert view not in Core._get_dirties()
         
-        view._set_property(
+        view._set_css_property(
             'text_color',
             (1, 1, 1, 1),
             'color', 
@@ -364,7 +360,7 @@ class TestStyleProperties:
         assert view in Core._get_dirties()
         
         with animation(1.0):
-            view._set_property(
+            view._set_css_property(
                 'corner_radius',
                 '50%',
                 'border-radius', 
@@ -372,7 +368,7 @@ class TestStyleProperties:
             )
             
         with animation(2.0, 'ease-func'):
-            view._set_property(
+            view._set_css_property(
                 'alpha',
                 0.5,
                 'opacity', 
