@@ -11,12 +11,12 @@ def main(root):
         text='Button',
     )
     other_button = ui4.Button(
-        dock=button.below,
+        dock=button.below + 100,
         text='Other button with long text',
         style=ui4.VariantButtonStyle,
     )
     textf = ui4.TextField(
-        dock=view.above,
+        dock=view.above + 100,
         placeholder="Some text?",
     )
     

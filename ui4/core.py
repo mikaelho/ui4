@@ -648,26 +648,6 @@ def lt(anchor):
 le = lt
 
 
-PARENT_DOCK_SPECS = {
-    'top': ('top', 'left', 'right'),
-    'left': ('left', 'top', 'bottom'),
-    'bottom': ('bottom', 'left', 'right'),
-    'right': ('right', 'top', 'bottom'),
-    'top_left': ('top', 'left'),
-    'top_right': ('top', 'right'),
-    'bottom_left': ('bottom', 'left'),
-    'bottom_right': ('bottom', 'right'),
-    'center': ('center_x', 'center_y'),
-    'top_center': ('top', 'center_x'),
-    'bottom_center': ('bottom', 'center_x'),
-    'left_center': ('left', 'center_y'),
-    'right_center': ('right', 'center_y'),
-    'sides': ('left', 'right'),
-    'top_and_bottom': ('top', 'bottom'),
-    'all': ('top', 'left', 'right', 'bottom'),
-}
-
-
 class Anchors(Events):
 
     def __init__(self, gap=None, flow=False, **kwargs):
@@ -727,7 +707,7 @@ class Anchors(Events):
                 constraints_per_dimension = constrained_attributes.intersection(checklist)
                 if len(constraints_per_dimension) > 2:
                     raise RuntimeError(
-                        f'Too many constraints in one dimension: {constraints_per_dimension}'
+                        "Too many constraints in one dimension", constraints_per_dimension
                     )
         else:
             raise TypeError(f"Cannot set {value} as {attribute}")
@@ -776,55 +756,7 @@ class Anchors(Events):
                     value,
                 )()
         )
-
-    @prop
-    def dock(self, *value):
-        if value:
-            value = value[0]
-            self._dock = value
-            if issubclass(type(value), Sequence) and len(value) == 2:
-                value = value[0]
-                value.target_attribute = 'center'
-            if not type(value) is Anchor:
-                raise TypeError(
-                    f'Dock value must be something like view.left, not {value}'
-                )
-            other = value.target_view
-            dock_type = value.target_attribute
-            dock_attributes = PARENT_DOCK_SPECS.get(dock_type)
-            if dock_attributes:
-                self.parent = other
-                for attribute in dock_attributes:
-                    setattr(
-                        self,
-                        attribute,
-                        getattr(other, attribute)
-                        * (value.multiplier or 1)
-                        + value.modifier
-                    )
-            else:
-                self.parent = other.parent
-                if dock_type == 'above':
-                    self.center_x = other.center_x
-                    self.bottom = other.top * value.multiplier + value.modifier
-                    self.width = other.width
-                elif dock_type == 'below':
-                    self.center_x = other.center_x
-                    self.top = other.bottom
-                    self.width = other.width
-                elif dock_type == 'left_of':
-                    self.center_y = other.center_y
-                    self.right = other.left
-                    self.height = other.height
-                elif dock_type == 'right_of':
-                    self.center_y = other.center_y
-                    self.left = other.right
-                    self.height = other.height
-                else:
-                    raise ValueError(f'Unknown docking type {dock_type}')
-        else:
-            return self._dock
-
+        
     @prop
     def fit(self, *value):
         if value:
@@ -852,6 +784,77 @@ class Anchors(Events):
         else:
             return self._fit
             
+
+    @prop
+    def dock(self, *value):
+        if value:
+            value = value[0]
+            self._dock = value
+            if issubclass(type(value), Sequence) and len(value) == 2:
+                value = value[0]
+                value.target_attribute = 'center'
+            if not type(value) is Anchor:
+                raise TypeError(
+                    f'Dock value must be something like view.left, not {value}'
+                )
+            other = value.target_view
+            dock_type = value.target_attribute
+            dock_attributes = PARENT_DOCK_SPECS.get(dock_type)
+            if dock_attributes:
+                self.parent = other
+                for attribute in dock_attributes:
+                    setattr(
+                        self,
+                        attribute,
+                        getattr(other, attribute)
+                        * (value.multiplier or 1)
+                        + value.modifier,
+                    )
+            else:
+                dock_attributes = SIBLING_DOCK_SPECS.get(dock_type)
+                if dock_attributes:
+                    this, that, align, size = dock_attributes
+                    self.parent = other.parent
+                    setattr(
+                        self, this,
+                        getattr(other, that)
+                        * (value.multiplier or 1)
+                        + value.modifier,
+                    )
+                    setattr(self, align, getattr(other, align))
+                    setattr(self, size, getattr(other, size))
+                else:
+                    raise ValueError(f'Unknown docking attribute {dock_type}')
+        else:
+            return self._dock
+
+
+PARENT_DOCK_SPECS = {
+    'top': ('top', 'left', 'right'),
+    'left': ('left', 'top', 'bottom'),
+    'bottom': ('bottom', 'left', 'right'),
+    'right': ('right', 'top', 'bottom'),
+    'top_left': ('top', 'left'),
+    'top_right': ('top', 'right'),
+    'bottom_left': ('bottom', 'left'),
+    'bottom_right': ('bottom', 'right'),
+    'center': ('center_x', 'center_y'),
+    'top_center': ('top', 'center_x'),
+    'bottom_center': ('bottom', 'center_x'),
+    'left_center': ('left', 'center_y'),
+    'right_center': ('right', 'center_y'),
+    'sides': ('left', 'right'),
+    'top_and_bottom': ('top', 'bottom'),
+    'all': ('top', 'left', 'right', 'bottom'),
+}
+
+SIBLING_DOCK_SPECS = {
+    'above': ('bottom', 'top', 'center_x', 'width'),
+    'below': ('top', 'bottom', 'center_x', 'width'),
+    'left_of': ('right', 'left', 'center_y', 'height'),
+    'right_of': ('left', 'right', 'center_y', 'height'),
+}
+
 
 class Core(Anchors, Props):
     """
