@@ -1,8 +1,7 @@
 from string import Template
 
-from ui4.core import Render
+from ui4.core import Core
 from ui4.theme import TextInputStyle
-from ui4.view import prop
 from ui4.view import View
 
 
@@ -23,45 +22,23 @@ class TextField(View):
     style = TextInputStyle
     
     def __init__(self, type=NORMAL, placeholder="", **kwargs):
-        self.type = type
-        self.placeholder = placeholder
         super().__init__(**kwargs)
         self._css_properties['user-select'] = 'auto'
-        self.align = 'left'
-        self._value = ""
+        self.type = type
+        self.placeholder = placeholder
 
-    @prop
-    def type(self, value=prop.none):
-        if value == prop.none:
-            return self._type
-        else:
-            self._type = value
-            self._mark_dirty()
-            
-    @prop
-    def placeholder(self, value=prop.none):
-        if value == prop.none:
-            return self._placeholder
-        else:
-            self._placeholder = value
-            self._mark_dirty()
-            
-    @prop
-    def value(self, value=prop.none):
-        if value == prop.none:
-            return self._value
-        else:
-            self._value = value
-            self._mark_dirty()
+    type = Core._prop('type')
+    placeholder = Core._prop('placeholder')
+    value = Core._prop('value')
     
     def on_change(self, value):
-        self._value = value
+        self._properties['text'] = value
     
     def _additional_attributes(self):
         add = super()._additional_attributes()
         add.update({
-            'type': self._type,
-            'placeholder': self._placeholder,
+            'type': self.type,
+            'placeholder': self.placeholder,
         })
         return add
 

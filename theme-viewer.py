@@ -26,7 +26,7 @@ def main(root):
         with ui4.animation(2.0):
             view.text_color = 'white'
             view.background_color = 'red'
-            view.top = view.parent.top
+            view.bottom = view.parent.top + 0
 
 
 ui4.run(main)

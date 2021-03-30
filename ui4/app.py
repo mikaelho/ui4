@@ -87,6 +87,7 @@ class FlaskRunner:
         template = Template(Path('ui4/static/index_template.html').read_text())
         index_html = template.safe_substitute(
             app_name=self.app.name,
+            gap=self.app.gap,
             content=root._render()
         )
         View._clear_dirties()
@@ -121,7 +122,9 @@ class PythonistaRunner(FlaskRunner):
         try:
             self.run_server()
             webview = wkwebview.WKWebView()
-            webview.load_url(f'{self.protocol}://{self.host}:{self.port}/', no_cache=not cache)
+            webview.load_url(
+                f'{self.protocol}://{self.host}:{self.port}/', 
+                no_cache=not cache)
             webview.present('fullscreen')
             
             webview.wait_modal()
@@ -157,6 +160,7 @@ class App:
     def __init__(
         self, 
         name="UI4 App",
+        gap=None,
         runner_class=None,
         protocol="http",
         host="127.0.0.1",
@@ -166,6 +170,7 @@ class App:
         super().__init__(
             **kwargs)
         self.name = name
+        self.gap = gap is None and 8 or gap
         self.runner = (
             runner_class and runner_class(protocol, host, port) or 
             self._detect_runner(protocol, host, port)
@@ -187,7 +192,7 @@ class App:
         self.runner.run()
 
 
-def run(setup_func):
-    app = App()
+def run(setup_func, gap=None):
+    app = App(gap=gap)
     app.run(setup_func)
 

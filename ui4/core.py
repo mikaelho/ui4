@@ -15,7 +15,6 @@ from types import GeneratorType
 from weakref import WeakSet
 from weakref import WeakValueDictionary
 
-import ui4.constants as constants
 from ui4.color import Color
 
 
@@ -147,10 +146,6 @@ class Render(Hierarchy):
     _css_class = 'view'
     _tag = 'div'
     
-    def __init__(self, text=None, **kwargs):
-        super().__init__(**kwargs)
-        self.text = text
-    
     def _render(self, htmx_oob=False):
         """
         Renders a view, recursively rendering the child views.
@@ -218,8 +213,8 @@ class Events(Render):
     _dirties = dict()
 
     def __init__(self, **kwargs):
-        self._event_generator = None
         super().__init__(**kwargs)
+        self._event_generator = None
 
     # All known and accepted events from the front-end
     # Maps an event handler method name to JS event
@@ -324,10 +319,10 @@ class Props(Events):
     _css_value_funcs = {}
     
     def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._properties = {}
         self._css_properties = {}
         self._transitions = set()
-        super().__init__(**kwargs)
         
     @Render._register
     def _render_props(self):
@@ -375,7 +370,32 @@ class Props(Events):
         
         return css_properties
         
-    def _set_property(
+    def _getter(self, attribute):
+        """
+        Note we do not return the CSS value.
+        """
+        return self._properties.get(attribute)
+        
+    def _setter(self, attribute, value):
+        if value != self._properties.get(attribute):
+            self._mark_dirty()
+            self._properties[attribute] = value
+            
+    @staticmethod
+    def _prop(property_name):
+        return property(
+            lambda self: partial(
+                Props._getter, self, property_name,
+            )(),
+            lambda self, value: partial(
+                Props._setter, 
+                self, 
+                property_name, 
+                value, 
+            )()
+        )
+
+    def _set_css_property(
         self,
         property_name,
         property_value,
@@ -392,15 +412,10 @@ class Props(Events):
                 css_name, duration, ease_function,
             ))
         
-    def _style_getter(self, attribute):
-        """
-        Note we do not return the CSS value.
-        """
-        return self._properties.get(attribute)
 
-    def _style_setter(self, property_name, css_name, value, css_value_func):
+    def _css_setter(self, property_name, css_name, value, css_value_func):
         css_value = css_value_func(value)
-        self._set_property(property_name, value, css_name, css_value)
+        self._set_css_property(property_name, value, css_name, css_value)
 
     @staticmethod
     def _css_plain_prop(property_name, css_name):
@@ -412,10 +427,10 @@ class Props(Events):
         Props._css_value_funcs[property_name] = css_name, css_value_func
         return property(
             lambda self: partial(
-                Props._style_getter, self, property_name,
+                Props._getter, self, property_name,
             )(),
             lambda self, value: partial(
-                Props._style_setter, 
+                Props._css_setter, 
                 self, 
                 property_name, 
                 css_name, 
@@ -424,11 +439,11 @@ class Props(Events):
             )()
         )
         
-    def _style_color_setter(self, property_name, css_name, value, css_value_func):
+    def _css_color_setter(self, property_name, css_name, value, css_value_func):
         if not type(value) is Color:
             value = Color(value)
         css_value = css_value_func(value)
-        self._set_property(property_name, value, css_name, css_value)
+        self._set_css_property(property_name, value, css_name, css_value)
 
     @staticmethod
     def _css_color_prop(property_name, css_name):
@@ -437,10 +452,10 @@ class Props(Events):
         Props._css_value_funcs[property_name] = css_name, css_value_func
         return property(
             lambda self: partial(
-                Props._style_getter, self, property_name,
+                Props._getter, self, property_name,
             )(),
             lambda self, value: partial(
-                Props._style_color_setter, 
+                Props._css_color_setter, 
                 self,
                 property_name,
                 css_name,
@@ -456,10 +471,10 @@ class Props(Events):
         Props._css_value_funcs[property_name] = css_name, css_value_func
         return property(
             lambda self: partial(
-                Props._style_getter, self, property_name,
+                Props._getter, self, property_name,
             )(),
             lambda self, value: partial(
-                Props._style_setter,
+                Props._css_setter,
                 self, property_name, 
                 css_name,
                 value,
@@ -511,13 +526,15 @@ class Anchor:
         ])
         return f"<{self.__class__.__name__} ({items})>"
 
-    def as_dict(self):
+    def as_dict(self, gap):
         """
         Returns anchor values where defined, with shortened keys.
         """
         d = {}
         for i, key in enumerate(self.key_order):
             value = getattr(self, key)
+            if value is None and gap is not None and key == 'modifier':
+                value = gap
             if not value is None:
                 value = getattr(value, "id", value)
                 d[f'a{i}'] = value
@@ -586,18 +603,16 @@ class Anchor:
         })
 
     def __add__(self, other):
-        if self.modifier is None:
+        if other is None:
+            self.modifier = None
+        elif self.modifier is None:
             self.modifier = other
         else:
             self.modifier += other
         return self
 
     def __sub__(self, other):
-        if self.modifier is None:
-            self.modifier = -other
-        else:
-            self.modifier -= other
-        return self
+        return self.add(other and -other)
 
     def __mul__(self, other):
         if self.multiplier is None:
@@ -633,22 +648,41 @@ def lt(anchor):
 le = lt
 
 
+PARENT_DOCK_SPECS = {
+    'top': ('top', 'left', 'right'),
+    'left': ('left', 'top', 'bottom'),
+    'bottom': ('bottom', 'left', 'right'),
+    'right': ('right', 'top', 'bottom'),
+    'top_left': ('top', 'left'),
+    'top_right': ('top', 'right'),
+    'bottom_left': ('bottom', 'left'),
+    'bottom_right': ('bottom', 'right'),
+    'center': ('center_x', 'center_y'),
+    'top_center': ('top', 'center_x'),
+    'bottom_center': ('bottom', 'center_x'),
+    'left_center': ('left', 'center_y'),
+    'right_center': ('right', 'center_y'),
+    'sides': ('left', 'right'),
+    'top_and_bottom': ('top', 'bottom'),
+    'all': ('top', 'left', 'right', 'bottom'),
+}
+
+
 class Anchors(Events):
-    
-    default_gap = 8
 
     def __init__(self, gap=None, flow=False, **kwargs):
-        self.gap = self.default_gap if gap is None else gap
-        self.halfgap = self.gap / 2
         self.flow = flow
         self._constraints = set()
         self._fit = False
         super().__init__(**kwargs)
+        self.gap = gap
+        
+    gap = Props._prop('gap')
         
     @Render._register
     def _render_anchors(self):
         constraints = [
-            anchor.as_dict()
+            anchor.as_dict(self.gap)
             for anchor in self._constraints
         ]
         
@@ -752,18 +786,27 @@ class Anchors(Events):
                 value = value[0]
                 value.target_attribute = 'center'
             if not type(value) is Anchor:
-                raise TypeError(f'Dock value must be an Anchor, not {value}')
+                raise TypeError(
+                    f'Dock value must be something like view.left, not {value}'
+                )
             other = value.target_view
             dock_type = value.target_attribute
-            if dock_type in constants.PARENT_DOCK_SPECS:
+            dock_attributes = PARENT_DOCK_SPECS.get(dock_type)
+            if dock_attributes:
                 self.parent = other
-                for attribute in constants.PARENT_DOCK_SPECS[dock_type]:
-                    setattr(self, attribute, getattr(other, attribute))
+                for attribute in dock_attributes:
+                    setattr(
+                        self,
+                        attribute,
+                        getattr(other, attribute)
+                        * (value.multiplier or 1)
+                        + value.modifier
+                    )
             else:
                 self.parent = other.parent
                 if dock_type == 'above':
                     self.center_x = other.center_x
-                    self.bottom = other.top
+                    self.bottom = other.top * value.multiplier + value.modifier
                     self.width = other.width
                 elif dock_type == 'below':
                     self.center_x = other.center_x
@@ -814,8 +857,11 @@ class Core(Anchors, Props):
     """
     This class is here simply to collect the different mechanical parts of the core view class for inheritance.
     """
-    def __init__(self, **kwargs):
+    def __init__(self, text=None, **kwargs):
         super().__init__(**kwargs)
+        self.text = text
+        
+    text = Props._prop('text')
         
         
 _ui4_animation_context_variable = '_ui4_animation_context_variable'

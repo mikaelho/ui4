@@ -3,7 +3,7 @@
 (function (ui4, undefined) {
   'use strict';
 
-  let gap = 8;
+  //let gap = 8;
   let allDependencies = {};
   let animatedDependencies = {};
   let latestValues = {};

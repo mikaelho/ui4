@@ -14,18 +14,6 @@ from ui4.prop import prop, ui4prop, ui4props, ui4dock, Anchor
 from ui4.core import Core
 
 
-class OldView:
-                
-    def send_to_back(self):
-        self.parent._z_min -= 1
-        self.z = self.parent._z_min
-        
-    def bring_to_front(self):
-        self.parent._z_max += 1
-        self.parent._z_max = max(len(self.parent.children), self.parent._z_max)
-        self.z = self.parent._z_max
-        
-        
 class View(Core):
     
     # Layout properties
