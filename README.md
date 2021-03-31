@@ -5,37 +5,37 @@ ui4 - Python UI library
 Roadmap
 -------
 
-- [_] Widget coverage
-- [_] Small features
-- [_] Basic demo
-- [_] Widget demo
-- [_] UI tester
-- [_] JS tests
-- [_] Deployment story
-- [_] FastAPI backend
+- [ ] Widget coverage
+- [ ] Small features
+- [ ] Basic demo
+- [ ] Widget demo
+- [ ] UI tester
+- [ ] JS tests
+- [ ] Deployment story
+- [ ] FastAPI backend?
 
 Widget coverage
 ---------------
 
-- [_] View
+- [ ] View
 - [x] Button
-- [_] Textfield
-- [_] Card
-- [_] Navigator
-- [_] Slider
-- [_] Checkbox
+- [ ] Textfield
+- [ ] Card
+- [ ] Navigator
+- [ ] Slider
+- [ ] Checkbox
 
 Small features
 --------------
 
-- [_] Textfield immediate change
-- [_] scrollable
-- [_] clip_to_bounds
-- [_] yield wait
-- [_] yield fetch
-- [_] Gradients
-- [_] Transforms
-- [_] introduce
+- [ ] Textfield immediate change
+- [ ] scrollable
+- [ ] clip_to_bounds
+- [ ] yield wait
+- [ ] yield fetch
+- [ ] Gradients
+- [ ] Transforms
+- [ ] introduce
 
 
 Similar projects
