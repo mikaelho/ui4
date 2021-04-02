@@ -5,14 +5,17 @@ ui4 - Python UI library
 Roadmap
 -------
 
+- [ ] Event loop - wait, pause, play, stop
 - [ ] Widget coverage
 - [ ] Small features
 - [ ] Basic demo
 - [ ] Widget demo
 - [ ] UI tester
+- [ ] Sound
 - [ ] JS tests
 - [ ] Deployment story
-- [ ] FastAPI backend?
+- [ ] FastAPI backend
+- [ ] WebSocket/SSE
 
 Widget coverage
 ---------------
@@ -24,6 +27,7 @@ Widget coverage
 - [ ] Navigator
 - [ ] Slider
 - [ ] Checkbox
+- [ ] Image
 
 Small features
 --------------
@@ -31,7 +35,6 @@ Small features
 - [ ] Textfield immediate change
 - [ ] scrollable
 - [ ] clip_to_bounds
-- [ ] yield wait
 - [ ] yield fetch
 - [ ] Gradients
 - [ ] Transforms

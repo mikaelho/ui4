@@ -303,6 +303,7 @@
     node.addEventListener(
       'transitionrun',
       function (evt) {
+        console.log(this.id + ":" + evt.target.id + "." + evt.propertyName);
         if (this.id) {
           transitioning[this.id] = (transitioning[this.id] || 0) + 1;
           requestAnimationFrame(updateDependenciesWhileAnimating);

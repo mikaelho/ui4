@@ -98,15 +98,21 @@ class FlaskRunner:
         return self.flask.send_static_file('ui4.js')
     
     def handle_event(self):
-        # print(flask.request.values)
         view_id = flask.request.headers.get('Hx-Trigger')
         event_header = urllib.parse.unquote(flask.request.headers.get('Triggering-Event'))
         event_name = json.loads(event_header)['type']
         view = View.get_view(view_id)
         value = flask.request.values.get(view_id, view)
-        
         update_html = view._process_event(event_name, value)
         #print(update_html)
+        return update_html
+        
+    def event_loop(self):
+        event_header = urllib.parse.unquote(flask.request.headers.get('Triggering-Event'))
+        event_loop_id = json.loads(event_header)['type']
+        print(event_loop_id)
+        update_html = Core._process_event_loop(event_loop_id)
+        print(update_html)
         return update_html
         
 

@@ -300,6 +300,8 @@ class TestEvents:
             data.value = 1
             yield
             data.value = 2
+            yield 1.0
+            data.value = 3
         
         # Basic flow    
         view._process_event('click', view)
@@ -311,7 +313,17 @@ class TestEvents:
         }
         view._process_event('next', view)
         assert view.value == 2
+        assert view._render_events() == {
+            'hx-post': '/event',
+            'hx-trigger': 'click,next delay:1.0s'
+        }
+        view._process_event('next', view)
+        assert view.value == 3
         assert view._event_generator is None
+    
+        view.value = 0
+        view._process_event('next', view)
+        assert view.value == 0
     
         # Restart
         view._process_event('click', view)
@@ -320,11 +332,7 @@ class TestEvents:
         assert view.value == 1
         view._process_event('next', view)
         assert view.value == 2
-        
-        view.value = 0
-        view._process_event('next', view)
-        assert view.value == 0
-        
+
         
 class TestAnimationContext:
     

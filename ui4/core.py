@@ -4,8 +4,9 @@ Contains behind-the-scenes machinery that all views share.
 
 import inspect
 import json
-from collections.abc import Sequence
+import uuid
 
+from collections.abc import Sequence
 from contextlib import contextmanager
 from functools import partial
 from numbers import Number
@@ -211,10 +212,12 @@ class Events(Render):
     """
     # Views that have changes
     _dirties = dict()
+    _event_loops = dict()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._event_generator = None
+        self._yield_value = None
 
     # All known and accepted events from the front-end
     # Maps an event handler method name to JS event
@@ -239,10 +242,10 @@ class Events(Render):
             )
         return f
 
-    def _process_event(self, event_name, value=None):
+    def _process_event(self, event_name, value=None, event_loop_id):
         if event_name == 'next' and self._event_generator:
             try:
-                next(self._event_generator)
+                self._yield_value = next(self._event_generator)
             except StopIteration:
                 self._event_generator = None
         else:
@@ -251,9 +254,13 @@ class Events(Render):
             if event_method:
                 event_generator = event_method(value)
                 if isinstance(event_generator, GeneratorType):
-                    next(event_generator)
+                    self._yield_value = next(event_generator)
                     self._event_generator = event_generator
-        return self._render_updates()
+                    event_loop_id = uuid.uuid4()
+                    Events._event_loops[event_loop_id] = self._event_generator
+        updates = self._render_updates(event_loop_id)
+        print(updates)
+        return updates
 
     def _mark_dirty(self):
         user_id = Identity.get_user_id()
@@ -269,7 +276,7 @@ class Events(Render):
         user_id = Identity.get_user_id()
         Events._dirties[user_id] = set()
         
-    def _render_updates(self):
+    def _render_updates(self, event_loop_id):
         roots = self._get_roots()
         Events._clear_dirties()
 
@@ -297,13 +304,17 @@ class Events(Render):
         
     @Render._register
     def _render_events(self):
+        print('EVENTS')
         triggers = [
             event
             for method_name, event in self._event_methods.items()
             if hasattr(self, method_name)
         ]
         if self._event_generator:
-            triggers.append('next')
+            delay = ''
+            if isinstance(self._yield_value, Number):
+                delay = f' delay:{self._yield_value}s'
+            triggers.append(f'next{delay}')
 
         trigger_str = ",".join(triggers)
 

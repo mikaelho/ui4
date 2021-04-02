@@ -11,22 +11,23 @@ def main(root):
         text='Button',
     )
     other_button = ui4.Button(
-        dock=button.below + 100,
+        dock=button.below,
         text='Other button with long text',
         style=ui4.VariantButtonStyle,
     )
     textf = ui4.TextField(
-        dock=view.above + 100,
+        dock=view.above,
         placeholder="Some text?",
     )
     
     @button
     def on_click(data):
-        view.center_y.clear()
-        with ui4.animation(2.0):
+        with ui4.animation(0.5):
             view.text_color = 'white'
             view.background_color = 'red'
-            view.bottom = view.parent.top + 0
+            button.top = view.bottom + 100
+            yield 0.5
+            button.top = view.bottom
 
 
 ui4.run(main)
