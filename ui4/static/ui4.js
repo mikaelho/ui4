@@ -310,7 +310,8 @@
         const animation = targetElem.animate([fromFrame, toFrame],
             {
               duration: spec.duration * 1000,
-              easing: spec.easeFunc
+              easing: spec.easeFunc,
+              fill: "both"
             }
         );
         if (animating[spec.animationID]) {
