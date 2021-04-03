@@ -381,17 +381,10 @@
       attributeFilter: ["style"]
     });
   };
-  
-  // Know when we are making CSS transitions
-  const startTransitionEvent = "transitionstart";
-  const endTransitionEvent = "transitionend";
-
-  var runningTransitions = 0;
-  var animationFrame;
 
   ui4.initialize = function() {
     ui4.startTracking();
-  }
+  };
     
   // Update constraints on window resize
   window.addEventListener('resize', function (evt) {

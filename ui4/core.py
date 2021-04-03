@@ -147,13 +147,17 @@ class Render(Hierarchy):
     _css_class = 'view'
     _tag = 'div'
     
-    def _render(self, htmx_oob=False):
+    def _render(self, htmx_oob=False, animation_id=None):
         """
         Renders a view, recursively rendering the child views.
         
         If htmx_oob is True, the view is marked as the "out-of-band" root
         of swapped content.
+
+        animation_id contains the ID of the next generator step in an animation, None if no next step.
         """
+        self._animation_id = animation_id
+
         subrendered_attributes = ' '.join([
             f"{key}='{value}'"
             for key, value
@@ -162,9 +166,9 @@ class Render(Hierarchy):
         
         htmx_oob = htmx_oob and 'hx-swap-oob="true"' or ''
         
-        # Must use private _children not to be fooled by a container
+        # Must use private _children not to be fooled by a container view
         rendered_children = ''.join([
-            child._render()
+            child._render(animation_id=animation_id)
             for child in self._children
         ])
         
@@ -212,11 +216,12 @@ class Events(Render):
     """
     # Views that have changes
     _dirties = dict()
-    _event_loops = dict()
+
+    # Animation step generators
+    _animation_generators = dict()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._event_generator = None
         self._yield_value = None
 
     # All known and accepted events from the front-end
@@ -242,25 +247,38 @@ class Events(Render):
             )
         return f
 
-    def _process_event(self, event_name, value=None, event_loop_id):
-        if event_name == 'next' and self._event_generator:
-            try:
-                self._yield_value = next(self._event_generator)
-            except StopIteration:
-                self._event_generator = None
-        else:
-            self._event_generator = None
-            event_method = getattr(self, f'on_{event_name}', None)
-            if event_method:
-                event_generator = event_method(value)
-                if isinstance(event_generator, GeneratorType):
-                    self._yield_value = next(event_generator)
-                    self._event_generator = event_generator
-                    event_loop_id = uuid.uuid4()
-                    Events._event_loops[event_loop_id] = self._event_generator
-        updates = self._render_updates(event_loop_id)
+    def _process_event(self, event_name, value=None):
+        event_method = getattr(self, f'on_{event_name}', None)
+        if event_method:
+            animation_generator = event_method(value)
+            if isinstance(animation_generator, GeneratorType):
+                animation_id = Events._get_animation_loop(animation_generator)
+            updates = Events._render_updates(animation_id)
+            print(updates)
+            return updates
+        return ""
+
+    @staticmethod
+    def _process_event_loop(event_loop_id):
+        animation_generator, yield_value = Events._animation_generators.pop(event_loop_id)
+        if yield_value:
+            ...  # Process delay here?
+
+        animation_id = Events._get_animation_loop(animation_generator)
+
+        updates = Events._render_updates(animation_id)
         print(updates)
         return updates
+
+    @staticmethod
+    def _get_animation_loop(animation_generator):
+        animation_id = uuid.uuid4()
+        try:
+            yield_value = next(animation_generator)
+            Events._animation_generators[animation_id] = animation_generator, yield_value
+        except StopIteration:
+            animation_id = None
+        return animation_id
 
     def _mark_dirty(self):
         user_id = Identity.get_user_id()
@@ -275,17 +293,18 @@ class Events(Render):
     def _clear_dirties():
         user_id = Identity.get_user_id()
         Events._dirties[user_id] = set()
-        
-    def _render_updates(self, event_loop_id):
-        roots = self._get_roots()
+
+    @staticmethod
+    def _render_updates(animation_id):
+        roots = Events._get_roots()
         Events._clear_dirties()
 
         return "".join([
-            root._render(htmx_oob=True) for root in roots
+            root._render(htmx_oob=True, animation_id=animation_id) for root in roots
         ])
     
     @staticmethod    
-    def _get_roots():    
+    def _get_roots():
         """
         Get root views of the subtrees that need refreshing.
         """
@@ -304,17 +323,11 @@ class Events(Render):
         
     @Render._register
     def _render_events(self):
-        print('EVENTS')
         triggers = [
             event
             for method_name, event in self._event_methods.items()
             if hasattr(self, method_name)
         ]
-        if self._event_generator:
-            delay = ''
-            if isinstance(self._yield_value, Number):
-                delay = f' delay:{self._yield_value}s'
-            triggers.append(f'next{delay}')
 
         trigger_str = ",".join(triggers)
 
@@ -355,10 +368,13 @@ class Props(Events):
             c for c in (styles, transitions) if c
         ])
             
-        if items:      
-            return {
+        if items:
+            attributes = {
                 'style': items,
             }
+            if transitions:
+                attributes['ui4animid'] = self._animation_id
+            return attributes
         else:
             return {}
             
@@ -678,14 +694,16 @@ class Anchors(Events):
         ]
         
         if constraints:
-            as_json = json.dumps(
-                constraints, 
-                check_circular=False, 
-                separators=(',', ':'),
-            )
-            return {
-                'ui4': as_json,
+            attributes = {
+                'ui4': json.dumps(
+                    constraints,
+                    check_circular=False,
+                    separators=(',', ':'),
+                ),
             }
+            if self._animation_id:
+                attributes['ui4animid'] = self._animation_id
+            return attributes
         else:
             return {}
 
