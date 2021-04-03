@@ -274,63 +274,53 @@ class TestEvents:
         }
 
     def test_get_roots(self):
-        Events._clear_dirties()
-        
         view1 = Core()
         view2 = Core(parent=view1)
         view3 = Core(parent=view2)
         view4 = Core(parent=view1)
         
         assert Core._get_roots() == set()
+
         view4._mark_dirty()
         assert Core._get_roots() == {view4}
+
         view3._mark_dirty()
         assert Core._get_roots() == {view3, view4}
+
         view2._mark_dirty()
         assert Core._get_roots() == {view2, view4}
+
         view1._mark_dirty()
         assert Core._get_roots() == {view1}
 
     def test_event_generator(self):
         view = Core()
-        assert view._event_generator is None
+        assert view._animation_id is None
     
         @view
         def on_click(data):
             data.value = 1
             yield
             data.value = 2
-            yield 1.0
-            data.value = 3
-        
-        # Basic flow    
+
+        # First click
         view._process_event('click', view)
+
         assert view.value == 1
-        assert inspect.isgenerator(view._event_generator)
-        assert view._render_events() == {
-            'hx-post': '/event',
-            'hx-trigger': 'click,next'
-        }
-        view._process_event('next', view)
+        assert len(Events._animation_generators) == 1
+
+        # Return after animation complete
+        animation_id = next(iter(Events._animation_generators.keys()))
+        view._process_event_loop(animation_id)
+
         assert view.value == 2
-        assert view._render_events() == {
-            'hx-post': '/event',
-            'hx-trigger': 'click,next delay:1.0s'
-        }
-        view._process_event('next', view)
-        assert view.value == 3
-        assert view._event_generator is None
-    
-        view.value = 0
-        view._process_event('next', view)
-        assert view.value == 0
+        assert len(Events._animation_generators) == 0
     
         # Restart
         view._process_event('click', view)
         assert view.value == 1
-        view._process_event('click', view)
-        assert view.value == 1
-        view._process_event('next', view)
+        animation_id = next(iter(Events._animation_generators.keys()))
+        view._process_event_loop(animation_id)
         assert view.value == 2
 
         
@@ -366,6 +356,12 @@ class TestStyleProperties:
         )
         
         assert view in Core._get_dirties()
+
+        rendered = view._render_props()
+
+        assert rendered == {
+            'style': 'color:rgba(255,255,255,255)',
+        }
         
         with animation(1.0):
             view._set_css_property(
@@ -374,7 +370,6 @@ class TestStyleProperties:
                 'border-radius', 
                 '50%',
             )
-            
         with animation(2.0, 'ease-func'):
             view._set_css_property(
                 'alpha',
@@ -382,6 +377,7 @@ class TestStyleProperties:
                 'opacity', 
                 '50%',
             )
+        view._animation_id = 'abc123'
             
         rendered = view._render_props()
         
@@ -389,7 +385,8 @@ class TestStyleProperties:
             'style': 'color:rgba(255,255,255,255);'
             'border-radius:50%;'
             'opacity:50%;'
-            'transition:border-radius 1.0s ease,opacity 2.0s ease-func'
+            'transition:border-radius 1.0s ease,opacity 2.0s ease-func',
+            'ui4anim': 'abc123',
         }
 
     def test_properties__generic(self):

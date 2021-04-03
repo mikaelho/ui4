@@ -2,6 +2,19 @@ from pytest import fixture
 
 from ui4.core import Anchors
 from ui4.core import Core
+from ui4.core import Events
+from ui4.core import Identity
+from ui4.core import Props
+
+
+@fixture(autouse=True)
+def clean_state():
+    Identity._id_counter = {}
+    Identity._views = {}
+    Events._dirties = dict()
+    Events._animation_generators = dict()
+    Props._css_value_funcs = {}
+
 
 @fixture
 def is_view_id():

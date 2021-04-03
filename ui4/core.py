@@ -32,13 +32,13 @@ class Identity:
     Contains logic for view identity.
     """
     _id_counter = {}
-    views = {}
+    _views = {}
     get_user_id = current_user_id
 
     def __init__(self, **kwargs):
         user_id = Identity.get_user_id()
         self.id = self._get_next_id()
-        Identity.views.setdefault(
+        Identity._views.setdefault(
             user_id, WeakValueDictionary()
         )[self.id] = self
         
@@ -56,7 +56,7 @@ class Identity:
     @staticmethod    
     def get_view(view_id):
         user_id = Identity.get_user_id()
-        views = Identity.views.get(user_id)
+        views = Identity._views.get(user_id)
         return views.get(view_id)
 
 
@@ -221,8 +221,8 @@ class Events(Render):
     _animation_generators = dict()
 
     def __init__(self, **kwargs):
+        self._animation_id = None
         super().__init__(**kwargs)
-        self._yield_value = None
 
     # All known and accepted events from the front-end
     # Maps an event handler method name to JS event
@@ -251,6 +251,7 @@ class Events(Render):
         event_method = getattr(self, f'on_{event_name}', None)
         if event_method:
             animation_generator = event_method(value)
+            animation_id = None
             if isinstance(animation_generator, GeneratorType):
                 animation_id = Events._get_animation_loop(animation_generator)
             updates = Events._render_updates(animation_id)
@@ -373,7 +374,7 @@ class Props(Events):
                 'style': items,
             }
             if transitions:
-                attributes['ui4animid'] = self._animation_id
+                attributes['ui4anim'] = self._animation_id
             return attributes
         else:
             return {}
@@ -692,6 +693,7 @@ class Anchors(Events):
             anchor.as_dict(self.gap)
             for anchor in self._constraints
         ]
+        animated = any((anchor.duration for anchor in self._constraints))
         
         if constraints:
             attributes = {
@@ -701,8 +703,8 @@ class Anchors(Events):
                     separators=(',', ':'),
                 ),
             }
-            if self._animation_id:
-                attributes['ui4animid'] = self._animation_id
+            if animated:
+                attributes['ui4anim'] = self._animation_id
             return attributes
         else:
             return {}
