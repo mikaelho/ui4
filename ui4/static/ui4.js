@@ -307,7 +307,7 @@
         fromFrame[spec.key] = style[spec.key];
         const toFrame = {};
         toFrame[spec.key] = spec.value;
-        const animation = targetElem.animate([fromFrame, toFrame],
+        const animation = elem.animate([fromFrame, toFrame],
             {
               duration: spec.duration * 1000,
               easing: spec.easeFunc,
@@ -324,8 +324,9 @@
           animating[spec.animationID].pop();
           checkAnimationStepComplete(spec.animationID);
         };
-      }
+      });
     }
+    animatedCSS = {};
   }
 
   const constraintKeys = "targetAttr comparison sourceId sourceAttr multiplier modifier duration easeFunc";
