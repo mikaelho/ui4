@@ -26,7 +26,7 @@ def main(root):
             view.text_color = 'white'
             view.background_color = 'red'
             button.top = view.bottom + 100
-            yield 0.5
+            yield
             button.top = view.bottom
 
 

@@ -347,7 +347,7 @@ class Props(Events):
         super().__init__(**kwargs)
         self._properties = {}
         self._css_properties = {}
-        self._transitions = {}
+        self._css_transitions = {}
         
     @Render._register
     def _render_props(self):
@@ -356,26 +356,25 @@ class Props(Events):
         styles = ";".join([
             f"{name}:{value}"
             for name, value in css_properties.items()
-            if name not in self._transitions
+            if name not in self._css_transitions
         ])
-        
-        transitions = ",".join([
-            f"{css_name} {duration}s {ease_func or 'ease'}"
-            for css_name, duration, ease_func
-            in sorted(list(self._transitions), key=lambda value: value[0])
-        ])
-        self._transitions.clear()
-            
-        if items:
-            attributes = {
-                'style': items,
-            }
-            if transitions:
-                attributes['ui4anim'] = self._animation_id
-                attributes['ui4css'] = ...
-            return attributes
-        else:
-            return {}
+
+        attributes = {}
+
+        if styles:
+            attributes['style'] = styles
+
+        if self._css_transitions:
+            transitions_json = json.dumps(
+                list(self._css_transitions.values()),
+                check_circular=False,
+                separators=(',', ':')
+            )
+            self._css_transitions = {}
+            attributes['ui4anim'] = self._animation_id
+            attributes['ui4css'] = transitions_json
+
+        return attributes
             
     def _fill_from_theme(self):
         css_properties = dict(self._css_properties)
@@ -434,11 +433,11 @@ class Props(Events):
             self._css_properties[css_name] = css_value
             duration, ease_function = _animation_context() or (None, None)
             if duration:
-                self._transitions[css_name] = {
+                self._css_transitions[css_name] = {
                     'key': css_name,
                     'value': css_value,
                     'duration': duration,
-                    'ease': ease_function,
+                    'ease': ease_function or 'ease',
                 }
         
 

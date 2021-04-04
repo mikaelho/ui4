@@ -3,11 +3,10 @@
 (function (ui4, undefined) {
   'use strict';
 
-  //let gap = 8;
+  //let gap = 8;  // Defined outside the file
   let allDependencies = {};
   let animatedDependencies = {};
   let animatedCSS = {};
-  let transitioning = {};
   let animating = {};
 
   const LEADING = "leading", TRAILING = "trailing", NEUTRAL = "neutral", CONSTANT = 'constant';
@@ -142,6 +141,7 @@
       let values = checkAttribute(targetId, dependencies);
       
       dependencies.forEach((dependency) => {
+        const animationID = dependency.animationID;
         let data = values[dependency.targetAttr];
 
         let animation = data.targetElem.animate(
@@ -154,11 +154,12 @@
            easing: dependency.easeFunc
          }
         );
-        if (animating[dependency.animationID]) {
-          animating[dependency.animationID].push(animation);
+        if (animating[animationID]) {
+          animating[animationID].push(animation);
         } else {
-          animating[dependency.animationID] = [animation];
+          animating[animationID] = [animation];
         }
+        console.log(JSON.stringify(animating));
         requestAnimationFrame(updateDependenciesWhileAnimating);
         animation.onfinish = function() {
           if (allDependencies[targetId]) {
@@ -167,8 +168,8 @@
             allDependencies[targetId] = [dependency];
           }
           //ui4.checkDependencies();
-          animating[targetId].pop();
-          checkAnimationStepComplete(dependency.targetId);
+          animating[animationID].pop();
+          checkAnimationStepComplete(animationID);
         };
       });
       animatedDependencies = {};
@@ -293,6 +294,7 @@
         } else {
           animatedCSS[targetId] = [spec];
         }
+        console.log(JSON.stringify(animatedCSS));
       });
     }
   }
@@ -302,30 +304,34 @@
       const elem = document.getElementById(targetId);
       const style = window.getComputedStyle(elem);
 
-      specs.forEach(spec => {
+      specs.forEach(function(spec) {
+        const animationID = spec.animationID;
         const fromFrame = {};
         fromFrame[spec.key] = style[spec.key];
         const toFrame = {};
         toFrame[spec.key] = spec.value;
-        const animation = targetElem.animate([fromFrame, toFrame],
+        console.log(JSON.stringify(fromFrame));
+        console.log(JSON.stringify(toFrame));
+        const animation = elem.animate([fromFrame, toFrame],
             {
               duration: spec.duration * 1000,
               easing: spec.easeFunc,
               fill: "both"
             }
         );
-        if (animating[spec.animationID]) {
-          animating[spec.animationID].push(animation);
+        if (animating[animationID]) {
+          animating[animationID].push(animation);
         } else {
-          animating[spec.animationID] = [animation];
+          animating[animationID] = [animation];
         }
         animation.onfinish = function() {
           //ui4.checkDependencies();
-          animating[spec.animationID].pop();
-          checkAnimationStepComplete(spec.animationID);
+          animating[animationID].pop();
+          checkAnimationStepComplete(animationID);
         };
-      }
+      });
     }
+    animatedCSS = {};
   }
 
   const constraintKeys = "targetAttr comparison sourceId sourceAttr multiplier modifier duration easeFunc";
@@ -347,48 +353,21 @@
     return parsedSpec;
   }
   
-  function setTransitionHandlers(node) {
-    node.addEventListener(
-      'transitionrun',
-      function (evt) {
-        console.log(this.id + ":" + evt.target.id + "." + evt.propertyName);
-        if (this.id) {
-          transitioning[this.id] = (transitioning[this.id] || 0) + 1;
-          requestAnimationFrame(updateDependenciesWhileAnimating);
-        }
-      });
-    node.addEventListener(
-      'transitionend',
-      function (evt) {
-        if (this.id) {
-          transitioning[this.id] -= 1;
-          if (transitioning[this.id] === 0) {
-            checkAnimationStepComplete(this.id);
-          }
-        }
-      });
-  }
-  
-  function checkAnimationStepComplete(nodeId) {
-    const transitionState = transitioning[nodeId];
-    const animationState = animating[nodeId];
-    
-    const transitionsComplete = (transitionState === undefined || transitionState === 0);
+  function checkAnimationStepComplete(animationID) {
+    const animationState = animating[animationID];
     const animationsComplete = (animationState === undefined || animationState.length === 0);
     
-    if (transitionsComplete && animationsComplete) {
-      delete transitioning[nodeId];
-      delete animating[nodeId];
-      const elem = document.getElementById(nodeId);
-      elem.dispatchEvent(new Event('next'));
+    if (animationsComplete) {
+      console.log("COMPLETE");
+      delete animating[animationID];
+      htmx.ajax('POST', '/loop', {values: {animation_id: animationID}});
     }
   }
   
   function updateDependenciesWhileAnimating() {
     ui4.checkDependencies();
-    const isTransitioning = Object.keys(transitioning).length > 0;
     const isAnimating = Object.keys(animating).length > 0;
-    if (isTransitioning || isAnimating) {
+    if (isAnimating) {
       requestAnimationFrame(updateDependenciesWhileAnimating);
     }
   }
@@ -399,12 +378,10 @@
         case 'childList':
           mutation.addedNodes.forEach( (node) => {
             setDependencies(node);
-            setTransitionHandlers(node);
           });
           break;
         case 'attributes':
-        setDependencies(mutation.target);
-          setTransitionHandlers(mutation.target);
+          setDependencies(mutation.target);
           break;
       }
     });

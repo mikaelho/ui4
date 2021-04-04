@@ -64,6 +64,12 @@ class FlaskRunner:
             self.handle_event, 
             methods=['GET', 'POST'],
         )
+        self.flask.add_url_rule(
+            '/loop',
+            'event_loop',
+            self.event_loop,
+            methods=['POST'],
+        )
         
     def run_server(self):
         try:
@@ -108,10 +114,10 @@ class FlaskRunner:
         return update_html
         
     def event_loop(self):
-        event_header = urllib.parse.unquote(flask.request.headers.get('Triggering-Event'))
-        event_loop_id = json.loads(event_header)['type']
-        print(event_loop_id)
-        update_html = Core._process_event_loop(event_loop_id)
+        print(flask.request.values)
+        animation_id = flask.request.values['animation_id']
+        print("LOOP", animation_id)
+        update_html = View._process_event_loop(animation_id)
         print(update_html)
         return update_html
         

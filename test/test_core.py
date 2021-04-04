@@ -382,10 +382,9 @@ class TestStyleProperties:
         rendered = view._render_props()
         
         assert rendered == {
-            'style': 'color:rgba(255,255,255,255);'
-            'border-radius:50%;'
-            'opacity:50%;'
-            'transition:border-radius 1.0s ease,opacity 2.0s ease-func',
+            'style': 'color:rgba(255,255,255,255)',
+            'ui4css': '[{"key":"border-radius","value":"50%","duration":1.0,"ease":null},'
+                      '{"key":"opacity","value":"50%","duration":2.0,"ease":"ease-func"}]',
             'ui4anim': 'abc123',
         }
 
