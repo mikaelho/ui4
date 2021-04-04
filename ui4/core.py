@@ -347,7 +347,7 @@ class Props(Events):
         super().__init__(**kwargs)
         self._properties = {}
         self._css_properties = {}
-        self._transitions = set()
+        self._transitions = {}
         
     @Render._register
     def _render_props(self):
@@ -356,6 +356,7 @@ class Props(Events):
         styles = ";".join([
             f"{name}:{value}"
             for name, value in css_properties.items()
+            if name not in self._transitions
         ])
         
         transitions = ",".join([
@@ -364,10 +365,6 @@ class Props(Events):
             in sorted(list(self._transitions), key=lambda value: value[0])
         ])
         self._transitions.clear()
-        
-        items = ";transition:".join([
-            c for c in (styles, transitions) if c
-        ])
             
         if items:
             attributes = {
@@ -375,6 +372,7 @@ class Props(Events):
             }
             if transitions:
                 attributes['ui4anim'] = self._animation_id
+                attributes['ui4css'] = ...
             return attributes
         else:
             return {}
@@ -432,13 +430,16 @@ class Props(Events):
     ):
         self._properties[property_name] = property_value
         if css_name:
-            self._css_properties[css_name] = css_value
             self._mark_dirty()
-        duration, ease_function = _animation_context() or (None, None)
-        if duration:
-            self._transitions.add((
-                css_name, duration, ease_function,
-            ))
+            self._css_properties[css_name] = css_value
+            duration, ease_function = _animation_context() or (None, None)
+            if duration:
+                self._transitions[css_name] = {
+                    'key': css_name,
+                    'value': css_value,
+                    'duration': duration,
+                    'ease': ease_function,
+                }
         
 
     def _css_setter(self, property_name, css_name, value, css_value_func):
