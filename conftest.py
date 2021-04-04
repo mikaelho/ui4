@@ -9,11 +9,7 @@ from ui4.core import Props
 
 @fixture(autouse=True)
 def clean_state():
-    Identity._id_counter = {}
-    Identity._views = {}
-    Events._dirties = dict()
-    Events._animation_generators = dict()
-    Props._css_value_funcs = {}
+    Core._clean_state()
 
 
 @fixture

@@ -35,3 +35,9 @@ describe("#parseSpec", () => {
     assert.deepEqual(result, expected);
   });
 });
+
+describe("#toCamelCase", () => {
+  it('should turn CSS style name to JS variable name', async () => {
+    assert.equal(test.toCamelCase('background-color'), 'backgroundColor');
+  });
+});

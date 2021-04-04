@@ -383,7 +383,7 @@ class TestStyleProperties:
         
         assert rendered == {
             'style': 'color:rgba(255,255,255,255)',
-            'ui4css': '[{"key":"border-radius","value":"50%","duration":1.0,"ease":null},'
+            'ui4css': '[{"key":"border-radius","value":"50%","duration":1.0,"ease":"ease"},'
                       '{"key":"opacity","value":"50%","duration":2.0,"ease":"ease-func"}]',
             'ui4anim': 'abc123',
         }

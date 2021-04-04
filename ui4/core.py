@@ -6,6 +6,7 @@ import inspect
 import json
 import uuid
 
+from collections import defaultdict
 from collections.abc import Sequence
 from contextlib import contextmanager
 from functools import partial
@@ -13,8 +14,7 @@ from numbers import Number
 from pathlib import Path
 from string import Template
 from types import GeneratorType
-from weakref import WeakSet
-from weakref import WeakValueDictionary
+
 
 from ui4.color import Color
 
@@ -31,23 +31,21 @@ class Identity:
     """
     Contains logic for view identity.
     """
-    _id_counter = {}
-    _views = {}
+    _id_counter = defaultdict(int)
+    _views = defaultdict(dict)
     get_user_id = current_user_id
 
     def __init__(self, **kwargs):
         user_id = Identity.get_user_id()
         self.id = self._get_next_id()
-        Identity._views.setdefault(
-            user_id, WeakValueDictionary()
-        )[self.id] = self
+        Identity._views[user_id][self.id] = self
         
         for key, value in kwargs.items():
             setattr(self, key, value)
 
     def _get_next_id(self):
         user_id = Identity.get_user_id()
-        id_counter = Identity._id_counter.setdefault(user_id, 0)
+        id_counter = Identity._id_counter[user_id]
         id_counter += 1
         Identity._id_counter[user_id] = id_counter
         view_id = f'id{id_counter}'
@@ -211,8 +209,10 @@ class Events(Render):
     """
     Class for the mechanics of defining and responding to UI events.
 
-    Here we respond to HTMX requests with rendered updated views. Event handlers can be generators, in which case
-    we manage the dialog with the browser with custom "next" events.
+    Here we respond to HTMX requests with rendered updated views.
+    
+    Event handlers can be generators, in which case browser gets a unique id
+    that it uses to request the next step of the generator.
     """
     # Views that have changes
     _dirties = dict()
@@ -339,6 +339,12 @@ class Events(Render):
 
 
 class Props(Events):
+    """
+    Logic for handling view properties.
+    
+    Property setters can mark the view as dirty, which means that the view
+    (along with children) will be rendered when next update is sent to browser.
+    """
     
     style = None
     _css_value_funcs = {}
@@ -896,6 +902,14 @@ class Core(Anchors, Props):
         self.text = text
         
     text = Props._prop('text')
+    
+    @staticmethod
+    def _clean_state():
+        Identity._id_counter = defaultdict(int)
+        Identity._views = defaultdict(dict)
+        Events._dirties = dict()
+        Events._animation_generators = dict()
+        Props._css_value_funcs = {}
         
         
 _ui4_animation_context_variable = '_ui4_animation_context_variable'
