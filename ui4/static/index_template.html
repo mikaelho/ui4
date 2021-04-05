@@ -103,8 +103,9 @@
   </style>
 </head>
 
-<body hx-ext="event-header" onload="ui4.initialize();">
+<body hx-ext="event-header" hx-post="/loop" hx-trigger="next" hx-swap-oob="true" hx-swap="none">
 <noscript>JavaScript is required for ui4 apps to function at all.</noscript>
+<script>ui4.initialize();</script>
 $content
 </body>
 </html>

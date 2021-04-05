@@ -255,25 +255,25 @@ class Events(Render):
             if isinstance(animation_generator, GeneratorType):
                 animation_id = Events._get_animation_loop(animation_generator)
             updates = Events._render_updates(animation_id)
-            print(updates)
+            #print(updates)
             return updates
         return ""
 
     @staticmethod
-    def _process_event_loop(event_loop_id):
-        animation_generator, yield_value = Events._animation_generators.pop(event_loop_id)
-        if yield_value:
-            ...  # Process delay here?
-
+    def _process_event_loop(animation_id):
+        # Get generator with the old id
+        animation_generator, yield_value = Events._animation_generators.pop(
+            animation_id
+        )
+        # Return updates with the id of next step, or None if last
         animation_id = Events._get_animation_loop(animation_generator)
 
         updates = Events._render_updates(animation_id)
-        print(updates)
         return updates
 
     @staticmethod
     def _get_animation_loop(animation_generator):
-        animation_id = uuid.uuid4()
+        animation_id = str(uuid.uuid4())
         try:
             yield_value = next(animation_generator)
             Events._animation_generators[animation_id] = animation_generator, yield_value
@@ -377,7 +377,8 @@ class Props(Events):
                 separators=(',', ':')
             )
             self._css_transitions = {}
-            attributes['ui4anim'] = self._animation_id
+            if self._animation_id:
+                attributes['ui4anim'] = self._animation_id
             attributes['ui4css'] = transitions_json
 
         return attributes
@@ -709,7 +710,7 @@ class Anchors(Events):
                     separators=(',', ':'),
                 ),
             }
-            if animated:
+            if self._animation_id:
                 attributes['ui4anim'] = self._animation_id
             return attributes
         else:

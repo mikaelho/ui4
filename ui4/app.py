@@ -68,7 +68,7 @@ class FlaskRunner:
             '/loop',
             'event_loop',
             self.event_loop,
-            methods=['POST'],
+            methods=['GET', 'POST'],
         )
         
     def run_server(self):
@@ -110,15 +110,17 @@ class FlaskRunner:
         view = View.get_view(view_id)
         value = flask.request.values.get(view_id, view)
         update_html = view._process_event(event_name, value)
-        #print(update_html)
+        # print(update_html)
         return update_html
         
     def event_loop(self):
-        print(flask.request.values)
-        animation_id = flask.request.values['animation_id']
-        print("LOOP", animation_id)
+        view_id = flask.request.headers.get('Hx-Trigger')
+        event_header = json.loads(urllib.parse.unquote(
+            flask.request.headers.get('Triggering-Event')
+        ))
+        animation_id = event_header['detail']['animationID']
         update_html = View._process_event_loop(animation_id)
-        print(update_html)
+        # print(update_html)
         return update_html
         
 

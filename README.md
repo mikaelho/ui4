@@ -14,15 +14,16 @@ Roadmap
 - [ ] Sound
 - [ ] JS tests
 - [ ] Deployment story
+- [ ] Authentication support
 - [ ] FastAPI backend
 - [ ] WebSocket/SSE
 
 Widget coverage
 ---------------
 
-- [ ] View
+- [x] View
 - [x] Button
-- [ ] Textfield
+- [x] Textfield
 - [ ] Card
 - [ ] Navigator
 - [ ] Slider
@@ -44,5 +45,6 @@ Small features
 Similar projects
 ----------------
 
-* https://github.com/kollivier/pyeverywhere
-* JustPy
+* JustPy - https://justpy.io
+* PyWebIO - https://pywebio.readthedocs.io/en/latest/
+* PyEverywhere - https://github.com/kollivier/pyeverywhere

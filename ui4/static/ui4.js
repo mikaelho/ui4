@@ -1,5 +1,8 @@
 /*jshint esversion: 6 */
 
+//htmx.logAll();
+
+
 (function (ui4, undefined) {
   'use strict';
 
@@ -159,7 +162,6 @@
         } else {
           animating[animationID] = [animation];
         }
-        console.log(JSON.stringify(animating));
         requestAnimationFrame(updateDependenciesWhileAnimating);
         animation.onfinish = function() {
           if (allDependencies[targetId]) {
@@ -177,12 +179,13 @@
   }
 
   function checkAttribute(targetId, dependencies) {
+    //console.log("ID " + targetId);
+    let targetElem = document.getElementById(targetId);
     let values = {};
 
-    dependencies.forEach( dependency => {
+    dependencies.forEach(dependency => {
       //console.log(JSON.stringify(dependency));
       let sourceElem = document.getElementById(dependency.sourceId);
-      let targetElem = document.getElementById(targetId);
       let sourceValue;
       let contained = false;
 
@@ -266,7 +269,9 @@
         let dependency = parseSpec(spec, targetId);
         if (dependency) {
           if (dependency.duration) {
-            dependency.animationID = ui4AnimationID;
+            if (ui4AnimationID) {
+              dependency.animationID = ui4AnimationID;
+            }
             animDependencies.push(dependency);
           } else {
             dependencies.push(dependency);
@@ -288,13 +293,14 @@
     if (ui4CSSValue) {
       const animSpecs = JSON.parse(ui4CSSValue);
       animSpecs.forEach( (spec) => {
-        spec.animationID = ui4AnimationID;
+        if (ui4AnimationID) {
+          spec.animationID = ui4AnimationID;
+        }
         if (animatedCSS[targetId]) {
           animatedCSS[targetId].push(spec);
         } else {
           animatedCSS[targetId] = [spec];
         }
-        console.log(JSON.stringify(animatedCSS));
       });
     }
   }
@@ -306,12 +312,11 @@
 
       specs.forEach(function(spec) {
         const animationID = spec.animationID;
+        const key = toCamelCase(spec.key);
         const fromFrame = {};
-        fromFrame[spec.key] = style[spec.key];
+        fromFrame[key] = style[spec.key];
         const toFrame = {};
-        toFrame[spec.key] = spec.value;
-        console.log(JSON.stringify(fromFrame));
-        console.log(JSON.stringify(toFrame));
+        toFrame[key] = spec.value;
         const animation = elem.animate([fromFrame, toFrame],
             {
               duration: spec.duration * 1000,
@@ -354,13 +359,14 @@
   }
 
   function checkAnimationStepComplete(animationID) {
-    const animationState = animating[animationID];
-    const animationsComplete = (animationState === undefined || animationState.length === 0);
-
-    if (animationsComplete) {
-      console.log("COMPLETE");
-      delete animating[animationID];
-      htmx.ajax('POST', '/loop', {values: {animation_id: animationID}});
+    if (animationID) {
+      const animationState = animating[animationID];
+      const animationsComplete = (animationState === undefined || animationState.length === 0);
+  
+      if (animationsComplete) {
+        delete animating[animationID];
+         htmx.trigger(document.body, 'next', {animationID: animationID});
+      }
     }
   }
 
