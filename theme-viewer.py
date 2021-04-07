@@ -2,32 +2,37 @@ import ui4
 
 
 def main(root):
-    view = ui4.View(
+    
+    root.background_color = 'grey'
+    
+    card = ui4.View(
         dock=root.center,
-        text='Hello world',
+        width=root.width * 0.9,
+        height=root.width * 0.9,
+        background_color='white',
     )
+    
+    ball = ui4.View(
+        dock=card.bottom_left,
+        size=(50, 50),
+        corner_radius='50%',
+        background_color='green',
+    )
+    
     button = ui4.Button(
-        dock=view.below,
-        text='Button',
-    )
-    other_button = ui4.Button(
-        dock=button.below,
-        text='Other button with long text',
-        style=ui4.VariantButtonStyle,
-    )
-    textf = ui4.TextField(
-        dock=view.above,
-        placeholder="Some text?",
+        dock=card.below,
+        text='Move',
     )
     
     @button
     def on_click(data):
-        with ui4.animation(0.5):
-            view.text_color = 'white'
-            view.background_color = 'red'
-            button.top = view.bottom + 100
-            yield
-            button.top = view.bottom
+        ball.left.clear()
+        ball.bottom.clear()
+        with ui4.duration(1.0):
+            ball.right = card.right
+            with ui4.ease('ease-in-out'):
+                ball.top = card.top
+                ball.background_color = 'blue'
 
 
 ui4.run(main)

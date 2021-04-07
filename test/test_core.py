@@ -144,7 +144,7 @@ class TestAnchor:
             target_attribute='bar', 
             multiplier=2,
             duration=0.5,
-            ease_func='ease-in'
+            ease='ease-in'
         )
         
         assert (anchor.as_json() == f'{{"a0":"bar","a4":2,"a6":0.5,"a7":"ease-in"}}')
@@ -330,13 +330,15 @@ class TestAnimationContext:
         
         assert _animation_context() is None
 
-        with animation():
-            assert _animation_context() == (0.3, None)
+        with animation(0.3):
+            assert _animation_context().duration == 0.3
             
             with animation(1.0, 'foobar'):
-                assert _animation_context() == (1.0, 'foobar')
+                assert _animation_context().duration == 1.0
+                assert _animation_context().ease == 'foobar'
                 
-            assert _animation_context() == (0.3, None)
+            assert _animation_context().duration == 0.3
+            assert _animation_context().ease is None
         
         assert _animation_context() is None
         
@@ -383,8 +385,8 @@ class TestStyleProperties:
         
         assert rendered == {
             'style': 'color:rgba(255,255,255,255)',
-            'ui4css': '[{"key":"border-radius","value":"50%","duration":1.0,"ease":"ease"},'
-                      '{"key":"opacity","value":"50%","duration":2.0,"ease":"ease-func"}]',
+            'ui4css': '[{"key":"border-radius","value":"50%","duration":1.0},'
+            '{"key":"opacity","value":"50%","duration":2.0,"ease":"ease-func"}]',
             'ui4anim': 'abc123',
         }
 

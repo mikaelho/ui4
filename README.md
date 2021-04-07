@@ -5,9 +5,9 @@ ui4 - Python UI library
 Roadmap
 -------
 
-- [ ] Event loop - wait, pause, play, stop
-- [ ] Widget coverage
-- [ ] Small features
+- [ ] Anchor minmax
+- [x] Event loop basics
+- [ ] Grid/flow
 - [ ] Basic demo
 - [ ] Widget demo
 - [ ] UI tester
@@ -33,6 +33,8 @@ Widget coverage
 Small features
 --------------
 
+- [ ] Release opposite anchor if needed
+- [ ] Event loop - wait, pause, play, stop etc.
 - [ ] Textfield immediate change
 - [ ] scrollable
 - [ ] clip_to_bounds

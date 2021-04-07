@@ -15,6 +15,8 @@ from pathlib import Path
 from string import Template
 from types import GeneratorType
 
+from dataclasses import asdict
+from dataclasses import dataclass
 
 from ui4.color import Color
 
@@ -350,10 +352,10 @@ class Props(Events):
     _css_value_funcs = {}
     
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
         self._properties = {}
         self._css_properties = {}
         self._css_transitions = {}
+        super().__init__(**kwargs)
         
     @Render._register
     def _render_props(self):
@@ -438,15 +440,14 @@ class Props(Events):
         if css_name:
             self._mark_dirty()
             self._css_properties[css_name] = css_value
-            duration, ease_function = _animation_context() or (None, None)
-            if duration:
-                self._css_transitions[css_name] = {
+            spec = _animation_context()
+            if spec and spec.duration:
+                transition = {
                     'key': css_name,
                     'value': css_value,
-                    'duration': duration,
-                    'ease': ease_function or 'ease',
                 }
-        
+                transition.update(spec.defined_values)
+                self._css_transitions[css_name] = transition
 
     def _css_setter(self, property_name, css_name, value, css_value_func):
         css_value = css_value_func(value)
@@ -527,7 +528,7 @@ class Anchor:
     
     key_order = (
         "target_attribute comparison "
-        "source_view source_attribute multiplier modifier duration ease_func"
+        "source_view source_attribute multiplier modifier duration ease"
     ).split()
 
     def __init__(self,
@@ -539,7 +540,7 @@ class Anchor:
                  multiplier=None,
                  modifier=None,
                  duration=None,
-                 ease_func=None):
+                 ease=None):
         self.target_view = target_view
         self.target_attribute = target_attribute
         self.comparison = comparison
@@ -548,7 +549,7 @@ class Anchor:
         self.multiplier = multiplier
         self.modifier = modifier
         self.duration = duration
-        self.ease_func = ease_func
+        self.ease = ease
 
     def __repr__(self):
         items = ", ".join([
@@ -694,6 +695,9 @@ class Anchors(Events):
         
     gap = Props._prop('gap')
         
+    def clear_all(self):
+        self._constraints = set()
+        
     @Render._register
     def _render_anchors(self):
         constraints = [
@@ -732,12 +736,16 @@ class Anchors(Events):
             
             anim_context = _animation_context()
             if anim_context:
-                value.duration, value.ease_func = anim_context
+                value.duration = anim_context.duration
+                value.ease = anim_context.ease
 
-            self._constraints.discard(value)  # Overwrite "similar" anchor, see Anchor.__hash__
+            # Overwrite "similar" anchor, see Anchor.__hash__
+            self._constraints.discard(value)  
             self._constraints.add(value)
 
-            constrained_attributes = set([anchor.target_attribute for anchor in self._constraints])
+            constrained_attributes = set([
+                anchor.target_attribute for anchor in self._constraints
+            ])
             for checklist in (
                 set('left right center_x width'.split()),
                 set('top bottom center_y height'.split()),
@@ -913,13 +921,38 @@ class Core(Anchors, Props):
         Props._css_value_funcs = {}
         
         
+@dataclass
+class AnimationSpec:
+    duration: float = None
+    ease: str = None
+    
+    def merge(self, other_dict):
+        new_dict = asdict(self)
+        new_dict.update({
+            key: value
+            for key, value in other_dict.items()
+            if not value is None
+        })
+        return AnimationSpec(**new_dict)
+        
+    @property
+    def defined_values(self):
+        return {
+            key: value
+            for key, value in asdict(self).items()
+            if not value is None
+        }
+        
+        
 _ui4_animation_context_variable = '_ui4_animation_context_variable'
         
-@contextmanager
-def animation(duration=0.3, ease_func=None):
+        
+def _animation(**kwargs):
     frame = inspect.currentframe().f_back.f_back
     animation_specs = frame.f_locals.get(_ui4_animation_context_variable, [])
-    animation_specs.append((duration, ease_func))
+    prev_spec = animation_specs and animation_specs[-1] or AnimationSpec()
+    spec = prev_spec.merge(kwargs)
+    animation_specs.append(spec)
     frame.f_locals[_ui4_animation_context_variable] = animation_specs
 
     yield
@@ -927,6 +960,24 @@ def animation(duration=0.3, ease_func=None):
     animation_specs.pop()
     if not animation_specs:
         del frame.f_locals[_ui4_animation_context_variable]
+        
+        
+@contextmanager
+def animation(duration=None, ease=None):
+    return _animation(
+        duration=duration,
+        ease=ease
+    )
+
+
+@contextmanager
+def duration(duration):
+    return _animation(duration=duration)
+    
+    
+@contextmanager
+def ease(ease_func):
+    return _animation(ease=ease_func)
     
     
 def _animation_context():
