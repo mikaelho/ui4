@@ -9,16 +9,16 @@ import uuid
 from collections import defaultdict
 from collections.abc import Sequence
 from contextlib import contextmanager
+from dataclasses import asdict
 from functools import partial
 from numbers import Number
 from pathlib import Path
 from string import Template
 from types import GeneratorType
 
-from dataclasses import asdict
-from dataclasses import dataclass
-
+from ui4.animation import _animation_context
 from ui4.color import Color
+
 
 
 def prop(func):
@@ -528,7 +528,11 @@ class Anchor:
     
     key_order = (
         "target_attribute comparison "
-        "source_view source_attribute multiplier modifier duration ease"
+        "source_view source_attribute multiplier modifier"
+    ).split()
+    animation_key_order = (
+        "duration ease "
+        "start_delay end_delay direction iterations"
     ).split()
 
     def __init__(self,
@@ -539,8 +543,7 @@ class Anchor:
                  source_attribute=None,
                  multiplier=None,
                  modifier=None,
-                 duration=None,
-                 ease=None):
+                 animation=None):
         self.target_view = target_view
         self.target_attribute = target_attribute
         self.comparison = comparison
@@ -548,8 +551,7 @@ class Anchor:
         self.source_attribute = source_attribute
         self.multiplier = multiplier
         self.modifier = modifier
-        self.duration = duration
-        self.ease = ease
+        self.animation = animation
 
     def __repr__(self):
         items = ", ".join([
@@ -574,6 +576,14 @@ class Anchor:
             if not value is None:
                 value = getattr(value, "id", value)
                 d[f'a{i}'] = value
+                print(f'a{i}: {key}')
+        if self.animation:
+            print(asdict(self.animation))
+            for j, key in enumerate(self.animation_key_order):
+                value = getattr(self.animation, key)
+                if not value is None:
+                    d[f'a{i+j+1}'] = value
+                    print(f'a{i+j+1}: {key}')
         return d
         
     def as_json(self):
@@ -704,7 +714,7 @@ class Anchors(Events):
             anchor.as_dict(self.gap)
             for anchor in self._constraints
         ]
-        animated = any((anchor.duration for anchor in self._constraints))
+        #animated = any((anchor.animation for anchor in self._constraints))
         
         if constraints:
             attributes = {
@@ -734,10 +744,7 @@ class Anchors(Events):
             value.target_attribute = attribute
             value.comparison = comparison or value.comparison or '='
             
-            anim_context = _animation_context()
-            if anim_context:
-                value.duration = anim_context.duration
-                value.ease = anim_context.ease
+            value.animation = _animation_context()
 
             # Overwrite "similar" anchor, see Anchor.__hash__
             self._constraints.discard(value)  
@@ -919,73 +926,4 @@ class Core(Anchors, Props):
         Events._dirties = dict()
         Events._animation_generators = dict()
         Props._css_value_funcs = {}
-        
-        
-@dataclass
-class AnimationSpec:
-    duration: float = None
-    ease: str = None
-    
-    def merge(self, other_dict):
-        new_dict = asdict(self)
-        new_dict.update({
-            key: value
-            for key, value in other_dict.items()
-            if not value is None
-        })
-        return AnimationSpec(**new_dict)
-        
-    @property
-    def defined_values(self):
-        return {
-            key: value
-            for key, value in asdict(self).items()
-            if not value is None
-        }
-        
-        
-_ui4_animation_context_variable = '_ui4_animation_context_variable'
-        
-        
-def _animation(**kwargs):
-    frame = inspect.currentframe().f_back.f_back
-    animation_specs = frame.f_locals.get(_ui4_animation_context_variable, [])
-    prev_spec = animation_specs and animation_specs[-1] or AnimationSpec()
-    spec = prev_spec.merge(kwargs)
-    animation_specs.append(spec)
-    frame.f_locals[_ui4_animation_context_variable] = animation_specs
-
-    yield
-    
-    animation_specs.pop()
-    if not animation_specs:
-        del frame.f_locals[_ui4_animation_context_variable]
-        
-        
-@contextmanager
-def animation(duration=None, ease=None):
-    return _animation(
-        duration=duration,
-        ease=ease
-    )
-
-
-@contextmanager
-def duration(duration):
-    return _animation(duration=duration)
-    
-    
-@contextmanager
-def ease(ease_func):
-    return _animation(ease=ease_func)
-    
-    
-def _animation_context():
-    frame = inspect.currentframe()
-    while frame:
-        animation_specs = frame.f_locals.get(_ui4_animation_context_variable)
-        if animation_specs:
-            return animation_specs[-1]
-        frame = frame.f_back
-    return None
 

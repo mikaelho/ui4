@@ -4,11 +4,12 @@ import pytest
 
 from ui4 import ge
 from ui4 import le
+from ui4.animation import _animation_context
+from ui4.animation import animation
+from ui4.animation import AnimationSpec
 from ui4.core import Anchor
 from ui4.core import Core
 from ui4.core import Events
-from ui4.core import _animation_context
-from ui4.core import animation
 
 
 class TestIdentity:
@@ -139,15 +140,26 @@ class TestAnchor:
         
     def test_anchor_as_json(self):
         view = Core()
+        animation = AnimationSpec(
+            duration=0.5,
+            ease='ease-in',
+            start_delay=1,
+            end_delay=2,
+            direction='alternate',
+            iterations=3,
+        )
         anchor = Anchor(
             target_view=view, 
             target_attribute='bar', 
             multiplier=2,
-            duration=0.5,
-            ease='ease-in'
+            animation=animation,
         )
         
-        assert (anchor.as_json() == f'{{"a0":"bar","a4":2,"a6":0.5,"a7":"ease-in"}}')
+        assert (
+            anchor.as_json() == 
+            '{"a0":"bar","a4":2,'
+            '"a6":0.5,"a7":"ease-in","a8":1,"a9":2,"a10":"alternate","a11":3}'
+        )
 
     def test_anchor_multipliers_and_modifiers(self):
         anchor = Anchor()

@@ -146,16 +146,26 @@
       dependencies.forEach((dependency) => {
         const animationID = dependency.animationID;
         let data = values[dependency.targetAttr];
+        const options = {};
+        if (dependency.duration) {
+          options.duration = dependency.duration * 1000;
+          console.log("d: " + dependency.duration);
+        }
+        const optionKeys = ['easing', 'direction', 'delay', 'endDelay', 'iterations'];
+        optionKeys.forEach(function(key) {
+          const value = dependency[key];
+          if (value) {
+            options[key] = value;
+          }
+          console.log(key + ": " + value);
+        });
 
         let animation = data.targetElem.animate(
          [
              setValue[dependency.targetAttr](data.context, data.targetValue),
              setValue[dependency.targetAttr](data.context, data.sourceValue)
          ],
-         {
-           duration: dependency.duration * 1000,
-           easing: dependency.easeFunc
-         }
+         options
         );
         if (animating[animationID]) {
           animating[animationID].push(animation);
@@ -339,7 +349,7 @@
     animatedCSS = {};
   }
 
-  const constraintKeys = "targetAttr comparison sourceId sourceAttr multiplier modifier duration easeFunc";
+  const constraintKeys = "targetAttr comparison sourceId sourceAttr multiplier modifier duration easing delay endDelay direction iterations";
   const constraintMapping = constraintKeys.split(" ");
 
   function parseSpec(spec, targetId) {
@@ -349,6 +359,7 @@
       const value = spec["a" + index];
       if (value !== undefined) {
         parsedSpec[key] = value;
+        console.log("a"+index+": "+key+" - "+value);
       }
     });
     if (!parsedSpec.comparison) {

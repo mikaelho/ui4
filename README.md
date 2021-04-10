@@ -34,7 +34,8 @@ Small features
 --------------
 
 - [ ] Release opposite anchor if needed
-- [ ] Event loop - wait, pause, play, stop etc.
+- [ ] Event loop - wait, direction, iterations
+- [ ] Event loop - pause, play
 - [ ] Textfield immediate change
 - [ ] scrollable
 - [ ] clip_to_bounds
