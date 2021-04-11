@@ -17,6 +17,7 @@ from string import Template
 from types import GeneratorType
 
 from ui4.animation import _animation_context
+from ui4.animation import _animation_short_keys
 from ui4.color import Color
 
 
@@ -322,7 +323,6 @@ class Events(Render):
             else:
                 roots.add(dirty)
         return roots
-
         
     @Render._register
     def _render_events(self):
@@ -446,7 +446,7 @@ class Props(Events):
                     'key': css_name,
                     'value': css_value,
                 }
-                transition.update(spec.defined_values)
+                transition['animation'] = _animation_short_keys(spec)
                 self._css_transitions[css_name] = transition
 
     def _css_setter(self, property_name, css_name, value, css_value_func):
@@ -530,10 +530,6 @@ class Anchor:
         "target_attribute comparison "
         "source_view source_attribute multiplier modifier"
     ).split()
-    animation_key_order = (
-        "duration ease "
-        "start_delay end_delay direction iterations"
-    ).split()
 
     def __init__(self,
                  target_view=None,
@@ -578,12 +574,7 @@ class Anchor:
                 d[f'a{i}'] = value
                 print(f'a{i}: {key}')
         if self.animation:
-            print(asdict(self.animation))
-            for j, key in enumerate(self.animation_key_order):
-                value = getattr(self.animation, key)
-                if not value is None:
-                    d[f'a{i+j+1}'] = value
-                    print(f'a{i+j+1}: {key}')
+            d.update(_animation_short_keys(self.animation))
         return d
         
     def as_json(self):

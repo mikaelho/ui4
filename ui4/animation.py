@@ -1,16 +1,18 @@
 import inspect
 
 from contextlib import contextmanager
-
 from dataclasses import asdict
 from dataclasses import dataclass
+from math import inf
 
 from ui4.constants import *
 
 
+DEFAULT_DURATION = 0.3  # seconds
+
 @dataclass
 class AnimationSpec:
-    duration: float = None
+    duration: float = DEFAULT_DURATION
     ease: str = None
     start_delay: float = None
     end_delay: float = None
@@ -55,13 +57,14 @@ def _animation(**kwargs):
         
 @contextmanager
 def animation(
-    duration=None,
+    duration=DEFAULT_DURATION,
     ease=None,
     start_delay=None,
     end_delay=None,
     direction=None,
     iterations=None,
 ):
+    iterations = iterations == FOREVER and inf or iterations
     return _animation(
         duration=duration,
         ease=ease,
@@ -99,6 +102,7 @@ def direction(direction):
     
 @contextmanager
 def iterations(iterations):
+    iterations = iterations == FOREVER and inf or iterations
     return _animation(iterations=iterations)
     
     
@@ -110,4 +114,19 @@ def _animation_context():
             return animation_specs[-1]
         frame = frame.f_back
     return None
+
+
+_animation_key_order = (
+    "duration ease start_delay end_delay direction iterations"
+).split()
+
+def _animation_short_keys(animation):
+    result = {}
+
+    for i, key in enumerate(_animation_key_order):
+        value = getattr(animation, key)
+        if not value is None:
+            result[f'a{i+6}'] = value
+            
+    return result
 

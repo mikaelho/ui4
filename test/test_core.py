@@ -377,14 +377,24 @@ class TestStyleProperties:
             'style': 'color:rgba(255,255,255,255)',
         }
         
-        with animation(1.0):
+    def test_animated_css_properties(self):
+        view = Core()
+        
+        with animation():
             view._set_css_property(
                 'corner_radius',
                 '50%',
                 'border-radius', 
                 '50%',
             )
-        with animation(2.0, 'ease-func'):
+        with animation(
+            duration=2.0,
+            ease='ease-func',
+            direction='alternate',
+            iterations='forever',
+            start_delay=1,
+            end_delay=2,
+        ):
             view._set_css_property(
                 'alpha',
                 0.5,
@@ -396,9 +406,10 @@ class TestStyleProperties:
         rendered = view._render_props()
         
         assert rendered == {
-            'style': 'color:rgba(255,255,255,255)',
-            'ui4css': '[{"key":"border-radius","value":"50%","duration":1.0},'
-            '{"key":"opacity","value":"50%","duration":2.0,"ease":"ease-func"}]',
+            'ui4css': '[{"key":"border-radius","value":"50%","duration":0.3},'
+            '{"key":"opacity","value":"50%",'
+            '"duration":2.0,"ease":"ease-func","start_delay":1,"end_delay":2,'
+            '"direction":"alternate","iterations":Infinity}]',
             'ui4anim': 'abc123',
         }
 

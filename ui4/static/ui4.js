@@ -306,10 +306,13 @@
         if (ui4AnimationID) {
           spec.animationID = ui4AnimationID;
         }
+        animSpec = parseSpec(spec.animation);
+        animSpec.key = spec.key;
+        animSpec.value = spec.value;
         if (animatedCSS[targetId]) {
-          animatedCSS[targetId].push(spec);
+          animatedCSS[targetId].push(animSpec);
         } else {
-          animatedCSS[targetId] = [spec];
+          animatedCSS[targetId] = [animSpec];
         }
       });
     }
@@ -348,12 +351,30 @@
     }
     animatedCSS = {};
   }
+  
+  function animationOptions(spec) {
+    const options = {};
+    if (spec.duration) {
+      spec.duration = spec.duration * 1000;
+    }
+    const optionKeys = ['easing', 'direction', 'delay', 'endDelay', 'iterations'];
+    optionKeys.forEach(function(key) {
+      const value = spec[key];
+      if (value) {
+        options[key] = value;
+      }
+    });
+    
+    return options;
+  }
 
   const constraintKeys = "targetAttr comparison sourceId sourceAttr multiplier modifier duration easing delay endDelay direction iterations";
   const constraintMapping = constraintKeys.split(" ");
 
   function parseSpec(spec, targetId) {
-    let parsedSpec = {targetId: targetId};
+    if (targetId) {
+      let parsedSpec = {targetId: targetId};
+    }
 
     constraintMapping.forEach((key, index) => {
       const value = spec["a" + index];
