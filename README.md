@@ -34,7 +34,7 @@ Small features
 --------------
 
 - [ ] Release opposite anchor if needed
-- [ ] Event loop - wait, direction, iterations
+- [x] Event loop - wait, direction, iterations
 - [ ] Event loop - yield
 - [ ] Event loop - pause, play
 - [ ] Textfield immediate change

@@ -1,4 +1,4 @@
- """
+"""
 Test runner for executing pytest tests in the Pythonista iOS app.
 """
 
