@@ -2,24 +2,18 @@
 Contains behind-the-scenes machinery that all views share.
 """
 
-import inspect
 import json
 import uuid
-
 from collections import defaultdict
 from collections.abc import Sequence
-from contextlib import contextmanager
-from dataclasses import asdict
 from functools import partial
 from numbers import Number
-from pathlib import Path
 from string import Template
 from types import GeneratorType
 
 from ui4.animation import _animation_context
 from ui4.animation import _animation_short_keys
 from ui4.color import Color
-
 
 
 def prop(func):
@@ -46,7 +40,8 @@ class Identity:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    def _get_next_id(self):
+    @staticmethod
+    def _get_next_id():
         user_id = Identity.get_user_id()
         id_counter = Identity._id_counter[user_id]
         id_counter += 1
@@ -178,7 +173,7 @@ class Render(Hierarchy):
     def _subrenderer_results(self):
         subrenderer_results = {}
         for renderer in self._renderers:
-                subrenderer_results.update(renderer(self))
+            subrenderer_results.update(renderer(self))
                 
         subrenderer_results.update(self._additional_attributes())
         
@@ -258,7 +253,7 @@ class Events(Render):
             if isinstance(animation_generator, GeneratorType):
                 animation_id = Events._get_animation_loop(animation_generator)
             updates = Events._render_updates(animation_id)
-            #print(updates)
+            # print(updates)
             return updates
         return ""
 
@@ -569,10 +564,9 @@ class Anchor:
             value = getattr(self, key)
             if value is None and gap is not None and key == 'modifier':
                 value = gap
-            if not value is None:
+            if value is not None:
                 value = getattr(value, "id", value)
                 d[f'a{i}'] = value
-                print(f'a{i}: {key}')
         if self.animation:
             d.update(_animation_short_keys(self.animation))
         return d
@@ -677,11 +671,15 @@ def eq(anchor):
 
 def gt(anchor):
     return _set_comparison(anchor, '>')
+
+
 ge = gt
 
 
 def lt(anchor):
     return _set_comparison(anchor, '<')
+
+
 le = lt
 
 
@@ -690,6 +688,7 @@ class Anchors(Events):
     def __init__(self, gap=None, flow=False, **kwargs):
         self.flow = flow
         self._constraints = set()
+        self._dock = None
         self._fit = False
         super().__init__(**kwargs)
         self.gap = gap
@@ -705,8 +704,7 @@ class Anchors(Events):
             anchor.as_dict(self.gap)
             for anchor in self._constraints
         ]
-        #animated = any((anchor.animation for anchor in self._constraints))
-        
+
         if constraints:
             attributes = {
                 'ui4': json.dumps(
@@ -827,7 +825,6 @@ class Anchors(Events):
                 ))
         else:
             return self._fit
-            
 
     @prop
     def dock(self, *value):
@@ -917,4 +914,3 @@ class Core(Anchors, Props):
         Events._dirties = dict()
         Events._animation_generators = dict()
         Props._css_value_funcs = {}
-

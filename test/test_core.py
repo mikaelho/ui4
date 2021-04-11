@@ -406,10 +406,10 @@ class TestStyleProperties:
         rendered = view._render_props()
         
         assert rendered == {
-            'ui4css': '[{"key":"border-radius","value":"50%","duration":0.3},'
-            '{"key":"opacity","value":"50%",'
-            '"duration":2.0,"ease":"ease-func","start_delay":1,"end_delay":2,'
-            '"direction":"alternate","iterations":Infinity}]',
+            'ui4css':
+                '[{"key":"border-radius","value":"50%","animation":{"a6":0.3}},'
+                '{"key":"opacity","value":"50%",'
+                '"animation":{"a6":2.0,"a7":"ease-func","a8":1,"a9":2,"a10":"alternate","a11":Infinity}}]',
             'ui4anim': 'abc123',
         }
 

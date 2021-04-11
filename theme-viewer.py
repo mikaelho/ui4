@@ -28,20 +28,14 @@ def main(root):
     def on_click(data):
         ball.left.clear()
         ball.bottom.clear()
-        '''
-        with ui4.duration(1.0):
-            ball.right = card.right
-            with ui4.ease():
-                ball.top = card.top
-                ball.background_color = 'blue'
-        '''
+
         with ui4.animation(
-            duration=1.0, direction=ui4.ALTERNATE, iterations=2.5
+            duration=1.5, direction=ui4.ALTERNATE, iterations=3
         ):
             ball.right = card.right
         with ui4.animation(
             duration=0.5, ease='ease-in-out', 
-            direction=ui4.ALTERNATE, iterations=5
+            direction=ui4.ALTERNATE, iterations=9
         ):
             ball.top = card.top
             ball.background_color = 'blue'

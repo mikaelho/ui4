@@ -146,19 +146,7 @@
       dependencies.forEach((dependency) => {
         const animationID = dependency.animationID;
         let data = values[dependency.targetAttr];
-        const options = {};
-        if (dependency.duration) {
-          options.duration = dependency.duration * 1000;
-          console.log("d: " + dependency.duration);
-        }
-        const optionKeys = ['easing', 'direction', 'delay', 'endDelay', 'iterations'];
-        optionKeys.forEach(function(key) {
-          const value = dependency[key];
-          if (value) {
-            options[key] = value;
-          }
-          console.log(key + ": " + value);
-        });
+        const options = animationOptions(dependency);
 
         let animation = data.targetElem.animate(
          [
@@ -167,6 +155,7 @@
          ],
          options
         );
+
         if (animating[animationID]) {
           animating[animationID].push(animation);
         } else {
@@ -306,7 +295,7 @@
         if (ui4AnimationID) {
           spec.animationID = ui4AnimationID;
         }
-        animSpec = parseSpec(spec.animation);
+        const animSpec = parseSpec(spec.animation);
         animSpec.key = spec.key;
         animSpec.value = spec.value;
         if (animatedCSS[targetId]) {
@@ -330,13 +319,11 @@
         fromFrame[key] = style[spec.key];
         const toFrame = {};
         toFrame[key] = spec.value;
-        const animation = elem.animate([fromFrame, toFrame],
-            {
-              duration: spec.duration * 1000,
-              easing: spec.easeFunc,
-              fill: "both"
-            }
-        );
+        const options = animationOptions(spec);
+        options.fill = "both";
+
+        const animation = elem.animate([fromFrame, toFrame], options);
+
         if (animating[animationID]) {
           animating[animationID].push(animation);
         } else {
@@ -357,7 +344,7 @@
     if (spec.duration) {
       spec.duration = spec.duration * 1000;
     }
-    const optionKeys = ['easing', 'direction', 'delay', 'endDelay', 'iterations'];
+    const optionKeys = ['duration', 'easing', 'direction', 'delay', 'endDelay', 'iterations'];
     optionKeys.forEach(function(key) {
       const value = spec[key];
       if (value) {
@@ -372,15 +359,15 @@
   const constraintMapping = constraintKeys.split(" ");
 
   function parseSpec(spec, targetId) {
+    const parsedSpec = {};
     if (targetId) {
-      let parsedSpec = {targetId: targetId};
+      parsedSpec.targetId = targetId;
     }
 
     constraintMapping.forEach((key, index) => {
       const value = spec["a" + index];
       if (value !== undefined) {
         parsedSpec[key] = value;
-        console.log("a"+index+": "+key+" - "+value);
       }
     });
     if (!parsedSpec.comparison) {
