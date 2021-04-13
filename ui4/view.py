@@ -17,41 +17,41 @@ from ui4.core import Core
 class View(Core):
     
     # Layout properties
-    left = Core.anchorprop('left')
+    left = Core._anchorprop('left')
     x = left
-    right = Core.anchorprop('right')
-    top = Core.anchorprop('top')
+    right = Core._anchorprop('right')
+    top = Core._anchorprop('top')
     y = top
-    bottom = Core.anchorprop('bottom')
-    width = Core.anchorprop('width')
-    height = Core.anchorprop('height')
-    center_x = Core.anchorprop('centerX')
-    center_y = Core.anchorprop('centerY')
+    bottom = Core._anchorprop('bottom')
+    width = Core._anchorprop('width')
+    height = Core._anchorprop('height')
+    center_x = Core._anchorprop('centerX')
+    center_y = Core._anchorprop('centerY')
     
     # Composite properties
-    center = Core.anchorprops('center_x', 'center_y')
-    position = Core.anchorprops('left', 'top')
-    size = Core.anchorprops('width', 'height')
-    box = Core.anchorprops('left', 'top', 'width', 'height')
+    center = Core._anchorprops('center_x', 'center_y')
+    position = Core._anchorprops('left', 'top')
+    size = Core._anchorprops('width', 'height')
+    box = Core._anchorprops('left', 'top', 'width', 'height')
     
     # Dock to parent
-    top_left = Core.anchordock('top_left')
-    top_right = Core.anchordock('top_right')
-    bottom_left = Core.anchordock('bottom_left')
-    bottom_right = Core.anchordock('bottom_right')
-    top_center = Core.anchordock('top_center')
-    bottom_center = Core.anchordock('bottom_center')
-    left_center = Core.anchordock('left_center')
-    right_center = Core.anchordock('right_center')
-    sides = Core.anchordock('sides')
-    top_and_bottom = Core.anchordock('top_and_bottom')
-    all = Core.anchordock('all')
+    top_left = Core._anchordock('top_left')
+    top_right = Core._anchordock('top_right')
+    bottom_left = Core._anchordock('bottom_left')
+    bottom_right = Core._anchordock('bottom_right')
+    top_center = Core._anchordock('top_center')
+    bottom_center = Core._anchordock('bottom_center')
+    left_center = Core._anchordock('left_center')
+    right_center = Core._anchordock('right_center')
+    sides = Core._anchordock('sides')
+    top_and_bottom = Core._anchordock('top_and_bottom')
+    all = Core._anchordock('all')
     
     # Dock to sibling
-    above = Core.anchordock('above')
-    below = Core.anchordock('below')
-    left_of = Core.anchordock('left_of')
-    right_of = Core.anchordock('right_of')
+    above = Core._anchordock('above')
+    below = Core._anchordock('below')
+    left_of = Core._anchordock('left_of')
+    right_of = Core._anchordock('right_of')
     
     # Appearance properties
     align = Core._css_plain_prop('align', 'text-align')
@@ -63,6 +63,11 @@ class View(Core):
     corner_radius = Core._css_plain_prop('corner_radius', 'border-radius')
     alpha = Core._css_plain_prop('alpha', 'opacity')
     padding = Core._css_plain_prop('padding', 'padding')
+    scrollable = Core._css_mapping_prop('scrollable', 'overflow', {
+        True: 'auto',
+        'horizontal': 'auto hidden',
+        'vertical': 'hidden auto',
+    })
     shadow = Core._css_plain_prop('shadow', 'box-shadow')
     text_color = Core._css_color_prop('text_color', 'color')
     z = Core._css_plain_prop('z', 'z-index')

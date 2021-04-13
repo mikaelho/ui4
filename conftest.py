@@ -32,16 +32,16 @@ def is_view_id():
 @fixture
 def anchor_view():
     class AnchorCore(Core):
-        top = Anchors.anchorprop('top')
-        bottom = Anchors.anchorprop('bottom')
-        left = Anchors.anchorprop('left')
-        right = Anchors.anchorprop('right')
-        width = Anchors.anchorprop('width')
-        height = Anchors.anchorprop('height')
-        center_x = Anchors.anchorprop('center_x')
-        center_y = Anchors.anchorprop('center_y')
-        center = Anchors.anchorprops('center_x', 'center_y')
-        top_left = Anchors.anchordock('top_left')
+        top = Anchors._anchorprop('top')
+        bottom = Anchors._anchorprop('bottom')
+        left = Anchors._anchorprop('left')
+        right = Anchors._anchorprop('right')
+        width = Anchors._anchorprop('width')
+        height = Anchors._anchorprop('height')
+        center_x = Anchors._anchorprop('center_x')
+        center_y = Anchors._anchorprop('center_y')
+        center = Anchors._anchorprops('center_x', 'center_y')
+        top_left = Anchors._anchordock('top_left')
         
     yield AnchorCore
 

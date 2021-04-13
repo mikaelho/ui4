@@ -36,8 +36,8 @@ Widget coverage
 Small features
 --------------
 
-- [ ] Release opposite anchor if needed
-- [ ] scrollable
+- [x] Release opposite anchor if needed
+- [x] scrollable
 - [x] Event loop - wait, direction, iterations
 - [ ] Event loop - yield
 - [ ] Event loop - pause, play

@@ -623,7 +623,7 @@ class Anchor:
 
     le = lt
 
-    def clear(self):
+    def release(self):
         self.target_view._constraints.difference_update({
             constraint
             for constraint in self.target_view._constraints
@@ -692,7 +692,7 @@ class Anchors(Events):
         
     gap = Props._prop('gap')
         
-    def clear_all(self):
+    def release(self):
         self._constraints = set()
         
     @Render._register
@@ -765,11 +765,11 @@ class Anchors(Events):
                         per_dimension.discard(other_attribute)
                         break
                 for attribute_too_many in per_dimension:
-                    getattr(self, attribute_too_many).clear()
+                    getattr(self, attribute_too_many).release()
 
 
     @staticmethod
-    def anchorprop(attribute):
+    def _anchorprop(attribute):
         return property(
             lambda self:
                 partial(Anchors._anchor_getter, self, attribute)(),
@@ -784,7 +784,7 @@ class Anchors(Events):
     
     # Docking attributes are read-only
     @staticmethod
-    def anchordock(attribute):
+    def _anchordock(attribute):
         return property(
             lambda self:
                 partial(Anchors._anchor_getter, self, attribute)()
@@ -800,7 +800,7 @@ class Anchors(Events):
             setattr(self, attribute, value)
 
     @staticmethod
-    def anchorprops(*attributes):
+    def _anchorprops(*attributes):
         return property(
             lambda self:
                 partial(Anchors._anchor_multiple_getter, self, attributes)(),
