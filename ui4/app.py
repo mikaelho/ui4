@@ -110,7 +110,7 @@ class FlaskRunner:
         view = View.get_view(view_id)
         value = flask.request.values.get(view_id, view)
         update_html = view._process_event(event_name, value)
-        # print(update_html)
+        print(update_html)
         return update_html
         
     def event_loop(self):

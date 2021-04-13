@@ -26,20 +26,19 @@ def main(root):
     
     @button
     def on_click(data):
-        ball.left.clear()
-        ball.bottom.clear()
-
-        with ui4.animation(
-            duration=1.5, direction=ui4.ALTERNATE, iterations=3
-        ):
-            ball.right = card.right
+        go_to('top', 'right', 'blue')
+        yield
+        go_to('bottom', 'left', 'green')
+            
+    def go_to(vertical, horizontal, color):
+        with ui4.duration(1.5):
+            setattr(ball, horizontal, getattr(card, horizontal))
         with ui4.animation(
             duration=0.5, ease='ease-in-out', 
-            direction=ui4.ALTERNATE, iterations=9
+            direction=ui4.ALTERNATE, iterations=3
         ):
-            ball.top = card.top
-            ball.background_color = 'blue'
-
+            setattr(ball, vertical, getattr(card, vertical))
+            ball.background_color = color
 
 ui4.run(main)
 

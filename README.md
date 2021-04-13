@@ -1,5 +1,7 @@
 ui4 - Python UI library
 
+Create cross-platform UIs easily in Python.
+
 ![Python tests](https://github.com/mikaelho/ui4/actions/workflows/ui4.yaml/badge.svg) ![Javascript tests](https://github.com/mikaelho/ui4/actions/workflows/ui4-js.yaml/badge.svg)
 
 Roadmap
@@ -8,6 +10,7 @@ Roadmap
 - [ ] Anchor minmax
 - [x] Event loop basics
 - [ ] Grid/flow
+- [ ] Run and serve
 - [ ] Basic demo
 - [ ] Widget demo
 - [ ] UI tester
@@ -34,11 +37,11 @@ Small features
 --------------
 
 - [ ] Release opposite anchor if needed
+- [ ] scrollable
 - [x] Event loop - wait, direction, iterations
 - [ ] Event loop - yield
 - [ ] Event loop - pause, play
 - [ ] Textfield immediate change
-- [ ] scrollable
 - [ ] clip_to_bounds
 - [ ] yield fetch
 - [ ] Gradients

@@ -739,20 +739,37 @@ class Anchors(Events):
             self._constraints.discard(value)  
             self._constraints.add(value)
 
-            constrained_attributes = set([
-                anchor.target_attribute for anchor in self._constraints
-            ])
-            for checklist in (
-                set('left right center_x width'.split()),
-                set('top bottom center_y height'.split()),
-            ):
-                constraints_per_dimension = constrained_attributes.intersection(checklist)
-                if len(constraints_per_dimension) > 2:
-                    raise RuntimeError(
-                        "Too many constraints in one dimension", constraints_per_dimension
-                    )
+            # Release anchors where needed
+            self._prune_anchors(attribute)
+
         else:
             raise TypeError(f"Cannot set {value} as {attribute}")
+
+    def _prune_anchors(self, attribute):
+        """
+        If caller has defined an impossible combination of anchors,
+        select the most likely set.
+        """
+        constrained_attributes = set([
+            anchor.target_attribute for anchor in self._constraints
+        ])
+        # Checklists define the priority order
+        for checklist in (
+            list('width center_x left right'.split()),
+            list('height center_y top bottom'.split()),
+        ):
+            if attribute in checklist:
+                per_dimension = constrained_attributes.intersection(set(checklist))
+                if len(per_dimension) <= 2:
+                    return  # All good
+                per_dimension.discard(attribute)
+                for other_attribute in checklist:
+                    if other_attribute in per_dimension:
+                        per_dimension.discard(other_attribute)
+                        break
+                for attribute_too_many in per_dimension:
+                    getattr(self, attribute_too_many).clear()
+
 
     @staticmethod
     def anchorprop(attribute):

@@ -123,6 +123,7 @@
     checkAllDependencies();
     checkAnimationDependencies();
     checkCSSAnimations();
+    checkAnimationStepComplete();
   };
 
   function checkAllDependencies() {
@@ -156,22 +157,27 @@
          options
         );
 
-        if (animating[animationID]) {
-          animating[animationID].push(animation);
-        } else {
-          animating[animationID] = [animation];
+        if (animationID) {
+          if (animating[animationID]) {
+            animating[animationID].push(animation);
+          } else {
+            animating[animationID] = [animation];
+          }
         }
-        requestAnimationFrame(updateDependenciesWhileAnimating);
+
         animation.onfinish = function() {
           if (allDependencies[targetId]) {
             allDependencies[targetId].push(dependency);
           } else {
             allDependencies[targetId] = [dependency];
           }
-          //ui4.checkDependencies();
-          animating[animationID].pop();
-          checkAnimationStepComplete(animationID);
+          if (animationID) {
+            animating[animationID].pop();
+            //checkAnimationStepComplete();
+          }
+          ui4.checkDependencies();
         };
+        //requestAnimationFrame(updateDependenciesWhileAnimating);
       });
       animatedDependencies = {};
     }
@@ -320,20 +326,24 @@
         const toFrame = {};
         toFrame[key] = spec.value;
         const options = animationOptions(spec);
-        options.fill = "both";
+        options.fill = "forwards";
+        
+        console.log(JSON.stringify(fromFrame));
 
         const animation = elem.animate([fromFrame, toFrame], options);
 
-        if (animating[animationID]) {
-          animating[animationID].push(animation);
-        } else {
-          animating[animationID] = [animation];
+        if (animationID) {
+          if (animating[animationID]) {
+            animating[animationID].push(animation);
+          } else {
+            animating[animationID] = [animation];
+          }
+          animation.onfinish = function() {
+            //ui4.checkDependencies();
+            animating[animationID].pop();
+            checkAnimationStepComplete(animationID);
+          };
         }
-        animation.onfinish = function() {
-          //ui4.checkDependencies();
-          animating[animationID].pop();
-          checkAnimationStepComplete(animationID);
-        };
       });
     }
     animatedCSS = {};
@@ -377,16 +387,22 @@
     return parsedSpec;
   }
 
-  function checkAnimationStepComplete(animationID) {
-    if (animationID) {
-      const animationState = animating[animationID];
+  function checkAnimationStepComplete() {
+    // if (animationID) {
+    const toDelete = [];
+    console.log("STATE "+JSON.stringify(animating));
+    for (const [animationID, animationState] of Object.entries(animating)) {
       const animationsComplete = (animationState === undefined || animationState.length === 0);
   
       if (animationsComplete) {
-        delete animating[animationID];
-         htmx.trigger(document.body, 'next', {animationID: animationID});
+        toDelete.push(animationID);
       }
     }
+    toDelete.forEach(function(animationID) {
+      console.log("NEXT: "+ animationID);
+      delete animating[animationID];
+      htmx.trigger(document.body, 'next', {animationID: animationID});
+    });
   }
 
   function updateDependenciesWhileAnimating() {

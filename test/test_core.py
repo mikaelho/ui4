@@ -247,8 +247,10 @@ class TestAnchorProperties:
         view3 = anchor_view()
         view4 = anchor_view()
 
-        anchor = Anchor(target_view=view2, target_attribute='left', comparison='<',
-                        source_view=view1, source_attribute='center_x')
+        anchor = Anchor(
+            target_view=view2, target_attribute='left', 
+            comparison='<',
+            source_view=view1, source_attribute='center_x')
 
         view2.left.lt(view1.center_x)
 
@@ -264,6 +266,30 @@ class TestAnchorProperties:
         anchor.target_view = view4
         assert view4._constraints == {anchor}
 
+    def test_anchors_autorelease(self, anchor_view):
+        view = anchor_view()
+        
+        view.left = 100
+        view.width = 200
+        
+        locked = {anchor.target_attribute for anchor in view._constraints}
+        assert locked == {'left', 'width'}
+        
+        view.right = 300
+        
+        locked = {anchor.target_attribute for anchor in view._constraints}
+        assert locked == {'right', 'width'}
+        
+        view.top = 400
+        view.bottom = 500
+        
+        locked = {anchor.target_attribute for anchor in view._constraints}
+        assert locked == {'right', 'width', 'top', 'bottom'}
+        
+        view.center_y = 600
+        locked = {anchor.target_attribute for anchor in view._constraints}
+        assert locked == {'right', 'width', 'top', 'center_y'}
+        
     
 class TestEvents:
     
@@ -316,7 +342,7 @@ class TestEvents:
             data.value = 2
 
         # First click
-        view._process_event('click', view)
+        update = view._process_event('click', view)
 
         assert view.value == 1
         assert len(Events._animation_generators) == 1
