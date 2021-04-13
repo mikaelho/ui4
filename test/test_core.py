@@ -472,3 +472,19 @@ class TestStyleProperties:
         
         view.bold = False
         assert view._css_properties['font-weight'] is None
+        
+    def test_properties__mapping(self):
+        Core.scrollable = Core._css_mapping_prop('scrollable', 'overflow', {
+            True: 'auto',
+            'horizontal': 'auto hidden',
+            'vertical': 'hidden auto',            
+        })
+        
+        view = Core()
+        
+        view.scrollable = True
+        assert view._css_properties['overflow'] == 'auto'
+        
+        view.scrollable = False
+        assert view._css_properties['overflow'] == None
+

@@ -449,26 +449,41 @@ class Props(Events):
         self._set_css_property(property_name, value, css_name, css_value)
 
     @staticmethod
-    def _css_plain_prop(property_name, css_name):
-        def css_value_func(value):
-            css_value = value
-            if type(css_value) in (int, float):
-                css_value = f"{css_value}px"
-            return css_value
+    def _css_func_prop(css_value_func, property_name, css_name):
         Props._css_value_funcs[property_name] = css_name, css_value_func
         return property(
             lambda self: partial(
                 Props._getter, self, property_name,
             )(),
             lambda self, value: partial(
-                Props._css_setter, 
-                self, 
-                property_name, 
-                css_name, 
-                value, 
+                Props._css_setter,
+                self, property_name, 
+                css_name,
+                value,
                 css_value_func,
             )()
         )
+        
+    @staticmethod
+    def _css_plain_prop(property_name, css_name):
+        def css_value_func(value):
+            css_value = value
+            if type(css_value) in (int, float):
+                css_value = f"{css_value}px"
+            return css_value
+        return Props._css_func_prop(css_value_func, property_name, css_name)
+        
+    @staticmethod
+    def _css_bool_prop(property_name, css_name, css_true_value):
+        def css_value_func(value):
+            return value and css_true_value or None
+        return Props._css_func_prop(css_value_func, property_name, css_name)
+        
+    @staticmethod
+    def _css_mapping_prop(property_name, css_name, css_value_mapping):
+        def css_value_func(value):
+            return css_value_mapping.get(value)
+        return Props._css_func_prop(css_value_func, property_name, css_name)
         
     def _css_color_setter(self, property_name, css_name, value, css_value_func):
         if not type(value) is Color:
@@ -489,24 +504,6 @@ class Props(Events):
                 Props._css_color_setter, 
                 self,
                 property_name,
-                css_name,
-                value,
-                css_value_func,
-            )()
-        )
-    
-    @staticmethod
-    def _css_bool_prop(property_name, css_name, css_true_value):
-        def css_value_func(value):
-            return value and css_true_value or None
-        Props._css_value_funcs[property_name] = css_name, css_value_func
-        return property(
-            lambda self: partial(
-                Props._getter, self, property_name,
-            )(),
-            lambda self, value: partial(
-                Props._css_setter,
-                self, property_name, 
                 css_name,
                 value,
                 css_value_func,
