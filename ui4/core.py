@@ -629,6 +629,7 @@ class Anchor:
             for constraint in self.target_view._constraints
             if constraint.target_attribute == self.target_attribute
         })
+        self._mark_dirty()
 
     def __add__(self, other):
         if other is None:
@@ -694,6 +695,7 @@ class Anchors(Events):
         
     def release(self):
         self._constraints = set()
+        self._mark_dirty()
         
     @Render._register
     def _render_anchors(self):
