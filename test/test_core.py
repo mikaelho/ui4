@@ -295,7 +295,8 @@ class TestAnchorProperties:
         view2 = anchor_view()
         view3 = anchor_view()
         
-        
+        view1.width = ui4.max(view2.width, view3.width)
+        view1.width.max(view2.width, view3.width)
     
 class TestEvents:
     
