@@ -290,6 +290,12 @@ class TestAnchorProperties:
         locked = {anchor.target_attribute for anchor in view._constraints}
         assert locked == {'right', 'width', 'top', 'center_y'}
         
+    def test_maxmin(self, anchor_view):
+        view1 = anchor_view()
+        view2 = anchor_view()
+        view3 = anchor_view()
+        
+        
     
 class TestEvents:
     
