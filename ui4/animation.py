@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from dataclasses import asdict
 from dataclasses import dataclass
 from math import inf
+from typing import Optional
 
 from ui4.constants import *
 
@@ -76,7 +77,7 @@ def animation(
 
 
 @contextmanager
-def duration(duration):
+def duration(duration=DEFAULT_DURATION):
     return _animation(duration=duration)
     
     
@@ -106,7 +107,7 @@ def iterations(iterations):
     return _animation(iterations=iterations)
     
     
-def _animation_context():
+def _animation_context() -> Optional[AnimationSpec]:
     frame = inspect.currentframe()
     while frame:
         animation_specs = frame.f_locals.get(_ui4_animation_context_variable)

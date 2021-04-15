@@ -629,7 +629,7 @@ class Anchor:
             for constraint in self.target_view._constraints
             if constraint.target_attribute == self.target_attribute
         })
-        self._mark_dirty()
+        self.target_view._mark_dirty()
 
     def __add__(self, other):
         if other is None:

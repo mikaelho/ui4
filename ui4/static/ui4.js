@@ -54,12 +54,11 @@
       let left = false;
       let right;
       for (const child of context.targetElem.children) {
+        const bbox = child.getBoundingClientRect();
         if (left === false) {
-          const bbox = child.getBoundingClientRect();
           left = bbox.left;
           right = bbox.right;
         } else {
-          const bbox = child.getBoundingClientRect();
           left = Math.min(left, bbox.left);
           right = Math.max(right, bbox.right);
         }
@@ -73,12 +72,11 @@
       let top = false;
       let bottom;
       for (const child of context.targetElem.children) {
+        const bbox = child.getBoundingClientRect();
         if (top === false) {
-          const bbox = child.getBoundingClientRect();
           top = bbox.top;
           bottom = bbox.bottom;
         } else {
-          const bbox = child.getBoundingClientRect();
           top = Math.min(top, bbox.top);
           bottom = Math.max(bottom, bbox.bottom);
         }
@@ -101,8 +99,9 @@
       if (context.dependencies.find(item => item.targetAttr === 'left')) {  // left locked, width must give
         return {width: 2 * (value - parseFloat(context.getStyle.left)) + 'px'};
       } else if (context.dependencies.find(item => item.targetAttr === 'right')) {  // right locked, width must give)
-        return {width:
-            2 * (parseFloat(context.parentStyle.width) - parseFloat(context.getStyle.right) - value) + 'px'};
+        return {
+          width: 2 * (parseFloat(context.parentStyle.width) - parseFloat(context.getStyle.right) - value) + 'px'
+        };
       } else {  // Neither locked, move left
         return {left: value - parseFloat(context.getStyle.width) / 2 + 'px'};
       }
@@ -111,8 +110,9 @@
       if (context.dependencies.find(item => item.targetAttr === 'top')) {  // top locked, height must give
         return {height: 2 * (value - parseFloat(context.getStyle.top)) + 'px'};
       } else if (context.dependencies.find(item => item.targetAttr === 'bottom')) {  // bottom locked, height must give)
-        return {height:
-            2 * (parseFloat(context.parentStyle.height) - parseFloat(context.getStyle.bottom) - value) + 'px'};
+        return {
+          height: 2 * (parseFloat(context.parentStyle.height) - parseFloat(context.getStyle.bottom) - value) + 'px'
+        };
       } else {  // Neither locked, move top
         return {top: value - parseFloat(context.getStyle.height) / 2 + 'px'};
       }
@@ -128,7 +128,7 @@
 
   function checkAllDependencies() {
     for (const [targetId, dependencies] of Object.entries(allDependencies)) {
-      let finalValues = checkAttribute(targetId, dependencies);
+      let finalValues = checkElementDependencies(targetId, dependencies);
       // Apply the final value for each attribute
       for (const [targetAttr, data] of Object.entries(finalValues)) {
         const updates = setValue[targetAttr](data.context, data.sourceValue);
@@ -142,7 +142,7 @@
   function checkAnimationDependencies() {
     for (const [targetId, dependencies] of Object.entries(animatedDependencies)) {
 
-      let values = checkAttribute(targetId, dependencies);
+      let values = checkElementDependencies(targetId, dependencies);
 
       dependencies.forEach((dependency) => {
         const animationID = dependency.animationID;
@@ -183,7 +183,7 @@
     }
   }
 
-  function checkAttribute(targetId, dependencies) {
+  function checkElementDependencies(targetId, dependencies) {
     //console.log("ID " + targetId);
     let targetElem = document.getElementById(targetId);
     let values = {};
@@ -328,8 +328,6 @@
         const options = animationOptions(spec);
         options.fill = "forwards";
         
-        console.log(JSON.stringify(fromFrame));
-
         const animation = elem.animate([fromFrame, toFrame], options);
 
         if (animationID) {
@@ -390,7 +388,6 @@
   function checkAnimationStepComplete() {
     // if (animationID) {
     const toDelete = [];
-    console.log("STATE "+JSON.stringify(animating));
     for (const [animationID, animationState] of Object.entries(animating)) {
       const animationsComplete = (animationState === undefined || animationState.length === 0);
   
@@ -399,7 +396,6 @@
       }
     }
     toDelete.forEach(function(animationID) {
-      console.log("NEXT: "+ animationID);
       delete animating[animationID];
       htmx.trigger(document.body, 'next', {animationID: animationID});
     });

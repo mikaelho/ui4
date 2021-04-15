@@ -367,26 +367,9 @@ class TestEvents:
         view._process_event_loop(animation_id)
         assert view.value == 2
 
-        
-class TestAnimationContext:
-    
-    def test_animation_contextmanager(self):
-        
-        assert _animation_context() is None
 
-        with animation(0.3):
-            assert _animation_context().duration == 0.3
-            
-            with animation(1.0, 'foobar'):
-                assert _animation_context().duration == 1.0
-                assert _animation_context().ease == 'foobar'
-                
-            assert _animation_context().duration == 0.3
-            assert _animation_context().ease is None
-        
-        assert _animation_context() is None
-        
-        
+
+
 class TestStyleProperties:
         
     def test_base_setter_and_render(self):
