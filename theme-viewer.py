@@ -7,7 +7,10 @@ def main(root):
     
     card = ui4.View(
         dock=root.center,
-        width=root.width * 0.9,
+        width=(
+            ui4.high(root.width * 0.9),
+            ui4.wide(root.height * 0.9),
+        ),
         background_color='white',
     )
     card.height = card.width

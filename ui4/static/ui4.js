@@ -32,6 +32,11 @@
     "<": (a, b) => a >= b,
     ">": (a, b) => a <= b
   };
+  
+  const mediaRequire = {
+    high: "(orientation:portrait)",
+    wide: "(orientation:landscape)"
+  };
 
   const getValue = {
     width: (context) => parseFloat(context.getStyle.width),
@@ -190,6 +195,13 @@
 
     dependencies.forEach(dependency => {
       //console.log(JSON.stringify(dependency));
+      if (dependency.require) {
+        const mq = window.matchMedia(mediaRequire[dependency.require]);
+        if (!mq.matches) {
+          return;
+        }
+      }
+      
       let sourceElem = document.getElementById(dependency.sourceId);
       let sourceValue;
       let contained = false;
@@ -363,7 +375,7 @@
     return options;
   }
 
-  const constraintKeys = "targetAttr comparison sourceId sourceAttr multiplier modifier duration easing delay endDelay direction iterations";
+  const constraintKeys = "targetAttr comparison sourceId sourceAttr multiplier modifier require duration easing delay endDelay direction iterations";
   const constraintMapping = constraintKeys.split(" ");
 
   function parseSpec(spec, targetId) {

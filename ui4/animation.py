@@ -127,7 +127,7 @@ def _animation_short_keys(animation):
     for i, key in enumerate(_animation_key_order):
         value = getattr(animation, key)
         if not value is None:
-            result[f'a{i+6}'] = value
+            result[f'a{i+7}'] = value
             
     return result
 

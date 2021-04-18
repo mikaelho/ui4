@@ -511,7 +511,11 @@ class Props(Events):
         )
 
 
-class Anchor:
+class AnchorBase:
+    pass
+
+
+class Anchor(AnchorBase):
     """
     Utility class that holds the information about a single anchor.
 
@@ -520,18 +524,21 @@ class Anchor:
     
     key_order = (
         "target_attribute comparison "
-        "source_view source_attribute multiplier modifier"
+        "source_view source_attribute multiplier modifier require"
     ).split()
 
-    def __init__(self,
-                 target_view=None,
-                 target_attribute=None,
-                 comparison=None,
-                 source_view=None,
-                 source_attribute=None,
-                 multiplier=None,
-                 modifier=None,
-                 animation=None):
+    def __init__(
+        self,
+        target_view=None,
+        target_attribute=None,
+        comparison=None,
+        source_view=None,
+        source_attribute=None,
+        multiplier=None,
+        modifier=None,
+        require=None,
+        animation=None,
+    ):
         self.target_view = target_view
         self.target_attribute = target_attribute
         self.comparison = comparison
@@ -540,6 +547,8 @@ class Anchor:
         self.multiplier = multiplier
         self.modifier = modifier
         self.animation = animation
+        self.require = require
+        self.extended_anchor = None
 
     def __repr__(self):
         items = ", ".join([
@@ -580,6 +589,7 @@ class Anchor:
             return hash(
                 f'{self.target_view and self.target_view.id}'
                 f'{self.target_attribute}'
+                f'{self.require}'
             )
         else:
             return hash(
@@ -588,6 +598,7 @@ class Anchor:
                 f'{self.comparison}'
                 f'{self.source_view and self.source_view.id}'
                 f'{self.source_attribute}'
+                f'{self.require}'
             )
 
     def __eq__(self, other):
@@ -657,6 +668,22 @@ class Anchor:
             self.multiplier /= other
         return self
 
+    def max(self, *anchors):
+        self.extended_anchor = MaxAnchor(*anchors)
+        return self
+    
+    def min(self, *anchors):
+        self.extended_anchor = MinAnchor(*anchors)
+        return self
+        
+    def high(self, anchor):
+        anchor.require = 'high'
+        setattr(self.target_view, self.target_attribute, anchor)
+        
+    def wide(self, anchor):
+        anchor.require = 'wide'
+        setattr(self.target_view, self.target_attribute, anchor)
+
 
 def _set_comparison(anchor, comparison):
     anchor.comparison = comparison
@@ -679,6 +706,45 @@ def lt(anchor):
 
 
 le = lt
+
+
+class ExtendedAnchor(AnchorBase):
+    
+    func = None
+    
+    def __init__(self, *anchors):
+        self.anchors = anchors
+    
+    
+class MinMaxAnchor(ExtendedAnchor):
+    
+    ...
+    
+    
+class MaxAnchor(MinMaxAnchor):
+    func = 'max'
+    
+    
+class MinAnchor(MinMaxAnchor):
+    func = 'min'
+    
+
+def max(*anchors):
+    return MaxAnchor(*anchors)
+    
+    
+def min(*anchors):
+    return MinAnchor(*anchors)
+    
+    
+def high(anchor):
+    anchor.require = 'high'
+    return anchor
+    
+    
+def wide(anchor):
+    anchor.require = 'wide'
+    return anchor
 
 
 class Anchors(Events):
@@ -725,7 +791,14 @@ class Anchors(Events):
         self._mark_dirty()
         if isinstance(value, Number):
             value = Anchor(modifier=value)
-        if type(value) is Anchor:
+        if isinstance(value, Sequence) and all(
+            (isinstance(item, AnchorBase) for item in value)
+        ):
+            for item in value:
+                setattr(self, attribute, item)
+        elif isinstance(value, ExtendedAnchor):
+            value.apply()
+        elif type(value) is Anchor:
             value.source_view = value.target_view
             value.source_attribute = value.target_attribute
             value.target_view = self

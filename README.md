@@ -39,6 +39,7 @@ Small features
 - [x] Release opposite anchor if needed
 - [x] scrollable
 - [x] Event loop - wait, direction, iterations
+- [ ] Dark mode
 - [ ] Event loop - yield
 - [ ] Event loop - pause, play
 - [ ] Textfield immediate change

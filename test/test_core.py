@@ -3,7 +3,12 @@ import inspect
 import pytest
 
 from ui4 import ge
+from ui4 import high
 from ui4 import le
+from ui4 import max
+from ui4 import min
+from ui4 import wide
+
 from ui4.animation import _animation_context
 from ui4.animation import animation
 from ui4.animation import AnimationSpec
@@ -158,7 +163,7 @@ class TestAnchor:
         assert (
             anchor.as_json() == 
             '{"a0":"bar","a4":2,'
-            '"a6":0.5,"a7":"ease-in","a8":1,"a9":2,"a10":"alternate","a11":3}'
+            '"a7":0.5,"a8":"ease-in","a9":1,"a10":2,"a11":"alternate","a12":3}'
         )
 
     def test_anchor_multipliers_and_modifiers(self):
@@ -289,14 +294,41 @@ class TestAnchorProperties:
         view.center_y = 600
         locked = {anchor.target_attribute for anchor in view._constraints}
         assert locked == {'right', 'width', 'top', 'center_y'}
+
+
+class TestExtendedAnchors:
         
+    '''
     def test_maxmin(self, anchor_view):
         view1 = anchor_view()
         view2 = anchor_view()
         view3 = anchor_view()
         
-        view1.width = ui4.max(view2.width, view3.width)
+        view1.width = max(view2.width, view3.width)
         view1.width.max(view2.width, view3.width)
+    '''
+        
+    def test_high_and_wide(self, anchor_view):
+        view1 = anchor_view()
+        view2 = anchor_view()
+        view3 = anchor_view()
+        
+        view1.width = (
+            high(view2.width),
+            wide(view3.height),
+        )
+        
+        assert len(view1._constraints) == 2
+        for anchor in view1._constraints:
+            assert anchor.target_attribute == 'width'
+            assert (
+                anchor.source_attribute == 'width' and anchor.require == 'high'
+            ) or (
+                anchor.source_attribute == 'height' and anchor.require == 'wide'
+            )
+            
+            assert anchor.as_dict()['a6'] in ('high', 'wide')
+            
     
 class TestEvents:
     
@@ -423,9 +455,9 @@ class TestStyleProperties:
         
         assert rendered == {
             'ui4css':
-                '[{"key":"border-radius","value":"50%","animation":{"a6":0.3}},'
+                '[{"key":"border-radius","value":"50%","animation":{"a7":0.3}},'
                 '{"key":"opacity","value":"50%",'
-                '"animation":{"a6":2.0,"a7":"ease-func","a8":1,"a9":2,"a10":"alternate","a11":Infinity}}]',
+                '"animation":{"a7":2.0,"a8":"ease-func","a9":1,"a10":2,"a11":"alternate","a12":Infinity}}]',
             'ui4anim': 'abc123',
         }
 
