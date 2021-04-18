@@ -34,8 +34,8 @@
   };
   
   const mediaRequire = {
-    high: "(orientation:portrait)",
-    wide: "(orientation:landscape)"
+    portrait: "(orientation:portrait)",
+    landscape: "(orientation:landscape)"
   };
 
   const getValue = {
@@ -195,14 +195,12 @@
 
     dependencies.forEach(dependency => {
       //console.log(JSON.stringify(dependency));
-      if (dependency.require) {
-        const mq = window.matchMedia(mediaRequire[dependency.require]);
-        if (!mq.matches) {
-          return;
-        }
+      if (!checkRequirements(targetElem, dependency)) {
+        return;
       }
       
       let sourceElem = document.getElementById(dependency.sourceId);
+      
       let sourceValue;
       let contained = false;
 
@@ -267,6 +265,23 @@
     });
 
     return values;
+  }
+  
+  function checkRequirements(targetElem, dependency) {
+    if (!dependency.require) {
+      return true;
+    }
+    const mediaQuery = mediaRequire[dependency.require];
+    if (mediaQuery) {
+      return window.matchMedia(mediaQuery).matches;
+    }
+    const parentStyle = window.getComputedStyle(targetElem.parentElement);
+    const wide = parentStyle.width > parentStyle.height;
+    if (dependency.require === "wide") {
+      return wide;
+    } else {
+      return !wide;
+    }
   }
 
   function setDependencies(node) {

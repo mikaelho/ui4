@@ -676,6 +676,14 @@ class Anchor(AnchorBase):
         self.extended_anchor = MinAnchor(*anchors)
         return self
         
+    def portrait(self, anchor):
+        anchor.require = 'portrait'
+        setattr(self.target_view, self.target_attribute, anchor)
+        
+    def landscape(self, anchor):
+        anchor.require = 'landscape'
+        setattr(self.target_view, self.target_attribute, anchor)
+        
     def high(self, anchor):
         anchor.require = 'high'
         setattr(self.target_view, self.target_attribute, anchor)
@@ -735,6 +743,16 @@ def max(*anchors):
     
 def min(*anchors):
     return MinAnchor(*anchors)
+    
+    
+def portrait(anchor):
+    anchor.require = 'portrait'
+    return anchor
+    
+    
+def landscape(anchor):
+    anchor.require = 'landscape'
+    return anchor
     
     
 def high(anchor):
