@@ -5,8 +5,8 @@ import pytest
 from ui4 import ge
 from ui4 import high
 from ui4 import le
-from ui4 import max
-from ui4 import min
+from ui4 import maximum
+from ui4 import minimum
 from ui4 import wide
 
 from ui4.animation import _animation_context
@@ -298,16 +298,52 @@ class TestAnchorProperties:
 
 class TestExtendedAnchors:
         
-    '''
-    def test_maxmin(self, anchor_view):
+    def test_maximum(self, anchor_view):
         view1 = anchor_view()
         view2 = anchor_view()
         view3 = anchor_view()
         
-        view1.width = max(view2.width, view3.width)
-        view1.width.max(view2.width, view3.width)
-    '''
+        view1.width = view2.height
         
+        view1.width = maximum(view2.width, view3.width)
+        assert len(view1._maxmin_constraints['width']['max']) == 2
+        
+        view1.height.maximum(view2.height, view3.height).lt(300)
+        assert len(view1._maxmin_constraints['height']['max']) == 2
+        
+        required = set(
+            f'{anchor.target_attribute} {anchor.require}' 
+            for anchor in view1._constraints
+        )
+        assert required == set([
+            "width max 0", "width max 1", 
+            "height max 0", "height max 1",
+            "height None",
+        ])
+
+    def test_minimum(self, anchor_view):
+        view1 = anchor_view()
+        view2 = anchor_view()
+        view3 = anchor_view()
+        
+        view1.width = view2.height
+        
+        view1.width = minimum(view2.width, view3.width)
+        assert len(view1._maxmin_constraints['width']['min']) == 2
+        
+        view1.height.minimum(view2.height, view3.height).ge(300)
+        assert len(view1._maxmin_constraints['height']['min']) == 2
+        
+        required = set(
+            f'{anchor.target_attribute} {anchor.require}' 
+            for anchor in view1._constraints
+        )
+        assert required == set([
+            "width min 0", "width min 1", 
+            "height min 0", "height min 1",
+            "height None",
+        ])
+
     def test_high_and_wide(self, anchor_view):
         view1 = anchor_view()
         view2 = anchor_view()

@@ -18,6 +18,7 @@ Roadmap
 - [ ] JS tests
 - [ ] Deployment story
 - [ ] Authentication support
+- [ ] Thread safety
 - [ ] FastAPI backend
 - [ ] WebSocket/SSE
 

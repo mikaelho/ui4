@@ -3,7 +3,7 @@ from ui4.app import run
 from ui4.button import Button
 from ui4.constants import *
 from ui4.core import eq, gt, ge, lt, le
-from ui4.core import max, min, portrait, landscape, high, wide
+from ui4.core import maximum, minimum, portrait, landscape, high, wide
 from ui4.flow import FlowContainer
 from ui4.flow import FlowView
 from ui4.flow import GridContainer

@@ -668,29 +668,35 @@ class Anchor(AnchorBase):
             self.multiplier /= other
         return self
 
-    def max(self, *anchors):
-        self.extended_anchor = MaxAnchor(*anchors)
+    def maximum(self, *anchors):
+        add_require_value('max', *anchors)
+        setattr(self.target_view, self.target_attribute, anchors)
         return self
     
-    def min(self, *anchors):
-        self.extended_anchor = MinAnchor(*anchors)
+    def minimum(self, *anchors):
+        add_require_value('min', *anchors)
+        setattr(self.target_view, self.target_attribute, anchors)
         return self
         
     def portrait(self, anchor):
         anchor.require = 'portrait'
         setattr(self.target_view, self.target_attribute, anchor)
+        return self
         
     def landscape(self, anchor):
         anchor.require = 'landscape'
         setattr(self.target_view, self.target_attribute, anchor)
+        return self
         
     def high(self, anchor):
         anchor.require = 'high'
         setattr(self.target_view, self.target_attribute, anchor)
+        return self
         
     def wide(self, anchor):
         anchor.require = 'wide'
         setattr(self.target_view, self.target_attribute, anchor)
+        return self
 
 
 def _set_comparison(anchor, comparison):
@@ -715,34 +721,19 @@ def lt(anchor):
 
 le = lt
 
-
-class ExtendedAnchor(AnchorBase):
     
-    func = None
-    
-    def __init__(self, *anchors):
-        self.anchors = anchors
-    
-    
-class MinMaxAnchor(ExtendedAnchor):
-    
-    ...
-    
-    
-class MaxAnchor(MinMaxAnchor):
-    func = 'max'
-    
-    
-class MinAnchor(MinMaxAnchor):
-    func = 'min'
+def add_require_value(key, *anchors):
+    for index, anchor in enumerate(anchors):
+        anchor.require = f'{key} {index}'
+    return anchors
     
 
-def max(*anchors):
-    return MaxAnchor(*anchors)
+def maximum(*anchors):
+    return add_require_value('max', *anchors)
     
     
-def min(*anchors):
-    return MinAnchor(*anchors)
+def minimum(*anchors):
+    return add_require_value('min', *anchors)
     
     
 def portrait(anchor):
@@ -770,6 +761,7 @@ class Anchors(Events):
     def __init__(self, gap=None, flow=False, **kwargs):
         self.flow = flow
         self._constraints = set()
+        self._maxmin_constraints = {}
         self._dock = None
         self._fit = False
         super().__init__(**kwargs)
@@ -809,13 +801,10 @@ class Anchors(Events):
         self._mark_dirty()
         if isinstance(value, Number):
             value = Anchor(modifier=value)
-        if isinstance(value, Sequence) and all(
+        if isinstance(value, Sequence) and value and all(
             (isinstance(item, AnchorBase) for item in value)
         ):
-            for item in value:
-                setattr(self, attribute, item)
-        elif isinstance(value, ExtendedAnchor):
-            value.apply()
+            self._anchor_process_sequence(attribute, value)
         elif type(value) is Anchor:
             value.source_view = value.target_view
             value.source_attribute = value.target_attribute
@@ -824,6 +813,9 @@ class Anchors(Events):
             value.comparison = comparison or value.comparison or '='
             
             value.animation = _animation_context()
+            
+            if value.require:
+                self._anchor_check_minmax(value)
 
             # Overwrite "similar" anchor, see Anchor.__hash__
             self._constraints.discard(value)  
@@ -834,6 +826,27 @@ class Anchors(Events):
 
         else:
             raise TypeError(f"Cannot set {value} as {attribute}")
+
+    def _anchor_process_sequence(self, attribute, anchors):
+        if anchors[0].require:
+            key = anchors[0].require.split()[0]
+            if key in ('max', 'min'):
+                for anchor in self._maxmin_constraints.get(attribute, {}).pop(key, []):
+                    self._constraints.discard(anchor)
+                self._maxmin_constraints.pop(attribute, None)
+                to_replace = Anchor(self, attribute, '=')
+                self._constraints.discard(to_replace)
+        for anchor in anchors:
+            setattr(self, attribute, anchor)
+
+    def _anchor_check_minmax(self, anchor):
+        key = anchor.require.split()[0]
+        if key in ('min', 'max'):
+            self._maxmin_constraints.setdefault(
+                anchor.target_attribute, dict()
+            ).setdefault(
+                key, []
+            ).append(anchor)
 
     def _prune_anchors(self, attribute):
         """
