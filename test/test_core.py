@@ -308,6 +308,8 @@ class TestExtendedAnchors:
         view1.width = maximum(view2.width, view3.width)
         assert len(view1._maxmin_constraints['width']['max']) == 2
         
+        assert list(view1._constraints)[0].as_dict()['a6'] == "max"
+        
         view1.height.maximum(view2.height, view3.height).lt(300)
         assert len(view1._maxmin_constraints['height']['max']) == 2
         

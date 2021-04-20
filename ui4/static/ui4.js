@@ -268,7 +268,9 @@
   }
   
   function checkRequirements(targetElem, dependency) {
-    if (!dependency.require) {
+    if (
+      !dependency.require || dependency.require === "max" || dependency.require === "min"
+    ) {
       return true;
     }
     const mediaQuery = mediaRequire[dependency.require];

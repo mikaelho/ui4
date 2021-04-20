@@ -572,6 +572,8 @@ class Anchor(AnchorBase):
                 value = gap
             if value is not None:
                 value = getattr(value, "id", value)
+                if key == 'require' and value[:3] in ('max', 'min'):
+                    value = value[:3]
                 d[f'a{i}'] = value
         if self.animation:
             d.update(_animation_short_keys(self.animation))
