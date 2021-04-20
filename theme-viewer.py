@@ -5,26 +5,31 @@ def main(root):
     
     root.background_color = 'grey'
     
-    card = ui4.View(
+    holder = ui4.View(
         dock=root.center,
         width=(
-            ui4.high(root.width * 0.9),
-            ui4.wide(root.height * 0.9),
+            ui4.high(root.width),
+            ui4.wide(root.height),
         ),
+    )
+    holder.height = holder.width
+    
+    button = ui4.Button(
+        dock=holder.bottom,
+        text='Move',
+    )
+    
+    card = ui4.View(
+        dock=holder.top,
+        bottom=button.top,
         background_color='white',
     )
-    card.height = card.width
     
     ball = ui4.View(
         dock=card.bottom_left,
         size=(50, 50),
         corner_radius='50%',
         background_color='green',
-    )
-    
-    button = ui4.Button(
-        dock=card.below,
-        text='Move',
     )
     
     @button
