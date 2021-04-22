@@ -189,12 +189,14 @@
   }
 
   function checkElementDependencies(targetId, dependencies) {
-    //console.log("ID " + targetId);
+    console.log("ID " + targetId);
     let targetElem = document.getElementById(targetId);
     let values = {};
+    let maxValues = {};
+    let minValues = {};
 
     dependencies.forEach(dependency => {
-      //console.log(JSON.stringify(dependency));
+      console.log(JSON.stringify(dependency));
       if (!checkRequirements(targetElem, dependency)) {
         return;
       }
@@ -253,7 +255,25 @@
           sourceValue += modifier;
         }
       }
-
+      
+      if (dependency.require) {
+        console.log("REQ "+dependency.require);
+        if (dependency.require === "max") {
+          if (!maxValues[dependency.targetAttr] || sourceValue > maxValues[dependency.targetAttr]) {
+            maxValues[dependency.targetAttr] == sourceValue;
+          } else {
+            return;
+          }
+        }
+        if (dependency.require == "min") {
+          if (!minValues[dependency.targetAttr] || sourceValue < minValues[dependency.targetAttr]) {
+            minValues[dependency.targetAttr] == sourceValue;
+          } else {
+            return;
+          }
+        }
+      }
+      
       if (comparisons[dependency.comparison](targetValue, sourceValue)) {
         values[dependency.targetAttr] = {
           targetElem: targetElem,
@@ -302,6 +322,7 @@
       specs.forEach( (spec) => {
         let dependency = parseSpec(spec, targetId);
         if (dependency) {
+          console.log(JSON.stringify(dependency));
           if (dependency.duration) {
             if (ui4AnimationID) {
               dependency.animationID = ui4AnimationID;

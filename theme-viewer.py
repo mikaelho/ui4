@@ -7,10 +7,7 @@ def main(root):
     
     holder = ui4.View(
         dock=root.center,
-        width=(
-            ui4.high(root.width),
-            ui4.wide(root.height),
-        ),
+        width=ui4.minimum(root.width, root.height),
     )
     holder.height = holder.width
     

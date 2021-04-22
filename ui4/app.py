@@ -97,7 +97,7 @@ class FlaskRunner:
             content=root._render()
         )
         View._clear_dirties()
-        #print(index_html)
+        print(index_html)
         return index_html
     
     def send_js(self):
