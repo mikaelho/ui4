@@ -7,7 +7,7 @@ def main(root):
     
     holder = ui4.View(
         dock=root.center,
-        width=root.width,
+        width=ui4.minimum(root.width, root.height),
     )
     holder.height = holder.width
     
@@ -45,5 +45,5 @@ def main(root):
             setattr(ball, vertical, getattr(card, vertical))
             ball.background_color = color
 
-ui4.run(main)
+ui4.run(main, port=8088)
 

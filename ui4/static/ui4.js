@@ -255,25 +255,11 @@
           sourceValue += modifier;
         }
       }
-      
-      if (dependency.require) {
-        console.log("REQ "+dependency.require);
-        if (dependency.require === "max") {
-          if (!maxValues[dependency.targetAttr] || sourceValue > maxValues[dependency.targetAttr]) {
-            maxValues[dependency.targetAttr] == sourceValue;
-          } else {
-            return;
-          }
-        }
-        if (dependency.require == "min") {
-          if (!minValues[dependency.targetAttr] || sourceValue < minValues[dependency.targetAttr]) {
-            minValues[dependency.targetAttr] == sourceValue;
-          } else {
-            return;
-          }
-        }
+
+      if (!maxMinCheck(dependency, sourceValue, maxValues, minValues)) {
+        return;
       }
-      
+
       if (comparisons[dependency.comparison](targetValue, sourceValue)) {
         values[dependency.targetAttr] = {
           targetElem: targetElem,
@@ -293,10 +279,14 @@
     ) {
       return true;
     }
+
+    // Check match with viewport portrait/landscape
     const mediaQuery = mediaRequire[dependency.require];
     if (mediaQuery) {
       return window.matchMedia(mediaQuery).matches;
     }
+
+    // Check match with parent view high/wide
     const parentStyle = window.getComputedStyle(targetElem.parentElement);
     const wide = parentStyle.width > parentStyle.height;
     if (dependency.require === "wide") {
@@ -304,6 +294,28 @@
     } else {
       return !wide;
     }
+  }
+
+  function maxMinCheck(dependency, sourceValue, maxValues, minValues) {
+    if (dependency.require) {
+      if (dependency.require === "max") {
+        if (!maxValues[dependency.targetAttr] || sourceValue > maxValues[dependency.targetAttr]) {
+          maxValues[dependency.targetAttr] = sourceValue;
+          return true;
+        } else {
+          return false;
+        }
+      }
+      if (dependency.require === "min") {
+        if (!minValues[dependency.targetAttr] || sourceValue < minValues[dependency.targetAttr]) {
+          minValues[dependency.targetAttr] = sourceValue;
+          return true;
+        } else {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   function setDependencies(node) {
@@ -512,7 +524,8 @@
 
   ui4._privateForTesting = {
     parseSpec: parseSpec,
-    toCamelCase: toCamelCase
+    toCamelCase: toCamelCase,
+    maxMinCheck: maxMinCheck
   };
   
 } ( window.ui4 = window.ui4 || {} ));

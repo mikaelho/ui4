@@ -206,7 +206,7 @@ class App:
         self.runner.run()
 
 
-def run(setup_func, gap=None):
-    app = App(gap=gap)
+def run(setup_func, gap=None, **kwargs):
+    app = App(gap=gap, **kwargs)
     app.run(setup_func)
 

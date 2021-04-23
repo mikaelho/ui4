@@ -41,3 +41,34 @@ describe("#toCamelCase", () => {
     assert.equal(test.toCamelCase('background-color'), 'backgroundColor');
   });
 });
+
+describe("#maxMinCheck", () => {
+  it('should retain and return true for the maximum/minimum values', async () => {
+    const maxValues = {left: 100};
+    const minValues = {};
+    const dependency = {require: 'max', targetAttr: 'left'};
+
+    shouldApply = test.maxMinCheck(dependency, 200, maxValues, minValues);
+    assert.equal(shouldApply, true);
+    assert.equal(maxValues.left, 200);
+
+    shouldApply = test.maxMinCheck(dependency, 100, maxValues, minValues);
+    assert.equal(shouldApply, false);
+    assert.equal(maxValues.left, 200);
+
+    delete dependency.require;
+    shouldApply = test.maxMinCheck(dependency, 100, maxValues, minValues);
+    assert.equal(shouldApply, true);
+    assert.equal(maxValues.left, 200);
+
+    dependency.require = 'min';
+    dependency.targetAttr = 'bottom';
+    shouldApply = test.maxMinCheck(dependency, 150, maxValues, minValues);
+    assert.equal(shouldApply, true);
+    assert.equal(minValues.bottom, 150);
+
+    shouldApply = test.maxMinCheck(dependency, -150, maxValues, minValues);
+    assert.equal(shouldApply, true);
+    assert.equal(minValues.bottom, -150);
+  });
+});
