@@ -529,8 +529,7 @@
 
   ui4._privateForTesting = {
     parseSpec: parseSpec,
-    toCamelCase: toCamelCase,
-    maxMinCheck: maxMinCheck
+    toCamelCase: toCamelCase
   };
   
 } ( window.ui4 = window.ui4 || {} ));
