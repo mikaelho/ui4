@@ -190,6 +190,7 @@
 
   function checkElementDependencies(targetId, dependencies) {
     console.log("ID " + targetId);
+
     let targetElem = document.getElementById(targetId);
     let values = {};
     let maxValues = {};
@@ -255,9 +256,30 @@
           sourceValue += modifier;
         }
       }
-
-      if (!maxMinCheck(dependency, sourceValue, maxValues, minValues)) {
-        return;
+      
+      if (dependency.require) {
+        if (dependency.require === "max") {
+          if (!maxValues[dependency.targetAttr] || sourceValue > maxValues[dependency.targetAttr]) {
+            maxValues[dependency.targetAttr] = {
+              targetElem: targetElem,
+              targetValue: targetValue,
+              sourceValue: sourceValue,
+              context: targetContext
+            };
+          }
+          return;
+        }
+        if (dependency.require === "min") {
+          if (!minValues[dependency.targetAttr] || sourceValue < minValues[dependency.targetAttr]) {
+            minValues[dependency.targetAttr] = {
+              targetElem: targetElem,
+              targetValue: targetValue,
+              sourceValue: sourceValue,
+              context: targetContext
+            };
+          }
+          return;
+        }
       }
 
       if (comparisons[dependency.comparison](targetValue, sourceValue)) {
@@ -267,6 +289,13 @@
           sourceValue: sourceValue,
           context: targetContext
         };
+      }
+    });
+    
+    const maxMin = [maxValues, minValues];
+    maxMin.forEach(maxMinValueList => {
+      for (const [targetAttr, data] of Object.entries(maxMinValueList)) {
+        values[targetAttr] = data;
       }
     });
 
@@ -296,28 +325,6 @@
     }
   }
 
-  function maxMinCheck(dependency, sourceValue, maxValues, minValues) {
-    if (dependency.require) {
-      if (dependency.require === "max") {
-        if (!maxValues[dependency.targetAttr] || sourceValue > maxValues[dependency.targetAttr]) {
-          maxValues[dependency.targetAttr] = sourceValue;
-          return true;
-        } else {
-          return false;
-        }
-      }
-      if (dependency.require === "min") {
-        if (!minValues[dependency.targetAttr] || sourceValue < minValues[dependency.targetAttr]) {
-          minValues[dependency.targetAttr] = sourceValue;
-          return true;
-        } else {
-          return false;
-        }
-      }
-    }
-    return true;
-  }
-
   function setDependencies(node) {
     var targetId = node.id;
     if (!targetId) { return; }
@@ -327,14 +334,12 @@
     var ui4AttrValue = node.getAttribute("ui4");
 
     if (ui4AttrValue) {
-      //console.log(ui4AttrValue);
       var dependencies = Array();
       var animDependencies = Array();
       var specs = JSON.parse(ui4AttrValue);
       specs.forEach( (spec) => {
         let dependency = parseSpec(spec, targetId);
         if (dependency) {
-          console.log(JSON.stringify(dependency));
           if (dependency.duration) {
             if (ui4AnimationID) {
               dependency.animationID = ui4AnimationID;
