@@ -197,7 +197,6 @@
     let minValues = {};
 
     dependencies.forEach(dependency => {
-      console.log(JSON.stringify(dependency));
       if (!checkRequirements(targetElem, dependency)) {
         return;
       }
@@ -515,6 +514,7 @@
 
   // Update constraints on window resize
   window.addEventListener('resize', function (evt) {
+    console.log("RESIZE");
     ui4.checkDependencies();
   });
 
