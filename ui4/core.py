@@ -550,42 +550,6 @@ class Anchor(AnchorBase):
         self.require = require
         self.extended_anchor = None
 
-    def __repr__(self):
-        items = ", ".join([
-            f"{key}: {getattr(value, 'id', value)}"
-            for key, value in zip(
-                self.key_order,
-                [getattr(self, key2) for key2 in self.key_order]
-            )
-            if value is not None
-        ])
-        return f"<{self.__class__.__name__} ({items})>"
-
-    def as_dict(self, gap=None):
-        """
-        Returns anchor values where defined, with shortened keys.
-        """
-        d = {}
-        for i, key in enumerate(self.key_order):
-            value = getattr(self, key)
-            if value is None and gap is not None and key == 'modifier':
-                value = gap
-            if value is not None:
-                value = getattr(value, "id", value)
-                if key == 'require' and value[:3] in ('max', 'min'):
-                    value = value[:3]
-                d[f'a{i}'] = value
-        if self.animation:
-            d.update(_animation_short_keys(self.animation))
-        return d
-        
-    def as_json(self):
-        return json.dumps(
-            self.as_dict(), 
-            check_circular=False, 
-            separators=(',', ':')
-        )
-
     def __hash__(self):
         if self.comparison in (None, '='):
             return hash(
@@ -605,6 +569,53 @@ class Anchor(AnchorBase):
 
     def __eq__(self, other):
         return hash(self) == hash(other)
+
+    def __repr__(self):
+        items = ", ".join([
+            f"{key}: {getattr(value, 'id', value)}"
+            for key, value in zip(
+                self.key_order,
+                [getattr(self, key2) for key2 in self.key_order]
+            )
+            if value is not None
+        ])
+        return f"<{self.__class__.__name__} ({items})>"
+        
+    def shift_and_set(self, target_view, target_attribute, comparison):
+        self.source_view = self.target_view
+        self.source_attribute = self.target_attribute
+        self.target_view = target_view
+        self.target_attribute = target_attribute
+        self.comparison = comparison or self.comparison or '='
+            
+        self.animation = _animation_context()
+
+    def as_dict(self, gap=None):
+        """
+        Returns anchor values where defined, with shortened keys.
+        """
+        dict_representation = self.main_items_as_dict(gap)
+        if self.animation:
+            dict_representation.update(_animation_short_keys(self.animation))
+        return dict_representation
+        
+    def main_items_as_dict(self, gap):
+        d = {}
+        for i, key in enumerate(self.key_order):
+            value = getattr(self, key)
+            if value is None and gap is not None and key == 'modifier':
+                value = gap
+            if value is not None:
+                value = getattr(value, "id", value)
+                d[f'a{i}'] = value
+        return d
+        
+    def as_json(self):
+        return json.dumps(
+            self.as_dict(), 
+            check_circular=False, 
+            separators=(',', ':')
+        )
 
     def __gt__(self, other):
         self.target_view._anchor_setter(
@@ -671,13 +682,15 @@ class Anchor(AnchorBase):
         return self
 
     def maximum(self, *anchors):
-        add_require_value('max', *anchors)
-        setattr(self.target_view, self.target_attribute, anchors)
+        setattr(self.target_view, self.target_attribute, AnchorContainer(
+            'max', *anchors
+        ))
         return self
     
     def minimum(self, *anchors):
-        add_require_value('min', *anchors)
-        setattr(self.target_view, self.target_attribute, anchors)
+        setattr(self.target_view, self.target_attribute, AnchorContainer(
+            'min', *anchors
+        ))
         return self
         
     def portrait(self, anchor):
@@ -699,6 +712,43 @@ class Anchor(AnchorBase):
         anchor.require = 'wide'
         setattr(self.target_view, self.target_attribute, anchor)
         return self
+
+        
+class AnchorContainer(AnchorBase):
+    
+    def __init__(self, key, *anchors):
+        self.key = key
+        
+        if len(anchors) < 1:
+            raise ValueError('Must provide at least 1 anchor as a parameter')
+        self.anchors = anchors
+        
+    def __hash__(self):
+        return hash(self.anchors[0])
+    
+    def shift_and_set(self, target_view, target_attribute, comparison):
+        for anchor in self.anchors:
+            anchor.shift_and_set(target_view, target_attribute, comparison)
+    
+    def as_dict(self, gap=None):
+        if self.anchors:
+            dict_representation = {
+                'key': self.key,
+                'list': [
+                    anchor.main_items_as_dict(gap)
+                    for anchor in self.anchors
+                ]
+            }
+            first_anchor = self.anchors[0]
+            if first_anchor.animation:
+                dict_representation.update(_animation_short_keys(first_anchor.animation))
+            return dict_representation
+        else:
+            return {}
+            
+    @property
+    def target_attribute(self):
+        return self.anchors[0].target_attribute
 
 
 def _set_comparison(anchor, comparison):
@@ -723,19 +773,13 @@ def lt(anchor):
 
 le = lt
 
-    
-def add_require_value(key, *anchors):
-    for index, anchor in enumerate(anchors):
-        anchor.require = f'{key} {index}'
-    return anchors
-    
 
 def maximum(*anchors):
-    return add_require_value('max', *anchors)
+    return AnchorContainer('max', *anchors)
     
     
 def minimum(*anchors):
-    return add_require_value('min', *anchors)
+    return AnchorContainer('min', *anchors)
     
     
 def portrait(anchor):
@@ -763,7 +807,6 @@ class Anchors(Events):
     def __init__(self, gap=None, flow=False, **kwargs):
         self.flow = flow
         self._constraints = set()
-        self._maxmin_constraints = {}
         self._dock = None
         self._fit = False
         super().__init__(**kwargs)
@@ -807,17 +850,8 @@ class Anchors(Events):
             (isinstance(item, AnchorBase) for item in value)
         ):
             self._anchor_process_sequence(attribute, value)
-        elif type(value) is Anchor:
-            value.source_view = value.target_view
-            value.source_attribute = value.target_attribute
-            value.target_view = self
-            value.target_attribute = attribute
-            value.comparison = comparison or value.comparison or '='
-            
-            value.animation = _animation_context()
-            
-            if value.require:
-                self._anchor_check_minmax(value)
+        elif isinstance(value, AnchorBase):
+            value.shift_and_set(self, attribute, comparison)
 
             # Overwrite "similar" anchor, see Anchor.__hash__
             self._constraints.discard(value)  
@@ -830,25 +864,8 @@ class Anchors(Events):
             raise TypeError(f"Cannot set {value} as {attribute}")
 
     def _anchor_process_sequence(self, attribute, anchors):
-        if anchors[0].require:
-            key = anchors[0].require.split()[0]
-            if key in ('max', 'min'):
-                for anchor in self._maxmin_constraints.get(attribute, {}).pop(key, []):
-                    self._constraints.discard(anchor)
-                self._maxmin_constraints.pop(attribute, None)
-                to_replace = Anchor(self, attribute, '=')
-                self._constraints.discard(to_replace)
         for anchor in anchors:
             setattr(self, attribute, anchor)
-
-    def _anchor_check_minmax(self, anchor):
-        key = anchor.require.split()[0]
-        if key in ('min', 'max'):
-            self._maxmin_constraints.setdefault(
-                anchor.target_attribute, dict()
-            ).setdefault(
-                key, []
-            ).append(anchor)
 
     def _prune_anchors(self, attribute):
         """

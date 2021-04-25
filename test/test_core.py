@@ -13,6 +13,7 @@ from ui4.animation import _animation_context
 from ui4.animation import animation
 from ui4.animation import AnimationSpec
 from ui4.core import Anchor
+from ui4.core import AnchorContainer
 from ui4.core import Core
 from ui4.core import Events
 
@@ -306,22 +307,23 @@ class TestExtendedAnchors:
         view1.width = view2.height
         
         view1.width = maximum(view2.width, view3.width)
-        assert len(view1._maxmin_constraints['width']['max']) == 2
         
-        assert list(view1._constraints)[0].as_dict()['a6'] == "max"
+        assert len(view1._constraints) == 1
+        anchor = list(view1._constraints)[0]
+        assert type(anchor) == AnchorContainer
+        assert anchor.as_dict() == {
+            'key': 'max',
+            'list': [
+                {'a0': 'width', 'a1': '=', 'a2': 'id2', 'a3': 'width'},
+                {'a0': 'width', 'a1': '=', 'a2': 'id3', 'a3': 'width'}
+            ]
+        }
         
         view1.height.maximum(view2.height, view3.height).lt(300)
-        assert len(view1._maxmin_constraints['height']['max']) == 2
-        
-        required = set(
-            f'{anchor.target_attribute} {anchor.require}' 
-            for anchor in view1._constraints
-        )
-        assert required == set([
-            "width max 0", "width max 1", 
-            "height max 0", "height max 1",
-            "height None",
-        ])
+        assert len(view1._constraints) == 3
+        for anchor in view1._constraints:
+            if type(anchor) is Anchor:
+                assert anchor.comparison == '<'
 
     def test_minimum(self, anchor_view):
         view1 = anchor_view()
@@ -331,20 +333,40 @@ class TestExtendedAnchors:
         view1.width = view2.height
         
         view1.width = minimum(view2.width, view3.width)
-        assert len(view1._maxmin_constraints['width']['min']) == 2
+        
+        assert len(view1._constraints) == 1
+        anchor = list(view1._constraints)[0]
+        assert type(anchor) == AnchorContainer
+        assert anchor.as_dict() == {
+            'key': 'min',
+            'list': [
+                {'a0': 'width', 'a1': '=', 'a2': 'id2', 'a3': 'width'},
+                {'a0': 'width', 'a1': '=', 'a2': 'id3', 'a3': 'width'}
+            ]
+        }
         
         view1.height.minimum(view2.height, view3.height).ge(300)
-        assert len(view1._maxmin_constraints['height']['min']) == 2
+        assert len(view1._constraints) == 3
+        for anchor in view1._constraints:
+            if type(anchor) is Anchor:
+                assert anchor.comparison == '>'
+                
+    def test_container_with_animation(self, anchor_view):
+        view1 = anchor_view()
+        view2 = anchor_view()
         
-        required = set(
-            f'{anchor.target_attribute} {anchor.require}' 
-            for anchor in view1._constraints
-        )
-        assert required == set([
-            "width min 0", "width min 1", 
-            "height min 0", "height min 1",
-            "height None",
-        ])
+        with animation():
+            view1.width = minimum(view2.width, view2.height)
+            
+        anchor = list(view1._constraints)[0]
+        assert anchor.as_dict() == {
+            'key': 'min',
+            'list': [
+                {'a0': 'width', 'a1': '=', 'a2': 'id2', 'a3': 'width'},
+                {'a0': 'width', 'a1': '=', 'a2': 'id2', 'a3': 'height'}
+            ],
+            'a7': 0.3,
+        } 
 
     def test_high_and_wide(self, anchor_view):
         view1 = anchor_view()

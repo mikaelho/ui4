@@ -428,10 +428,26 @@
     
     return options;
   }
+  
+  function parseFullSpec(spec, targetId) {
+    let parsed = parseSpec(spec, targetId);
+    if ('key' in spec) {
+      const parsedList = {
+        key: spec.key,
+        list: [],
+      }
+      spec.list.forEach(dependencySpec => {
+        parsedList.list.push(dependencySpec, targetId);
+      });
+
+      parsed =  {...parsedList, ...parsed};
+    }
+    return parsed;
+  }
 
   const constraintKeys = "targetAttr comparison sourceId sourceAttr multiplier modifier require duration easing delay endDelay direction iterations";
   const constraintMapping = constraintKeys.split(" ");
-
+  
   function parseSpec(spec, targetId) {
     const parsedSpec = {};
     if (targetId) {
