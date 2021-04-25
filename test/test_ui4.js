@@ -54,16 +54,16 @@ describe("#parseSpec", () => {
     const result = test.parseFullSpec(spec, "id22");
     
     const expected = {
+      targetId: 'id22',
+      comparison: '=',
       key: "max",
       list: [
         {
-          targetId: 'id22',
           targetAttr: 'left',
           comparison: '=',
           modifier: 200
         },
         {
-          targetId: 'id22',
           targetAttr: 'left',
           comparison: '=',
           modifier: 300

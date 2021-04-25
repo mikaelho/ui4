@@ -1,4 +1,4 @@
-/*jshint esversion: 6 */
+/*jshint esversion: 9 */
 
 //htmx.logAll();
 
@@ -337,7 +337,7 @@
       var animDependencies = Array();
       var specs = JSON.parse(ui4AttrValue);
       specs.forEach( (spec) => {
-        let dependency = parseSpec(spec, targetId);
+        let dependency = parseFullSpec(spec, targetId);
         if (dependency) {
           if (dependency.duration) {
             if (ui4AnimationID) {
@@ -384,7 +384,7 @@
       const elem = document.getElementById(targetId);
       const style = window.getComputedStyle(elem);
 
-      specs.forEach(function(spec) {
+      specs.forEach((spec) => {
         const animationID = spec.animationID;
         const key = toCamelCase(spec.key);
         const fromFrame = {};
@@ -435,9 +435,9 @@
       const parsedList = {
         key: spec.key,
         list: [],
-      }
+      };
       spec.list.forEach(dependencySpec => {
-        parsedList.list.push(dependencySpec, targetId);
+        parsedList.list.push(parseSpec(dependencySpec));
       });
 
       parsed =  {...parsedList, ...parsed};
