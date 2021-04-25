@@ -23,7 +23,7 @@ describe("#parseSpec", () => {
       a5: 200
     };
     
-    const result = test.parseSpec(spec, "id22");
+    const result = test.parseFullSpec(spec, "id22");
     
     const expected = {
       targetId: 'id22',
@@ -48,10 +48,10 @@ describe("#parseSpec", () => {
           a5: 300
         }
       ],
-      a6: 0.3
+      a7: 0.3
     };
     
-    const result = test.parseSpec(spec, "id22");
+    const result = test.parseFullSpec(spec, "id22");
     
     const expected = {
       key: "max",

@@ -544,7 +544,7 @@
   }
 
   ui4._privateForTesting = {
-    parseSpec: parseSpec,
+    parseFullSpec: parseFullSpec,
     toCamelCase: toCamelCase
   };
   
