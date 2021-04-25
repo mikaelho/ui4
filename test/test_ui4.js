@@ -37,36 +37,37 @@ describe("#parseSpec", () => {
   
   it('should parse list dependency spec with animation', async () => {
     const spec = {
-      key: "max",
+      a0: 'left',
+      a1: '=',
+      key: 'max',
       list: [
         {
-          a0: "left",
-          a5: 200
+          a2: 'id2',
+          a3: 'left'
         },
         {
-          a0: "left",
-          a5: 300
+          a2: 'id3',
+          a3: 'left'
         }
       ],
       a7: 0.3
     };
     
-    const result = test.parseFullSpec(spec, "id22");
+    const result = test.parseFullSpec(spec, "id1");
     
     const expected = {
-      targetId: 'id22',
+      targetId: 'id1',
+      targetAttr: 'left',
       comparison: '=',
       key: "max",
       list: [
         {
-          targetAttr: 'left',
-          comparison: '=',
-          modifier: 200
+          sourceId: 'id2',
+          sourceAttr: 'left'
         },
         {
-          targetAttr: 'left',
-          comparison: '=',
-          modifier: 300
+          sourceId: 'id3',
+          sourceAttr: 'left'
         }
       ],
       duration: 0.3

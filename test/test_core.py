@@ -312,10 +312,12 @@ class TestExtendedAnchors:
         anchor = list(view1._constraints)[0]
         assert type(anchor) == AnchorContainer
         assert anchor.as_dict() == {
+            'a0': 'width',
+            'a1': '=',
             'key': 'max',
             'list': [
-                {'a0': 'width', 'a1': '=', 'a2': 'id2', 'a3': 'width'},
-                {'a0': 'width', 'a1': '=', 'a2': 'id3', 'a3': 'width'}
+                {'a2': 'id2', 'a3': 'width'},
+                {'a2': 'id3', 'a3': 'width'}
             ]
         }
         
@@ -338,10 +340,12 @@ class TestExtendedAnchors:
         anchor = list(view1._constraints)[0]
         assert type(anchor) == AnchorContainer
         assert anchor.as_dict() == {
+            'a0': 'width',
+            'a1': '=',
             'key': 'min',
             'list': [
-                {'a0': 'width', 'a1': '=', 'a2': 'id2', 'a3': 'width'},
-                {'a0': 'width', 'a1': '=', 'a2': 'id3', 'a3': 'width'}
+                {'a2': 'id2', 'a3': 'width'},
+                {'a2': 'id3', 'a3': 'width'}
             ]
         }
         
@@ -360,10 +364,12 @@ class TestExtendedAnchors:
             
         anchor = list(view1._constraints)[0]
         assert anchor.as_dict() == {
+            'a0': 'width',
+            'a1': '=',
             'key': 'min',
             'list': [
-                {'a0': 'width', 'a1': '=', 'a2': 'id2', 'a3': 'width'},
-                {'a0': 'width', 'a1': '=', 'a2': 'id2', 'a3': 'height'}
+                {'a2': 'id2', 'a3': 'width'},
+                {'a2': 'id2', 'a3': 'height'}
             ],
             'a7': 0.3,
         } 

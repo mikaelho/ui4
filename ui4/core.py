@@ -548,7 +548,6 @@ class Anchor(AnchorBase):
         self.modifier = modifier
         self.animation = animation
         self.require = require
-        self.extended_anchor = None
 
     def __hash__(self):
         if self.comparison in (None, '='):
@@ -586,7 +585,10 @@ class Anchor(AnchorBase):
         self.source_attribute = self.target_attribute
         self.target_view = target_view
         self.target_attribute = target_attribute
-        self.comparison = comparison or self.comparison or '='
+        if comparison == 'none':
+            self.comparison = None
+        else:
+            self.comparison = comparison or self.comparison or '='
             
         self.animation = _animation_context()
 
@@ -714,41 +716,36 @@ class Anchor(AnchorBase):
         return self
 
         
-class AnchorContainer(AnchorBase):
+class AnchorContainer(Anchor):
     
     def __init__(self, key, *anchors):
+        super().__init__()
         self.key = key
         
         if len(anchors) < 1:
             raise ValueError('Must provide at least 1 anchor as a parameter')
         self.anchors = anchors
-        
-    def __hash__(self):
-        return hash(self.anchors[0])
     
     def shift_and_set(self, target_view, target_attribute, comparison):
         for anchor in self.anchors:
-            anchor.shift_and_set(target_view, target_attribute, comparison)
+            anchor.shift_and_set(None, None, 'none')
+        self.target_view = target_view
+        self.target_attribute = target_attribute
+        self.comparison = comparison or self.comparison or '='
     
     def as_dict(self, gap=None):
-        if self.anchors:
-            dict_representation = {
-                'key': self.key,
-                'list': [
-                    anchor.main_items_as_dict(gap)
-                    for anchor in self.anchors
-                ]
-            }
-            first_anchor = self.anchors[0]
-            if first_anchor.animation:
-                dict_representation.update(_animation_short_keys(first_anchor.animation))
-            return dict_representation
-        else:
-            return {}
-            
-    @property
-    def target_attribute(self):
-        return self.anchors[0].target_attribute
+        dict_representation = super().as_dict(gap)
+        dict_representation.update({
+            'key': self.key,
+            'list': [
+                anchor.main_items_as_dict(gap)
+                for anchor in self.anchors
+            ]
+        })
+        first_anchor = self.anchors[0]
+        if first_anchor.animation:
+            dict_representation.update(_animation_short_keys(first_anchor.animation))
+        return dict_representation
 
 
 def _set_comparison(anchor, comparison):

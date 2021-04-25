@@ -425,6 +425,9 @@
   
   function parseFullSpec(spec, targetId) {
     let parsed = parseSpec(spec, targetId);
+    if (!parsed.comparison) {
+      parsed.comparison = '=';
+    }
     if ('key' in spec) {
       const parsedList = {
         key: spec.key,
@@ -454,9 +457,6 @@
         parsedSpec[key] = value;
       }
     });
-    if (!parsedSpec.comparison) {
-      parsedSpec.comparison = '=';
-    }
 
     return parsedSpec;
   }
