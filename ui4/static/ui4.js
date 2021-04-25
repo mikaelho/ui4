@@ -189,37 +189,35 @@
   }
 
   function checkElementDependencies(targetId, dependencies) {
-    console.log("ID " + targetId);
+    //console.log("ID " + targetId);
 
     let targetElem = document.getElementById(targetId);
     let values = {};
-    let maxValues = {};
-    let minValues = {};
+    let sourceValue;
+    let contained = false;
 
     dependencies.forEach(dependency => {
-      if (!checkRequirements(targetElem, dependency)) {
-        return;
+      if ('key' in dependency) {
+        const sourceValues = [];
+        dependency.list.forEach(subDependency => {
+          const subSourceValue = getSourceValue(targetElem, subDependency);
+          if (subSourceValue !== undefined) {
+            sourceValues.push(subSourceValue.sourceValue);
+            contained = subSourceValue.contained;
+          }
+        });
+        sourceValue = Math[dependency.key](...sourceValues);
+      } else {
+        sourceValue = getSourceValue(targetElem, dependency);
+        if (sourceValue !== undefined) {
+          sourceValue = sourceValue.sourceValue;
+          contained = sourceValue.contained;
+        }
       }
-      
-      let sourceElem = document.getElementById(dependency.sourceId);
-      
-      let sourceValue;
-      let contained = false;
 
-      if (dependency.sourceId === undefined) {
-        sourceValue = dependency.modifier;
-      }
-      else {
-        contained = targetElem.parentElement === sourceElem;
-
-        let sourceContext = {
-          contained: contained,
-          getStyle: window.getComputedStyle(sourceElem),
-          parentStyle: window.getComputedStyle(sourceElem.parentElement),
-          targetElem: targetElem
-        };
-        sourceValue = getValue[dependency.sourceAttr](sourceContext);
-      }
+      if (sourceValue === undefined) {
+          return;
+        }
 
       let targetContext = {
         dependencies: dependencies,
@@ -234,10 +232,6 @@
       let sourceType = attrType[dependency.sourceAttr];
       let targetType = attrType[dependency.targetAttr];
 
-      if (dependency.multiplier !== undefined) {
-        sourceValue = sourceValue * dependency.multiplier;
-      }
-
       let modifier = dependency.modifier !== undefined ? dependency.modifier : gap;
 
       if (contained) {
@@ -250,34 +244,8 @@
       } else {
         if (sourceType === LEADING && targetType === TRAILING) {
           sourceValue -= modifier;
-        }
-        else if (sourceType === TRAILING && targetType === LEADING) {
+        } else if (sourceType === TRAILING && targetType === LEADING) {
           sourceValue += modifier;
-        }
-      }
-      
-      if (dependency.require) {
-        if (dependency.require === "max") {
-          if (!maxValues[dependency.targetAttr] || sourceValue > maxValues[dependency.targetAttr]) {
-            maxValues[dependency.targetAttr] = {
-              targetElem: targetElem,
-              targetValue: targetValue,
-              sourceValue: sourceValue,
-              context: targetContext
-            };
-          }
-          return;
-        }
-        if (dependency.require === "min") {
-          if (!minValues[dependency.targetAttr] || sourceValue < minValues[dependency.targetAttr]) {
-            minValues[dependency.targetAttr] = {
-              targetElem: targetElem,
-              targetValue: targetValue,
-              sourceValue: sourceValue,
-              context: targetContext
-            };
-          }
-          return;
         }
       }
 
@@ -290,17 +258,43 @@
         };
       }
     });
-    
-    const maxMin = [maxValues, minValues];
-    maxMin.forEach(maxMinValueList => {
-      for (const [targetAttr, data] of Object.entries(maxMinValueList)) {
-        values[targetAttr] = data;
-      }
-    });
 
     return values;
   }
-  
+
+  function getSourceValue(targetElem, dependency) {
+    if (!checkRequirements(targetElem, dependency)) {
+      return;
+    }
+
+    const sourceElem = document.getElementById(dependency.sourceId);
+
+    let sourceValue;
+    let contained = false;
+
+    if (dependency.sourceId === undefined) {
+      sourceValue = dependency.modifier;
+    }
+    else {
+      contained = targetElem.parentElement === sourceElem;
+
+      let sourceContext = {
+        contained: contained,
+        getStyle: window.getComputedStyle(sourceElem),
+        parentStyle: window.getComputedStyle(sourceElem.parentElement),
+        targetElem: targetElem
+      };
+      sourceValue = getValue[dependency.sourceAttr](sourceContext);
+    }
+    if (dependency.multiplier !== undefined) {
+      sourceValue = sourceValue * dependency.multiplier;
+    }
+    return {
+      sourceValue: sourceValue,
+      contained: contained
+    };
+  }
+
   function checkRequirements(targetElem, dependency) {
     if (
       !dependency.require || dependency.require === "max" || dependency.require === "min"
