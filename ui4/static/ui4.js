@@ -189,14 +189,16 @@
   }
 
   function checkElementDependencies(targetId, dependencies) {
-    //console.log("ID " + targetId);
+    console.log("ID " + targetId);
 
     let targetElem = document.getElementById(targetId);
     let values = {};
     let sourceValue;
+    let sourceType;
     let contained = false;
 
     dependencies.forEach(dependency => {
+      console.log(dependency.targetAttr);
       if ('key' in dependency) {
         const sourceValues = [];
         dependency.list.forEach(subDependency => {
@@ -204,14 +206,17 @@
           if (subSourceValue !== undefined) {
             sourceValues.push(subSourceValue.sourceValue);
             contained = subSourceValue.contained;
+            sourceType = attrType[subDependency.sourceAttr];
+            console.log("CONT "+contained);
           }
         });
         sourceValue = Math[dependency.key](...sourceValues);
       } else {
-        sourceValue = getSourceValue(targetElem, dependency);
-        if (sourceValue !== undefined) {
-          sourceValue = sourceValue.sourceValue;
-          contained = sourceValue.contained;
+        const sourceValueData = getSourceValue(targetElem, dependency);
+        if (sourceValueData !== undefined) {
+          sourceValue = sourceValueData.sourceValue;
+          contained = sourceValueData.contained;
+          sourceType = attrType[dependency.sourceAttr];
         }
       }
 
@@ -229,11 +234,11 @@
       };
       let targetValue = getValue[dependency.targetAttr](targetContext);
 
-      let sourceType = attrType[dependency.sourceAttr];
       let targetType = attrType[dependency.targetAttr];
 
       let modifier = dependency.modifier !== undefined ? dependency.modifier : gap;
 
+      console.log("C " + contained + sourceValue + sourceType + targetType);
       if (contained) {
         if (sourceType === LEADING && targetType === LEADING) {
           sourceValue += modifier;
@@ -248,6 +253,7 @@
           sourceValue += modifier;
         }
       }
+      console.log("D " + sourceValue);
 
       if (comparisons[dependency.comparison](targetValue, sourceValue)) {
         values[dependency.targetAttr] = {

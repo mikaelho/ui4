@@ -281,8 +281,8 @@ class Theme:
  
 class Green:
     
-    primary = green_800
-    variant = green_600
+    primary = green_700
+    variant = green_500
     accent = red_500
     tinted = green_50
     alert = red_900

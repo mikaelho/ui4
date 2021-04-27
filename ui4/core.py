@@ -849,6 +849,10 @@ class Anchors(Events):
             self._anchor_process_sequence(attribute, value)
         elif isinstance(value, AnchorBase):
             value.shift_and_set(self, attribute, comparison)
+            
+            # Superview check for containers
+            if value.source_view == self.parent and self.parent != self._parent:
+                value.source_view = self._parent
 
             # Overwrite "similar" anchor, see Anchor.__hash__
             self._constraints.discard(value)  

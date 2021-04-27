@@ -1,6 +1,7 @@
 from ui4.animation import animation, duration, ease
 from ui4.app import run
 from ui4.button import Button
+from ui4.card import Card
 from ui4.constants import *
 from ui4.core import eq, gt, ge, lt, le
 from ui4.core import maximum, minimum, portrait, landscape, high, wide

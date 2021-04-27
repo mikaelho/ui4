@@ -7,7 +7,7 @@ Create cross-platform UIs easily in Python.
 Roadmap
 -------
 
-- [ ] Anchor minmax
+- [x] Anchor minmax, portrait/landscape, high/wide
 - [x] Event loop basics
 - [ ] Grid/flow
 - [ ] Run and serve
@@ -41,7 +41,7 @@ Small features
 - [x] scrollable
 - [x] Event loop - wait, direction, iterations
 - [ ] Dark mode
-- [ ] Event loop - yield
+- [ ] Event loop - yield wait
 - [ ] Event loop - pause, play
 - [ ] Textfield immediate change
 - [ ] clip_to_bounds
