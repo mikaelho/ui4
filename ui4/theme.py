@@ -372,3 +372,8 @@ class VariantButtonStyle(ButtonStyle):
     background_color = theme('variant')
     text_color = contrast('variant')
 
+
+class CardStyle(BaseStyle):
+    background_color = theme('tinted')
+    text_color = contrast('tinted')
+

@@ -12,6 +12,7 @@ class TextField(View):
     EMAIL = 'email'
     URL = 'url'
     PHONE = 'tel'
+    SEARCH = 'search'
     
     _template = Template(
         '<input id="$id" name="$id" class="$viewclass" '

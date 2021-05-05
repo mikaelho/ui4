@@ -1,7 +1,10 @@
+from ui4.theme import CardStyle
 from ui4.view import View
 
 
 class Card(View):
+    
+    style = CardStyle
     
     def __init__(self, title, **kwargs):
         super().__init__(**kwargs)

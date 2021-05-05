@@ -9,12 +9,9 @@ def main(root):
         title='Theme Viewer',
         background_color='white',
         dock=root.center,
-        left=ui4.portrait(root.left),
-        top=ui4.landscape(root.top),
     )
-    card.height=ui4.portrait(card.width)
-    card.width=ui4.landscape(card.height)
-    #card.height = card.width
+    card.height.minimum(root.width, root.height)
+    card.width = card.height - 16
     
     button = ui4.Button(
         dock=card.bottom,
@@ -26,6 +23,7 @@ def main(root):
         bottom=button.top,
     )
     
+    '''
     ball = ui4.View(
         dock=play_area.bottom_left,
         size=(50, 50),
@@ -48,6 +46,7 @@ def main(root):
         ):
             setattr(ball, vertical, getattr(play_area, vertical))
             ball.background_color = color
+    '''
 
 ui4.run(main, port=8088)
 
