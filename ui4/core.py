@@ -46,8 +46,7 @@ class Identity:
         id_counter = Identity._id_counter[user_id]
         id_counter += 1
         Identity._id_counter[user_id] = id_counter
-        view_id = f'id{id_counter}'
-        return view_id
+        return f'id{id_counter}'
     
     @staticmethod    
     def get_view(view_id):
@@ -154,20 +153,19 @@ class Render(Hierarchy):
         """
         self._animation_id = animation_id
 
-        subrendered_attributes = ' '.join([
-            f"{key}='{value}'"
-            for key, value
+        subrendered_attributes = ' '.join(
+            f"{key}='{value}'" for key, value
             in self._subrenderer_results().items()
-        ])
-        
+        )
+
         htmx_oob = htmx_oob and 'hx-swap-oob="true"' or ''
-        
+
         # Must use private _children not to be fooled by a container view
-        rendered_children = ''.join([
-            child._render(animation_id=animation_id)
-            for child in self._children
-        ])
-        
+        rendered_children = ''.join(
+            child._render(animation_id=animation_id) for child in self._children
+        )
+
+
         return self._render_result(subrendered_attributes, htmx_oob, rendered_children)
         
     def _subrenderer_results(self):
@@ -183,7 +181,7 @@ class Render(Hierarchy):
         return {}
         
     def _render_result(self, rendered_attributes, htmx_oob, rendered_children):
-        html = self._template.safe_substitute(
+        return self._template.safe_substitute(
             tag='div',
             id=self.id,
             viewclass=self._css_class,
@@ -191,9 +189,7 @@ class Render(Hierarchy):
             oob=htmx_oob,
             content=rendered_children or self.text or "",
         )
-        
-        return html
-    
+
     @classmethod
     def _register(cls, f):
         """
@@ -298,9 +294,10 @@ class Events(Render):
         roots = Events._get_roots()
         Events._clear_dirties()
 
-        return "".join([
-            root._render(htmx_oob=True, animation_id=animation_id) for root in roots
-        ])
+        return "".join(
+            root._render(htmx_oob=True, animation_id=animation_id)
+            for root in roots
+        )
     
     @staticmethod    
     def _get_roots():
@@ -355,12 +352,12 @@ class Props(Events):
     @Render._register
     def _render_props(self):
         css_properties = self._fill_from_theme()
-        
-        styles = ";".join([
+
+        styles = ";".join(
             f"{name}:{value}"
             for name, value in css_properties.items()
             if name not in self._css_transitions
-        ])
+        )
 
         attributes = {}
 
@@ -570,14 +567,14 @@ class Anchor(AnchorBase):
         return hash(self) == hash(other)
 
     def __repr__(self):
-        items = ", ".join([
+        items = ", ".join(
             f"{key}: {getattr(value, 'id', value)}"
             for key, value in zip(
-                self.key_order,
-                [getattr(self, key2) for key2 in self.key_order]
+                self.key_order, [getattr(self, key2) for key2 in self.key_order]
             )
             if value is not None
-        ])
+        )
+
         return f"<{self.__class__.__name__} ({items})>"
         
     def shift_and_set(self, target_view, target_attribute, comparison):
@@ -873,9 +870,8 @@ class Anchors(Events):
         If caller has defined an impossible combination of anchors,
         select the most likely set.
         """
-        constrained_attributes = set([
-            anchor.target_attribute for anchor in self._constraints
-        ])
+        constrained_attributes = {anchor.target_attribute for anchor in self._constraints}
+
         # Checklists define the priority order
         for checklist in (
             list('width center_x left right'.split()),
@@ -892,7 +888,6 @@ class Anchors(Events):
                         break
                 for attribute_too_many in per_dimension:
                     getattr(self, attribute_too_many).release()
-
 
     @staticmethod
     def _anchorprop(attribute):

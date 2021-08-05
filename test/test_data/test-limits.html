@@ -1,0 +1,15 @@
+<div class="rootApp" id="root" style="width: 600px; height: 400px; background-color: palegoldenrod">
+    <div class="view" id="first"
+         style="background-color: darkseagreen;"
+         ui4="top=root.top left=root.left width=300 height=100">
+        First
+    </div>
+    <div class="view" id="second" style="background-color: darkseagreen;"
+         ui4="top=first.bottom left=root.left width=200 height=100">
+        Second
+    </div>
+    <div class="view" id="third" style="background-color: darkseagreen;"
+         ui4="top=second.bottom left=second.right left>first.right top<first.bottom width=200 height=100">
+        Limited
+    </div>
+</div>

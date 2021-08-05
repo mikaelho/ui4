@@ -1,15 +1,9 @@
 <html>
 <head>
-<script type="text/javascript">
-  function init() {
-      d = document.getElementById("daa");
-      var ui4AttrValue = d.getAttribute("ui4");
-      data = JSON.parse(ui4AttrValue);
-      alert(data.a0);
-  }
-</script>
+    <script src="ui4parser.js"></script>
+    <script src="ui4.js"></script>
 </head>
-<body onload="init();">
-<div style="position: absolute;" id="daa" ui4='{"a0":"left","a2":"id130","a3":"right","a5":16}'>DAA!</div>
+<body>
+<div style="font-weight: bold;">DAA!</div>
 </body>
 </html>

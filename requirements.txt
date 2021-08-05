@@ -1,4 +1,4 @@
-flask==1.1.2
-webcolors==1.11.1
+flask
+webcolors
 dataclasses; python_version < '3.7'
 

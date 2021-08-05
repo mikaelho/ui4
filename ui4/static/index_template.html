@@ -11,9 +11,11 @@
   integrity="sha384-JVb/MVb+DiMDoxpTmoXWmMYSpQD2Z/1yiruL8+vC6Ri9lk6ORGiQqKSqfmCBbpbX" 
   crossorigin="anonymous"></script>
   <script src="https://unpkg.com/htmx.org@1.2.1/dist/ext/event-header.js"></script>
-  <script>var gap = $gap;</script>
-  <script src="ui4" type="text/javascript">
-  </script>
+
+  <script src="ui4parser.js"></script>
+
+  <script src="ui4.js"></script>
+  <script>ui4.gap = $gap;</script>
   
   <style>
       * {
@@ -31,7 +33,7 @@
 	      /*pointer-events: none;*/
 	      margin: 0;
 	      padding: 8px;
-	      font-family: Verdana;
+	      font-family: Verdana sans-serif;
 	      font-size: 14px;
 	      text-align: center;
       }
@@ -81,7 +83,7 @@
 	      text-overflow: ellipsis;
 	      /*pointer-events: none;*/
 	      padding: 8px;
-	      font-family: Verdana;
+	      font-family: Verdana sans-serif;
 	      font-size: 14px;
 	      text-align: center;
       }
@@ -96,7 +98,7 @@
 	      overflow: hidden;
 	      text-overflow: ellipsis;
 	      /*pointer-events: none;*/
-	      font-family: Verdana;
+	      font-family: Verdana sans-serif;
 	      font-size: 14px;
 	      text-align: center;
       }
@@ -105,7 +107,7 @@
 
 <body hx-ext="event-header" hx-post="/loop" hx-trigger="next" hx-swap-oob="true" hx-swap="none">
 <noscript>JavaScript is required for ui4 apps to function at all.</noscript>
-<script>ui4.initialize();</script>
+<!--<script>ui4.initialize();</script>-->
 $content
 </body>
 </html>

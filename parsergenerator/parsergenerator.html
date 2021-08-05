@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <title>UI4 Parser Generator</title>
+    <style>
+        table {
+          border-collapse: collapse;
+          border: 1px solid grey;
+        }
+        table tbody td {
+          border-collapse: collapse;
+          border: 1px solid grey;
+        }
+    </style>
+    <script src="https://unpkg.com/peggy"></script>
+    <script>
+
+        function generateParser() {
+            const grammarElem = document.getElementById("grammar");
+            const parserElem = document.getElementById("parser")
+            const grammar = grammarElem.innerText;
+            parserElem.innerText = peggy.generate(grammar, {format: "globals", output: "source"});
+            const parser = peggy.generate(grammar);
+
+            testCases.forEach(function (value) {
+                const testCase = value[0];
+                const shouldMatch = value[1];
+                const expectedResult = shouldMatch && JSON.stringify(value[2]);
+
+                const tbody = document.getElementById('tests').getElementsByTagName('tbody')[0];
+                const row = tbody.insertRow();
+
+                const cellTestCase = row.insertCell();
+                cellTestCase.appendChild(document.createTextNode(testCase));
+
+                const cellShouldMatch = row.insertCell();
+                cellShouldMatch.appendChild(document.createTextNode(shouldMatch));
+
+                let didMatch = '🟢';
+                let matchResult = '';
+                try {
+                    const result = parser.parse(testCase);
+                    if (shouldMatch) {
+                        matchResult = JSON.stringify(result);
+                        if (matchResult !== expectedResult) {
+                            didMatch = '🔴';
+                        }
+                    }
+                } catch (error) {
+                    if (shouldMatch) {
+                        didMatch = error.toString();
+                    }
+                }
+
+                const cellDidMatch = row.insertCell();
+                cellDidMatch.appendChild(document.createTextNode(didMatch));
+
+                const cellMatchResult = row.insertCell();
+                cellMatchResult.appendChild(document.createTextNode(matchResult));
+
+            });
+        }
+
+        const testCases = [
+            ['left', false],
+            ['left=', false],
+            ['left=left', false],
+            ['left=1', true, [{"targetAttribute":"left","comparison":"=","value":1}]],
+            ['left=1.9+2.1', true, [{"targetAttribute":"left","comparison":"=","value":4}]],
+            ['left=(4-1)*-3', true, [{"targetAttribute":"left","comparison":"=","value":-9}]],
+            ['left=root.left', true,
+                [{"targetAttribute":"left","comparison":"=",
+                    "value":{"operation":"+","lhs":{"id":"root","attribute":"left"},"rhs":"gap"}}]
+            ],
+            ['left=root.left+20', true,
+                [{"targetAttribute":"left","comparison":"=",
+                    "value":{"operation":"+","lhs":{"id":"root","attribute":"left"},"rhs":20}}]
+            ],
+            ['width=(root.width-2*gap)/2', true,
+                [{"targetAttribute":"width","comparison":"=","value":{
+                    "operation":"/","lhs":{
+                        "operation":"-","lhs":{"id":"root","attribute":"width"},"rhs":{
+                            "operation":"*","lhs":2,"rhs":"gap"
+                        }
+                    },"rhs":2
+                }}]
+            ]
+        ];
+    </script>
+
+</head>
+<body onload="generateParser();">
+
+<h3>Grammar</h3>
+<pre id="grammar">
+
+    {
+        let result = [];
+
+        const operations = {
+            '+': (a, b) => a + b,
+            '-': (a, b) => a - b,
+            '*': (a, b) => a * b,
+            '/': (a, b) => a / b
+        };
+
+        function checkOperation(op, lhs, rhs) {
+            const operation = operations[op];
+            if (typeof lhs == 'number' && typeof rhs == 'number') {
+                return operation(lhs, rhs);
+            } else {
+                return {operation: op, lhs: lhs, rhs: rhs};
+            }
+        }
+    }
+
+    constraints
+        = constraint* (whitespace constraint)* { return result; }
+
+    constraint 'constraint'
+        = targetAttribute:targetAttribute comparison:comparison value:rightHandSide {
+            if (value.id) {
+                value = {operation: '+', lhs: value, rhs: 'gap'};
+            }
+            result.push({targetAttribute: targetAttribute, comparison: comparison, value: value});
+          }
+
+    targetAttribute
+        = attributeKeyword
+
+    comparison 'comparison'
+        = equal / greaterThan / lessThan
+
+    rightHandSide
+        = additive
+
+    sourceElemId
+        = elemId
+
+    sourceAttribute
+        = attributeKeyword
+
+    attributeKeyword 'attribute keyword'
+        = edgeKeyword / sizeKeyword / centerKeyword
+
+    edgeKeyword 'edge keyword'
+        = 'left' / 'right' / 'top' / 'bottom'
+
+    sizeKeyword 'size keyword'
+        = 'width' / 'height'
+
+    centerKeyword 'center keyword'
+        = 'centerX' / 'centerY'
+
+    equal 'equal'
+        = '='
+
+    greaterThan 'greater than'
+        = '>'
+
+    lessThan 'less than'
+        = '<'
+
+    elemId 'element id'
+        = chars:[a-z0-9]i+ { return chars.join(""); }
+
+    additive
+        = first:multiplicative rest:(("+" / "-") multiplicative)+ {
+            return rest.reduce(function(memo, curr) {
+              return checkOperation(curr[0], memo, curr[1]);
+            }, first);
+          }
+          / multiplicative
+
+    multiplicative
+        = first:primary rest:(("*" / "/") primary)+ {
+            return rest.reduce(function(memo, curr) {
+              return checkOperation(curr[0], memo, curr[1]);
+            }, first);
+          }
+          / primary
+
+    primary
+        = number
+          / sourceValue
+          / gap
+          / "(" additive:additive ")" { return additive; }
+
+    number
+        = sign:[+-]? integer_part:[0-9]+ period:'.'? decimal_part:[0-9]?
+        { return parseFloat(
+            sign && text(sign) || '' + text(integer_part) + period || '' + decimal_part && text(decimal_part) || ''
+          );
+        }
+
+    sourceValue
+        = id:elemId '.' attribute:attributeKeyword { return {id: id, attribute: attribute}; }
+
+    gap
+        = 'gap'i
+
+    whitespace 'whitespace'
+        = (' ' / '\t' / '\n')+
+
+</pre>
+
+<h3>Tests</h3>
+<table id="tests">
+    <thead>
+        <tr>
+            <th>Test case</th><th>Should match</th><th>Match result</th><th>Result</th>
+        </tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+
+<h3>Parser</h3>
+<pre id="parser"></pre>
+
+</body>
+</html>
