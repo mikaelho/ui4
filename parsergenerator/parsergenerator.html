@@ -70,8 +70,7 @@
             ['left=1.9+2.1', true, [{"targetAttribute":"left","comparison":"=","value":4}]],
             ['left=(4-1)*-3', true, [{"targetAttribute":"left","comparison":"=","value":-9}]],
             ['left=root.left', true,
-                [{"targetAttribute":"left","comparison":"=",
-                    "value":{"operation":"+","lhs":{"id":"root","attribute":"left"},"rhs":"gap"}}]
+                [{"targetAttribute":"left","comparison":"=", "value":{"id":"root","attribute":"left"}}]
             ],
             ['left=root.left+20', true,
                 [{"targetAttribute":"left","comparison":"=",
@@ -85,7 +84,19 @@
                         }
                     },"rhs":2
                 }}]
-            ]
+            ],
+            ['left=max(1,2,3)', true, [{"targetAttribute":"left","comparison":"=","value":3}]],
+            ['left=max(20,gap)', true, [{"targetAttribute":"left","comparison":"=",
+                "value":{"func":"max","values":[20,"gap"]}}]
+            ],
+            ['width=min(root.width,root.height)-gap*2', true, [{"targetAttribute":"width","comparison":"=",
+                "value":{
+                    "operation":"-","lhs":{
+                        "func":"min","values":[{"id":"root","attribute":"width"},{"id":"root","attribute":"height"}]},
+                        "rhs":{"operation":"*","lhs":"gap","rhs":2}
+                    }
+                }]
+            ],
         ];
     </script>
 
@@ -102,7 +113,9 @@
             '+': (a, b) => a + b,
             '-': (a, b) => a - b,
             '*': (a, b) => a * b,
-            '/': (a, b) => a / b
+            '/': (a, b) => a / b,
+            'min': Math.min,
+            'max': Math.max
         };
 
         function checkOperation(op, lhs, rhs) {
@@ -120,9 +133,6 @@
 
     constraint 'constraint'
         = targetAttribute:targetAttribute comparison:comparison value:rightHandSide {
-            if (value.id) {
-                value = {operation: '+', lhs: value, rhs: 'gap'};
-            }
             result.push({targetAttribute: targetAttribute, comparison: comparison, value: value});
           }
 
@@ -163,7 +173,7 @@
         = '<'
 
     elemId 'element id'
-        = chars:[a-z0-9]i+ { return chars.join(""); }
+        = chars:[a-z0-9]i+ { return text(chars); }
 
     additive
         = first:multiplicative rest:(("+" / "-") multiplicative)+ {
@@ -183,16 +193,31 @@
 
     primary
         = number
+          / function
           / sourceValue
           / gap
           / "(" additive:additive ")" { return additive; }
 
-    number
+    number 'number'
         = sign:[+-]? integer_part:[0-9]+ period:'.'? decimal_part:[0-9]?
         { return parseFloat(
             sign && text(sign) || '' + text(integer_part) + period || '' + decimal_part && text(decimal_part) || ''
           );
         }
+
+    function 'function'
+        = func:('min' / 'max') '(' primaries:primaries ')'
+        {
+            if (primaries.every((element) => typeof element === 'number')) {
+                return operations[func](...primaries);
+            } else {
+                return {func: func, values: primaries};
+            }
+        }
+
+    primaries
+        = primary:primary ',' primaries:primaries { return [primary].concat(primaries); }
+          / primary:primary { return [primary]; }
 
     sourceValue
         = id:elemId '.' attribute:attributeKeyword { return {id: id, attribute: attribute}; }

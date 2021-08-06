@@ -108,16 +108,31 @@ def get_page(webdriver, set_up_test_page):
 
 
 @fixture
-def js_value(webdriver):
+def js_with_stack(webdriver):
     def func(script):
-        return webdriver.execute_script((f"return {script};"))
+        return webdriver.execute_script(f"""
+                try {{
+                    {script}
+                }} catch (err) {{
+                    return err.stack;
+                }}
+            """
+        )
+
     return func
 
 
 @fixture
-def js_dimensions(webdriver):
+def js_value(js_with_stack):
+    def func(script):
+        return js_with_stack((f"return {script};"))
+    return func
+
+
+@fixture
+def js_dimensions(js_with_stack):
     def func(elem_id):
-        return webdriver.execute_script(f"""
+        return js_with_stack(f"""
             style = window.getComputedStyle(document.getElementById('{elem_id}'));
             return [
                 parseInt(style.left),

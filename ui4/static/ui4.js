@@ -23,7 +23,14 @@ class UI4 {
         centerY: UI4.NEUTRAL,
     };
 
-    static operations = {"+": (a, b) => a + b, "-": (a, b) => a - b, "*": (a, b) => a * b, "/": (a, b) => a / b};
+    static operations = {
+        "+": (a, b) => a + b,
+        "-": (a, b) => a - b,
+        "*": (a, b) => a * b,
+        "/": (a, b) => a / b,
+        "min": Math.min,
+        "max": Math.max,
+    };
     static comparisons = {"=": (a, b) => a !== b, "<": (a, b) => a >= b, ">": (a, b) => a <= b};
     static ordering = {"=": 0, "<": 1, ">": 2};
 
@@ -98,9 +105,9 @@ class UI4 {
             top: function(context, value) { return {top: value + 'px'};},
             bottom: function(context, value) { return {bottom: parseFloat(context.parentStyle.height) - value + 'px'};},
             centerX: function(context, value) {
-                if (context.dependencies.find(item => item.targetAttr === 'left')) {  // left locked, width must give
+                if (context.dependencies.find(item => item.targetAttribute === 'left')) {  // left locked, width must give
                     return {width: 2 * (value - parseFloat(context.getStyle.left)) + 'px'};
-                } else if (context.dependencies.find(item => item.targetAttr === 'right')) {  // width must give)
+                } else if (context.dependencies.find(item => item.targetAttribute === 'right')) {  // width must give)
                     return {
                         width: 2 * (parseFloat(context.parentStyle.width) -
                             parseFloat(context.getStyle.right) - value) + 'px'
@@ -110,9 +117,9 @@ class UI4 {
                 }
             },
             centerY: function(context, value) {
-                if (context.dependencies.find(item => item.targetAttr === 'top')) {  // top locked, height must give
+                if (context.dependencies.find(item => item.targetAttribute === 'top')) {  // top locked, height must give
                     return {height: 2 * (value - parseFloat(context.getStyle.top)) + 'px'};
-                } else if (context.dependencies.find(item => item.targetAttr === 'bottom')) {  // height must give)
+                } else if (context.dependencies.find(item => item.targetAttribute === 'bottom')) {  // height must give)
                     return {
                         height: 2 * (parseFloat(context.parentStyle.height) -
                             parseFloat(context.getStyle.bottom) - value) + 'px'
@@ -202,8 +209,8 @@ class UI4 {
         for (const [targetId, dependencies] of Object.entries(this.allDependencies)) {
             let finalValues = this.checkDependenciesForOneElement(targetId, dependencies);
             // Apply the final value for each attribute
-            for (const [targetAttr, data] of Object.entries(finalValues)) {
-                const updates = this.setValue[targetAttr](data.context, data.sourceValue);
+            for (const [targetAttribute, data] of Object.entries(finalValues)) {
+                const updates = this.setValue[targetAttribute](data.context, data.sourceValue);
                 for (const [key, value] of Object.entries(updates)) {
                     data.context.style[key] = value;
                 }
@@ -216,37 +223,43 @@ class UI4 {
         let values = {};
 
         dependencies.forEach(dependency => {
-            const source = this.getSourceValue(targetElem, dependency);
+            const source = this.processSourceSpec(targetElem, dependency.value);
 
             if (source === undefined) {
                 return;
             }
 
             let targetContext = this.getTargetContext(targetElem, dependencies);
-            let target = this.getTargetValue(dependency.targetAttr, targetContext);
-            let modifier = dependency.modifier !== undefined ? dependency.modifier : this.gap;
+            let target = this.getTargetValue(dependency.targetAttribute, targetContext);
 
-            source.value += this.gapAdjustment(source, target, modifier);
+            let sourceValue = source;
+            if (typeof source !== 'number') {
+                sourceValue = source.value;
+                sourceValue += this.gapAdjustment(source, target);
+            }
 
-            if (UI4.comparisons[dependency.comparison](target.value, source.value)) {
-                values[dependency.targetAttr] = {
+            if (UI4.comparisons[dependency.comparison](target.value, sourceValue)) {
+                values[dependency.targetAttribute] = {
                     targetElem: targetElem,
                     targetValue: target.value,
-                    sourceValue: source.value,
+                    sourceValue: sourceValue,
                     context: target.context
                 };
             }
         });
 
         return values;
-      }
+    }
 
+    /**
     getSourceValue(targetElem, dependency) {
-        /**
-        if (!checkRequirements(targetElem, dependency)) {
-            return;
+        const sourceSpec = dependency.value;
+
+        const sourceValue = this.processSourceSpec(targetElem, sourceSpec);
+
+        if ('value' in sourceValue) {
+
         }
-         **/
 
         if (dependency.sourceId === undefined && dependency.modifier !== undefined) {
             return {
@@ -283,6 +296,64 @@ class UI4 {
             };
         }
     }
+    **/
+
+    processSourceSpec(targetElem, sourceSpec) {
+        if (typeof sourceSpec === 'number') {
+            return sourceSpec;
+        }
+        else if (sourceSpec === 'gap') {
+            return this.gap;
+        }
+        else if ('id' in sourceSpec) {
+            return this.processSourceAttribute(targetElem, sourceSpec);
+        }
+        else if ('operation' in sourceSpec) {
+            let lhs = this.processSourceSpec(targetElem, sourceSpec.lhs);
+            let rhs = this.processSourceSpec(targetElem, sourceSpec.rhs);
+            if (typeof lhs !== 'number') {
+                lhs = lhs.value;
+            }
+            if (typeof rhs !== 'number') {
+                rhs = rhs.value;
+            }
+            return UI4.operations[sourceSpec.operation](lhs, rhs);
+        }
+        else if ('func' in sourceSpec) {
+            const _this = this;
+            const values = sourceSpec.values.map(function(item) {
+                let value = _this.processSourceSpec(targetElem, item);
+                if (typeof value !== 'number') {
+                    value = value.value;
+                }
+                return value;
+            });
+            return UI4.operations[sourceSpec.func](...values);
+        }
+    }
+
+    processSourceAttribute(targetElem, sourceSpec) {
+        const sourceElem = document.getElementById(sourceSpec.id);
+
+        if (!sourceElem) {
+            console.error('Could not find source element with id ' + sourceSpec.id);
+            return;
+        }
+
+        const contained = targetElem.parentElement === sourceElem;
+
+        let sourceContext = {
+            contained: contained,
+            getStyle: window.getComputedStyle(sourceElem),
+            parentStyle: window.getComputedStyle(sourceElem.parentElement),
+            targetElem: targetElem
+        };
+        return {
+            value: this.getValue[sourceSpec.attribute](sourceContext),
+            type: UI4.attrType[sourceSpec.attribute],
+            contained: contained,
+        };
+    }
 
     getTargetContext(targetElem, dependencies) {
         return {
@@ -295,27 +366,27 @@ class UI4 {
         };
     }
 
-    getTargetValue(targetAttr, targetContext) {
+    getTargetValue(targetAttribute, targetContext) {
         return {
-            value: this.getValue[targetAttr](targetContext),
-            type: UI4.attrType[targetAttr],
+            value: this.getValue[targetAttribute](targetContext),
+            type: UI4.attrType[targetAttribute],
             context: targetContext,
         };
     }
 
-    gapAdjustment(source, target, modifier=8) {
+    gapAdjustment(source, target) {
         if (source.contained) {
             if (source.type === UI4.LEADING && target.type === UI4.LEADING) {
-                return modifier;
+                return this.gap;
             }
             else if (source.type === UI4.TRAILING && target.type === UI4.TRAILING) {
-                return -modifier;
+                return -this.gap;
             }
         } else {  // butting
             if (source.type === UI4.LEADING && target.type === UI4.TRAILING) {
-                return -modifier;
+                return -this.gap;
             } else if (source.type === UI4.TRAILING && target.type === UI4.LEADING) {
-                return modifier;
+                return this.gap;
             }
         }
 

@@ -1,13 +1,15 @@
 import time
 
+from selenium.common.exceptions import JavascriptException
+
 
 def test_constraint_parsing_and_ordering(get_page, js_value):
     get_page()
 
     assert js_value("ui4.parseAndOrder('left=root.left left<another.left left>other.left')") == [
-        {'comparison': '=', 'sourceAttr': 'left', 'sourceId': 'root', 'targetAttr': 'left'},
-        {'comparison': '<', 'sourceAttr': 'left', 'sourceId': 'another', 'targetAttr': 'left'},
-        {'comparison': '>', 'sourceAttr': 'left', 'sourceId': 'other', 'targetAttr': 'left'},
+        {'comparison': '=', 'targetAttribute': 'left', 'value': {'attribute': 'left', 'id': 'root'}},
+        {'comparison': '<', 'targetAttribute': 'left', 'value': {'attribute': 'left', 'id': 'another'}},
+        {'comparison': '>', 'targetAttribute': 'left', 'value': {'attribute': 'left', 'id': 'other'}},
     ]
 
     # Order enforced, equals before less than before greater than
@@ -33,29 +35,29 @@ def test_gap_adjustment(get_page, js_value):
 
 
 # @pytest.mark.skip(reason="Browser test")
-def test_with_elements(get_page, js_value, js_dimensions):
+def test_base_constraints(get_page, js_value, js_dimensions, js_with_stack):
     webdriver = get_page("test-layouts.html")
 
     assert js_value("ui4.allDependencies.centered") == [
-        {'targetAttr': 'centerX', 'comparison': '=', 'sourceId': 'root', 'sourceAttr': 'centerX'},
-        {'targetAttr': 'centerY', 'comparison': '=', 'sourceId': 'root', 'sourceAttr': 'centerY'},
-        {'targetAttr': 'width', 'comparison': '=', 'modifier': 200},
-        {'targetAttr': 'height', 'comparison': '=', 'modifier': 100},
+        {'targetAttribute': 'centerX', 'comparison': '=', 'value': {'attribute': 'centerX', 'id': 'root'}},
+        {'targetAttribute': 'centerY', 'comparison': '=', 'value': {'attribute': 'centerY', 'id': 'root'}},
+        {'targetAttribute': 'width', 'comparison': '=', 'value': 200},
+        {'targetAttribute': 'height', 'comparison': '=', 'value': 100},
     ]
 
     assert js_value("ui4.allDependencies.below") == [
-        {"targetAttr": "left", "comparison": "=", "sourceId": "centered", "sourceAttr": "left"},
-        {"targetAttr": "right", "comparison": "=", "sourceId": "centered", "sourceAttr": "right"},
-        {"targetAttr": "top", "comparison": "=", "sourceId": "centered", "sourceAttr": "bottom"},
-        {"targetAttr": "bottom", "comparison": "=", "sourceId": "root", "sourceAttr": "bottom"},
+        {'targetAttribute': 'left', 'comparison': '=', 'value': {'attribute': 'left', 'id': 'centered'}},
+        {'targetAttribute': 'right', 'comparison': '=', 'value': {'attribute': 'right', 'id': 'centered'}},
+        {'targetAttribute': 'top', 'comparison': '=', 'value': {'attribute': 'bottom', 'id': 'centered'}},
+        {'targetAttribute': 'bottom', 'comparison': '=', 'value': {'attribute': 'bottom', 'id': 'root'}},
     ]
 
     def js_source_values(elem_id):
-        return webdriver.execute_script(f"""
+        return js_with_stack(f"""
             targetElem = document.getElementById('{elem_id}');
             results = [];
             ui4.allDependencies.{elem_id}.forEach(function(dependency) {{
-                results.push(ui4.getSourceValue(targetElem, dependency));
+                results.push(ui4.processSourceSpec(targetElem, dependency.value));
             }});
             return results;
         """)
@@ -66,8 +68,8 @@ def test_with_elements(get_page, js_value, js_dimensions):
     assert js_source_values('centered') == [
         {'contained': True, 'type': 'neutral', 'value': 300},
         {'contained': True, 'type': 'neutral', 'value': 200},
-        {'contained': False, 'type': 'neutral', 'value': 200},
-        {'contained': False, 'type': 'neutral', 'value': 100},
+        200,
+        100,
     ]
 
     # Below
@@ -122,7 +124,28 @@ def test_with_elements(get_page, js_value, js_dimensions):
     assert js_dimensions('right') == [400, 150, 200, 100]  # On the right
 
 
-def test_with_limits(get_page, js_dimensions):
+def test_comparison_constraints(get_page, js_dimensions):
     get_page("test-limits.html")
 
     assert js_dimensions('third') == [316, 116, 200, 100]
+
+
+def test_more_complex_constraints(get_page, js_dimensions):
+    get_page("test-calculations.html")
+
+    # "Complex" calculations and gap
+    assert js_dimensions('first') == [8, 8, (600-2*8)/2, 400-50]
+
+    # Multiple source attributes
+    assert js_dimensions('second') == [8, 400-50+8, 100, 400-350-2*8]
+
+
+def test_always_square(get_page, js_dimensions):
+    get_page("test-squaring.html")
+
+    assert js_dimensions('inLandscapeWithLessThan') == [8, 8, 84, 84]
+    assert js_dimensions('inLandscapeWithMin') == [208, 8, 84, 84]
+    assert js_dimensions('inPortraitWithLessThan') == [8, 8, 84, 84]
+    assert js_dimensions('inPortraitWithMin') == [8, 208, 84, 84]
+
+    assert js_dimensions('maxed') == [8, 242, 150, 150]
