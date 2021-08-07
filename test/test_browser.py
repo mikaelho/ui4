@@ -177,4 +177,3 @@ def test_aspect_conditions(get_page, js_dimensions):
     assert js_dimensions('portraitMenu2') == [8, 192, 84, 100]
 
     assert js_dimensions('comparisons') == [8, 192, 250, 200]
-    time.sleep(5)
