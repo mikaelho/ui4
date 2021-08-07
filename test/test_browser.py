@@ -1,7 +1,5 @@
 import time
 
-from selenium.common.exceptions import JavascriptException
-
 
 def test_constraint_parsing_and_ordering(get_page, js_value):
     get_page()
@@ -18,6 +16,25 @@ def test_constraint_parsing_and_ordering(get_page, js_value):
     ) == js_value(
         "ui4.parseAndOrder('left>other.left left=root.left left<another.left')"
     )
+
+    assert js_value("ui4.parseAndOrder('left=root.left bottom=root.bottom width=100 height=100 "
+                    "root.width>root.height?width=200 root.height<root.width?height=250')") == [
+        {'comparison': '=', 'targetAttribute': 'left', 'value': {'attribute': 'left', 'id': 'root'}},
+        {'comparison': '=', 'targetAttribute': 'bottom', 'value': {'attribute': 'bottom', 'id': 'root'}},
+        {'comparison': '=', 'targetAttribute': 'width', 'value': 100},
+        {'comparison': '=', 'targetAttribute': 'height', 'value': 100},
+        {'comparison': '=', 'targetAttribute': 'width', 'value': 200, 'condition': {
+            'comparison': '>',
+            'lhs': {'attribute': 'width', 'id': 'root'},
+            'rhs': {'attribute': 'height', 'id': 'root'},
+        }},
+        {'comparison': '=', 'targetAttribute': 'height', 'value': 250, 'condition': {
+            'comparison': '<',
+            'lhs': {'attribute': 'height', 'id': 'root'},
+            'rhs': {'attribute': 'width', 'id': 'root'},
+        }},
+    ]
+
 
 def test_gap_adjustment(get_page, js_value):
     get_page()
@@ -36,7 +53,7 @@ def test_gap_adjustment(get_page, js_value):
 
 # @pytest.mark.skip(reason="Browser test")
 def test_base_constraints(get_page, js_value, js_dimensions, js_with_stack):
-    webdriver = get_page("test-layouts.html")
+    webdriver = get_page("test-basic-constraints.html")
 
     assert js_value("ui4.allDependencies.centered") == [
         {'targetAttribute': 'centerX', 'comparison': '=', 'value': {'attribute': 'centerX', 'id': 'root'}},
@@ -149,3 +166,15 @@ def test_always_square(get_page, js_dimensions):
     assert js_dimensions('inPortraitWithMin') == [8, 208, 84, 84]
 
     assert js_dimensions('maxed') == [8, 242, 150, 150]
+
+
+def test_aspect_conditions(get_page, js_dimensions):
+    get_page("test-conditions.html")
+
+    assert js_dimensions('landscapeMenu1') == [8, 8, 100, 84]
+    assert js_dimensions('landscapeMenu2') == [192, 8, 100, 84]
+    assert js_dimensions('portraitMenu1') == [8, 8, 84, 100]
+    assert js_dimensions('portraitMenu2') == [8, 192, 84, 100]
+
+    assert js_dimensions('comparisons') == [8, 192, 250, 200]
+    time.sleep(5)

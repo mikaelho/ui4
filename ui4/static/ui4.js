@@ -33,6 +33,7 @@ class UI4 {
     };
     static comparisons = {"=": (a, b) => a !== b, "<": (a, b) => a >= b, ">": (a, b) => a <= b};
     static ordering = {"=": 0, "<": 1, ">": 2};
+    static conditions = {"=": (a, b) => a === b, "<": (a, b) => a < b, ">": (a, b) => a > b};
 
     constructor() {
         this.gap = 8;
@@ -176,9 +177,10 @@ class UI4 {
         if (!targetId) { return; }
 
         // const ui4AnimationID = node.getAttribute("ui4anim");
-        const ui4AttrValue = node.getAttribute("ui4");
+        let ui4AttrValue = node.getAttribute("ui4");
 
         if (ui4AttrValue) {
+            ui4AttrValue = ui4AttrValue.trim();
             let dependencies;
             try {
                 dependencies = this.parseAndOrder(ui4AttrValue);
@@ -223,6 +225,10 @@ class UI4 {
         let values = {};
 
         dependencies.forEach(dependency => {
+            if (!this.checkCondition(targetElem, dependency)) {
+                return;
+            }
+
             const source = this.processSourceSpec(targetElem, dependency.value);
 
             if (source === undefined) {
@@ -238,65 +244,63 @@ class UI4 {
                 sourceValue += this.gapAdjustment(source, target);
             }
 
-            if (UI4.comparisons[dependency.comparison](target.value, sourceValue)) {
-                values[dependency.targetAttribute] = {
-                    targetElem: targetElem,
-                    targetValue: target.value,
-                    sourceValue: sourceValue,
-                    context: target.context
-                };
+            const result = {
+                targetElem: targetElem,
+                targetValue: target.value,
+                sourceValue: sourceValue,
+                context: target.context
+            };
+            const previousResult = values[dependency.targetAttribute];
+
+            if (previousResult) {
+                if (UI4.comparisons[dependency.comparison](previousResult.sourceValue, sourceValue)) {
+                    values[dependency.targetAttribute] = result;
+                }
+            } else if (UI4.comparisons[dependency.comparison](target.value, sourceValue)) {
+                values[dependency.targetAttribute] = result;
             }
         });
 
         return values;
     }
 
-    /**
-    getSourceValue(targetElem, dependency) {
-        const sourceSpec = dependency.value;
+    checkCondition(targetElem, dependency) {
+        const condition = dependency.condition;
 
-        const sourceValue = this.processSourceSpec(targetElem, sourceSpec);
-
-        if ('value' in sourceValue) {
-
+        if (condition === undefined) {
+            return true;
         }
 
-        if (dependency.sourceId === undefined && dependency.modifier !== undefined) {
-            return {
-                value: dependency.modifier,
-                type: UI4.NEUTRAL,
-                contained: false
-            };
+        if ('aspect' in condition) {
+            let referenceElement;
+            if ('elemId' in condition) {
+                referenceElement = document.getElementById(condition.elemId);
+                if (!referenceElement) {
+                    console.error('Could not find source element with id ' + condition.elemId);
+                    return false;
+                }
+            } else {
+                referenceElement = targetElem.parentElement;
+            }
+            const referenceStyle = window.getComputedStyle(referenceElement);
+            if (condition.aspect === 'portrait') {
+                return referenceStyle.width < referenceStyle.height;
+            } else {
+                return referenceStyle.width > referenceStyle.height;
+            }
         }
-        else {
-            const sourceElem = document.getElementById(dependency.sourceId);
-
-            if (!sourceElem) {
-                console.error('Could not find source element with id ' + dependency.sourceId);
-                return;
+        else if ('comparison' in condition) {
+            let lhsValue = this.processSourceSpec(targetElem, condition.lhs);
+            let rhsValue = this.processSourceSpec(targetElem, condition.rhs);
+            if (typeof lhsValue !== 'number') {
+                lhsValue = lhsValue.value;
             }
-
-            const contained = targetElem.parentElement === sourceElem;
-
-            let sourceContext = {
-                contained: contained,
-                getStyle: window.getComputedStyle(sourceElem),
-                parentStyle: window.getComputedStyle(sourceElem.parentElement),
-                targetElem: targetElem
-            };
-            let sourceValue = this.getValue[dependency.sourceAttr](sourceContext);
-
-            if (dependency.multiplier !== undefined) {
-                sourceValue = sourceValue * dependency.multiplier;
+            if (typeof rhsValue !== 'number') {
+                rhsValue = rhsValue.value;
             }
-            return {
-                value: sourceValue,
-                type: UI4.attrType[dependency.sourceAttr],
-                contained: contained
-            };
+            return UI4.conditions[condition.comparison](lhsValue, rhsValue);
         }
     }
-    **/
 
     processSourceSpec(targetElem, sourceSpec) {
         if (typeof sourceSpec === 'number') {

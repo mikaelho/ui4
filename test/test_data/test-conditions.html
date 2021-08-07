@@ -1,0 +1,36 @@
+<div class="rootApp" id="root" style="width: 600px; height: 400px; background-color: palegoldenrod">
+    <div class="view" id="landscape"
+         style="background-color: darkseagreen;"
+         ui4="top=root.top left=root.left width=300 height=100">
+        <div class="view" id="landscapeMenu1" style="background-color: white;"
+         ui4="left=landscape.left top=landscape.top landscape?width=100 landscape?bottom=landscape.bottom
+              portrait?right=landscape.right portrait?height=100">
+            Landscape menu
+        </div>
+        <div class="view" id="landscapeMenu2" style="background-color: white;"
+         ui4="right=landscape.right top=landscape.top
+              landscape(landscape)?width=100 landscape(landscape)?bottom=landscape.bottom
+              portrait(landscape)?right=landscape.right portrait(landscape)?height=100">
+            Landscape menu with specific id
+        </div>
+    </div>
+    <div class="view" id="portrait" style="background-color: darkseagreen;"
+         ui4="top=root.top right=root.right width=100 height=300">
+        <div class="view" id="portraitMenu1" style="background-color: white;"
+         ui4="left=portrait.left top=portrait.top landscape?width=100 landscape?bottom=portrait.bottom
+              portrait?right=portrait.right portrait?height=100">
+            Portrait menu
+        </div>
+        <div class="view" id="portraitMenu2" style="background-color: white;"
+         ui4="left=portrait.left bottom=portrait.bottom
+              landscape(portrait)?width=100 landscape(portrait)?bottom=portrait.bottom
+              portrait(portrait)?right=portrait.right portrait(portrait)?height=100">
+            Portrait menu with specific id
+        </div>
+    </div>
+    <div class="view" id="comparisons"
+         style="background-color: darkseagreen;"
+         ui4="left=root.left bottom=root.bottom width=100 height=100 width=250 height=200">
+        With comparisons
+    </div>
+</div>
