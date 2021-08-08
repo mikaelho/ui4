@@ -128,7 +128,12 @@
 
             // ANIMATION OPTIONS
             ['left=1:1s', true, []],
-            ['left=1:1s,ease-in', true, []]
+            ['left=1:1s,ease-in', true, []],
+            ['left=1:1s,reverse', true, []],
+            ['left=1:1s,2s', true, []],
+            ['left=1:1s,0s,2s', true, []],
+            ['left=1:1s,0', true, []],
+            ['left=1:1s,2', true, []]
         ];
     </script>
 
@@ -293,17 +298,34 @@
     animation 'animation options'
         =   duration:positiveNumber 's'
             easing:(',' easing)?
+            direction:(',' direction)?
+            startDelay:(',' positiveNumber 's')?
+            endDelay:(',' positiveNumber 's')?
+            iterations:(',' positiveInteger)?
+
         {
             const options = { duration: duration * 1000, fill: 'both' };
             if (easing) { options.easing = easing[1]; }
+            if (direction) { options.direction = direction[1]; }
+            if (startDelay) {
+              options.delay = startDelay[1];
+            }
+            if (endDelay) {
+              options.endDelay = endDelay[1];
+            }
+            if (iterations !== null) {
+              iterations = iterations[1];
+              if (iterations === 0) { iterations = Infinity; }
+              options.iterations = iterations;
+            }
             return options;
         }
 
     easing
-        = $ ('linear' / 'ease' / 'ease-in' / 'ease-out' / 'ease-in-out')
+        = $ ('linear' / 'ease-in-out' / 'ease-in' / 'ease-out' / 'ease')
 
     direction
-        = $ ('normal' / 'reverse' / 'alternate' / 'alternate-reverse')
+        = $ ('normal' / 'reverse' / 'alternate-reverse' / 'alternate')
 
 </pre>
 
