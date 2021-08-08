@@ -4,7 +4,7 @@ import time
 def test_constraint_parsing_and_ordering(get_page, js_value):
     get_page()
 
-    assert js_value("ui4.parseAndOrder('left=root.left left<another.left left>other.left')") == [
+    assert js_value("ui4.parseAndOrder('left=root.left; left<another.left; left>other.left')") == [
         {'comparison': '=', 'targetAttribute': 'left', 'value': {'attribute': 'left', 'id': 'root'}},
         {'comparison': '<', 'targetAttribute': 'left', 'value': {'attribute': 'left', 'id': 'another'}},
         {'comparison': '>', 'targetAttribute': 'left', 'value': {'attribute': 'left', 'id': 'other'}},
@@ -12,13 +12,13 @@ def test_constraint_parsing_and_ordering(get_page, js_value):
 
     # Order enforced, equals before less than before greater than
     assert js_value(
-        "ui4.parseAndOrder('left=root.left left<another.left left>other.left')"
+        "ui4.parseAndOrder('left=root.left; left<another.left; left>other.left')"
     ) == js_value(
-        "ui4.parseAndOrder('left>other.left left=root.left left<another.left')"
+        "ui4.parseAndOrder('left>other.left; left=root.left; left<another.left')"
     )
 
-    assert js_value("ui4.parseAndOrder('left=root.left bottom=root.bottom width=100 height=100 "
-                    "root.width>root.height?width=200 root.height<root.width?height=250')") == [
+    assert js_value("ui4.parseAndOrder('left=root.left; bottom=root.bottom; width=100; height=100; "
+                    "root.width>root.height?width=200; root.height<root.width?height=250')") == [
         {'comparison': '=', 'targetAttribute': 'left', 'value': {'attribute': 'left', 'id': 'root'}},
         {'comparison': '=', 'targetAttribute': 'bottom', 'value': {'attribute': 'bottom', 'id': 'root'}},
         {'comparison': '=', 'targetAttribute': 'width', 'value': 100},
@@ -177,3 +177,13 @@ def test_aspect_conditions(get_page, js_dimensions):
     assert js_dimensions('portraitMenu2') == [8, 192, 84, 100]
 
     assert js_dimensions('comparisons') == [8, 192, 250, 200]
+
+
+def test_react_to_style_change(get_page, webdriver, js_dimensions):
+    get_page("test-css-transition.html")
+
+    webdriver.execute_script("""
+        document.getElementById('changing').style.width = '300px';
+    """)
+
+    assert js_dimensions('mirror') == [8, 116, 300, 100]

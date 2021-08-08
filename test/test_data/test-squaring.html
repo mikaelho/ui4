@@ -1,33 +1,33 @@
 <div class="rootApp" id="root" style="width: 600px; height: 400px; background-color: palegoldenrod">
     <div class="view" id="landscape"
          style="background-color: darkseagreen;"
-         ui4="top=root.top left=root.left width=300 height=100">
+         ui4="top=root.top; left=root.left; width=300; height=100">
         <div class="view" id="inLandscapeWithLessThan" style="background-color: white;"
-         ui4="left=landscape.left centerY=landscape.centerY width=inLandscapeWithLessThan.height
-            height=landscape.height-gap*2 height<landscape.width-gap*2">
+         ui4="left=landscape.left; centerY=landscape.centerY; width=inLandscapeWithLessThan.height;
+            height=landscape.height-gap*2; height<landscape.width-gap*2">
             In landscape using less than
         </div>
         <div class="view" id="inLandscapeWithMin" style="background-color: white;"
-         ui4="right=landscape.right centerY=landscape.centerY width=inLandscapeWithMin.height
+         ui4="right=landscape.right; centerY=landscape.centerY; width=inLandscapeWithMin.height;
             height=min(landscape.height,landscape.width)-gap*2">
             In landscape using min
         </div>
     </div>
     <div class="view" id="portrait" style="background-color: darkseagreen;"
-         ui4="top=root.top right=root.right width=100 height=300">
+         ui4="top=root.top; right=root.right; width=100; height=300">
         <div class="view" id="inPortraitWithLessThan" style="background-color: white;"
-         ui4="centerX=portrait.centerX top=portrait.top width=inPortraitWithLessThan.height
-            height=portrait.height-gap*2 height<portrait.width-gap*2">
+         ui4="centerX=portrait.centerX; top=portrait.top; width=inPortraitWithLessThan.height;
+            height=portrait.height-gap*2; height<portrait.width-gap*2">
             In portrait using less than
         </div>
         <div class="view" id="inPortraitWithMin" style="background-color: white;"
-         ui4="centerX=portrait.centerX bottom=portrait.bottom width=inPortraitWithMin.height
+         ui4="centerX=portrait.centerX; bottom=portrait.bottom; width=inPortraitWithMin.height;
             height=min(portrait.height,portrait.width)-gap*2">
             In portrait using min
         </div>
     </div>
     <div class="view" id="maxed" style="background-color: darkseagreen;"
-         ui4="bottom=root.bottom left=root.left width=maxed.height height=max(portrait.height,landscape.height)/2">
+         ui4="bottom=root.bottom; left=root.left; width=maxed.height; height=max(portrait.height,landscape.height)/2">
         Maxed square
     </div>
 

@@ -40,7 +40,7 @@
                 let didMatch = '🟢';
                 let matchResult = '';
                 try {
-                    const result = parser.parse(testCase);
+                    const result = parser.parse(testCase.replace(/\s/g,''));
                     if (shouldMatch) {
                         matchResult = JSON.stringify(result);
                         if (matchResult !== expectedResult) {
@@ -71,7 +71,7 @@
 
             // CALCULATIONS
             ['left=1', true, [{"targetAttribute":"left","comparison":"=","value":1}]],
-            ['left=1.9+2.1', true, [{"targetAttribute":"left","comparison":"=","value":4}]],
+            ['left=1.9+2.1;', true, [{"targetAttribute":"left","comparison":"=","value":4}]],
             ['left=(4-1)*-3', true, [{"targetAttribute":"left","comparison":"=","value":-9}]],
 
             // FULL CONSTRAINTS
@@ -92,12 +92,20 @@
                 }}]
             ],
 
+            // MULTIPLE CONSTRAINTS
+            ['left=root.left; right=root.right', true,
+                [
+                    {"targetAttribute":"left","comparison":"=", "value":{"id":"root","attribute":"left"}},
+                    {"targetAttribute":"right","comparison":"=", "value":{"id":"root","attribute":"right"}}
+                ]
+            ],
+
             // MIN/MAX
-            ['left=max(1,2,3)', true, [{"targetAttribute":"left","comparison":"=","value":3}]],
-            ['left=max(20,gap)', true, [{"targetAttribute":"left","comparison":"=",
+            ['left=max(1, 2, 3)', true, [{"targetAttribute":"left","comparison":"=","value":3}]],
+            ['left=max(20, gap)', true, [{"targetAttribute":"left","comparison":"=",
                 "value":{"func":"max","values":[20,"gap"]}}]
             ],
-            ['width=min(root.width,root.height)-gap*2', true, [{"targetAttribute":"width","comparison":"=",
+            ['width=min(root.width, root.height) - gap * 2', true, [{"targetAttribute":"width","comparison":"=",
                 "value":{
                     "operation":"-","lhs":{
                         "func":"min","values":[{"id":"root","attribute":"width"},{"id":"root","attribute":"height"}]},
@@ -111,12 +119,16 @@
                 "condition":{"aspect":"portrait"}}]],
             ['landscape(root)?left=1', true, [{"targetAttribute":"left","comparison":"=","value":1,
                 "condition":{"aspect":"landscape","elemId":"root"}}]],
-            ['root.width>root.height+20?left=1', true, [{"targetAttribute":"left","comparison":"=","value":1,
+            ['root.width > root.height+20? left=1', true, [{"targetAttribute":"left","comparison":"=","value":1,
                 "condition":{"comparison":">",
                     "lhs":{"id":"root","attribute":"width"},
                     "rhs":{"operation":"+","lhs":{"id":"root","attribute":"height"},"rhs":20}
                 }
-            }]]
+            }]],
+
+            // ANIMATION OPTIONS
+            ['left=1:1s', true, []],
+            ['left=1:1s,ease-in', true, []]
         ];
     </script>
 
@@ -149,18 +161,22 @@
     }
 
     constraints
-        = constraintSpec* (whitespace constraintSpec)* { return result; }
+        = constraintSpec* (';' constraintSpec)* ';'? { return result; }
 
     constraintSpec
-        = condition:condition '?' constraint:constraint { constraint.condition = condition; result.push(constraint); }
-          / constraint:constraint { result.push(constraint); }
+        = condition:(condition '?')? constraint:constraint animation:(':' animation)?
+            {
+                if (condition) { constraint.condition = condition[0]; }
+                if (animation) { constraint.animation = animation[1]; }
+                result.push(constraint);
+            }
 
     constraint 'constraint'
         = targetAttribute:targetAttribute comparison:comparison value:rightHandSide {
             return {targetAttribute: targetAttribute, comparison: comparison, value: value};
           }
 
-    condition
+    condition 'condition for the constraint to apply'
         = aspect:aspect '(' elemId:elemId ')' { return {aspect: aspect, elemId: elemId}; }
         / aspect:aspect { return {aspect: aspect}; }
         / lhs:rightHandSide comparison:comparison rhs:rightHandSide {
@@ -239,6 +255,16 @@
           );
         }
 
+    positiveNumber 'positive number'
+        = integer_part:[0-9]+ period:'.'? decimal_part:[0-9]?
+        { return parseFloat(
+            text(integer_part) + period || '' + decimal_part && text(decimal_part) || ''
+          );
+        }
+
+    positiveInteger 'positive integer'
+        = integer_part:[0-9]+ { return parseInt(text(integer_part)); }
+
     function 'function'
         = func:('min' / 'max') '(' primaries:primaries ')'
         {
@@ -261,6 +287,23 @@
 
     whitespace 'whitespace'
         = (' ' / '\t' / '\n')+
+
+    // ANIMATION CONSTANTS
+
+    animation 'animation options'
+        =   duration:positiveNumber 's'
+            easing:(',' easing)?
+        {
+            const options = { duration: duration * 1000, fill: 'both' };
+            if (easing) { options.easing = easing[1]; }
+            return options;
+        }
+
+    easing
+        = $ ('linear' / 'ease' / 'ease-in' / 'ease-out' / 'ease-in-out')
+
+    direction
+        = $ ('normal' / 'reverse' / 'alternate' / 'alternate-reverse')
 
 </pre>
 

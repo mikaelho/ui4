@@ -177,10 +177,9 @@ class UI4 {
         if (!targetId) { return; }
 
         // const ui4AnimationID = node.getAttribute("ui4anim");
-        let ui4AttrValue = node.getAttribute("ui4");
+        const ui4AttrValue = node.getAttribute("ui4");
 
         if (ui4AttrValue) {
-            ui4AttrValue = ui4AttrValue.trim();
             let dependencies;
             try {
                 dependencies = this.parseAndOrder(ui4AttrValue);
@@ -197,7 +196,7 @@ class UI4 {
     }
 
     parseAndOrder(spec) {
-        const dependencies = parse(spec);
+        const dependencies = parse(spec.replace(/\s/g,''));
         dependencies.sort((a, b) => UI4.ordering[a.comparison] - UI4.ordering[b.comparison]);
         return dependencies;
     }
@@ -214,7 +213,9 @@ class UI4 {
             for (const [targetAttribute, data] of Object.entries(finalValues)) {
                 const updates = this.setValue[targetAttribute](data.context, data.sourceValue);
                 for (const [key, value] of Object.entries(updates)) {
-                    data.context.style[key] = value;
+                    if (data.context.style[key] !== value) {
+                        data.context.style[key] = value;
+                    }
                 }
             }
         }
