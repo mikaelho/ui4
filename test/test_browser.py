@@ -179,11 +179,23 @@ def test_aspect_conditions(get_page, js_dimensions):
     assert js_dimensions('comparisons') == [8, 192, 250, 200]
 
 
-def test_react_to_style_change(get_page, webdriver, js_dimensions):
-    get_page("test-css-transition.html")
+def test_animated_dimension(get_page, js_dimensions):
+    get_page("test-animation.html")
 
-    webdriver.execute_script("""
-        document.getElementById('changing').style.width = '300px';
-    """)
+    # Start
+    assert js_dimensions('changing') == [8, 8, 100, 100]
+    assert js_dimensions('mirror') == [8, 116, 100, 100]
 
+    time.sleep(0.05);
+
+    # Animating
+    width = js_dimensions('changing')[2]
+    assert width > 100
+    assert width < 300
+
+    time.sleep(0.05)
+
+    # Finished
+    assert js_dimensions('changing') == [8, 8, 300, 100]
     assert js_dimensions('mirror') == [8, 116, 300, 100]
+

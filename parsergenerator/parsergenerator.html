@@ -127,13 +127,30 @@
             }]],
 
             // ANIMATION OPTIONS
-            ['left=1:1s', true, []],
-            ['left=1:1s,ease-in', true, []],
-            ['left=1:1s,reverse', true, []],
-            ['left=1:1s,2s', true, []],
-            ['left=1:1s,0s,2s', true, []],
-            ['left=1:1s,0', true, []],
-            ['left=1:1s,2', true, []]
+            ['left=1:0.01s', true, [{"targetAttribute":"left","comparison":"=","value":1,
+                "animation":{"duration":10,"fill":"both"}}]],
+            ['left=1:1s,ease-in', true, [{"targetAttribute":"left","comparison":"=","value":1,
+                "animation":{"duration":1000,"fill":"both","easing":"ease-in"}}]],
+            ['left=1:1s,reverse', true, [{"targetAttribute":"left","comparison":"=","value":1,
+                "animation":{"duration":1000,"fill":"both","direction":"reverse"}}]],
+            ['left=1:1s,2s', true, [{"targetAttribute":"left","comparison":"=","value":1,
+                "animation":{"duration":1000,"fill":"both","delay":2000}}]],
+            ['left=1:1s,0.1s,2s', true, [{"targetAttribute":"left","comparison":"=","value":1,
+                "animation":{"duration":1000,"fill":"both","delay":100,"endDelay":2000}}]],
+            ['left=1:1s,0', true, [{"targetAttribute":"left","comparison":"=","value":1,
+                "animation":{"duration":1000,"fill":"both","iterations":null}}]],
+            ['left=1:1s,2', true, [{"targetAttribute":"left","comparison":"=","value":1,
+                "animation":{"duration":1000,"fill":"both","iterations":2}}]],
+            ['left=1:1s,aa', true, [{"targetAttribute":"left","comparison":"=","value":1,
+                "animation":{"duration":1000,"fill":"both","id":"aa"}}]],
+
+            // EVERYTHING
+            ['portrait?left=1+2:1s,ease,reverse,2s,3s,4,aa', true, [
+                {"targetAttribute":"left","comparison":"=","value":3,
+                "condition":{"aspect":"portrait"},
+                "animation":{"duration":1000,"fill":"both","easing":"ease","direction":"reverse",
+                    "delay":2000,"endDelay":3000,"iterations":4,"id":"aa"}}]
+            ]
         ];
     </script>
 
@@ -254,16 +271,16 @@
         / "(" additive:additive ")" { return additive; }
 
     number 'number'
-        = sign:[+-]? integer_part:[0-9]+ period:'.'? decimal_part:[0-9]?
+        = sign:[+-]? integer_part:[0-9]+ decimal_part:('.' [0-9]+)?
         { return parseFloat(
-            sign && text(sign) || '' + text(integer_part) + period || '' + decimal_part && text(decimal_part) || ''
+            sign && text(sign) || '' + text(integer_part) + decimal_part && text(decimal_part) || ''
           );
         }
 
     positiveNumber 'positive number'
-        = integer_part:[0-9]+ period:'.'? decimal_part:[0-9]?
+        = integer_part:[0-9]+ decimal_part:('.' [0-9]+)?
         { return parseFloat(
-            text(integer_part) + period || '' + decimal_part && text(decimal_part) || ''
+            text(integer_part) + decimal_part && text(decimal_part) || ''
           );
         }
 
@@ -302,21 +319,24 @@
             startDelay:(',' positiveNumber 's')?
             endDelay:(',' positiveNumber 's')?
             iterations:(',' positiveInteger)?
-
+            id:(',' $[a-z0-9]i+)?
         {
             const options = { duration: duration * 1000, fill: 'both' };
             if (easing) { options.easing = easing[1]; }
             if (direction) { options.direction = direction[1]; }
             if (startDelay) {
-              options.delay = startDelay[1];
+              options.delay = startDelay[1] * 1000;
             }
             if (endDelay) {
-              options.endDelay = endDelay[1];
+              options.endDelay = endDelay[1] * 1000;
             }
             if (iterations !== null) {
               iterations = iterations[1];
               if (iterations === 0) { iterations = Infinity; }
               options.iterations = iterations;
+            }
+            if (id) {
+                options.id = id[1];
             }
             return options;
         }

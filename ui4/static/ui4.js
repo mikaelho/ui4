@@ -203,10 +203,10 @@ class UI4 {
 
     checkDependencies() {
         this.callLog.push("checkDependencies");
-        this.checkAllStaticDependencies();
+        this.checkAllDependencies();
     }
 
-    checkAllStaticDependencies() {
+    checkAllDependencies() {
         for (const [targetId, dependencies] of Object.entries(this.allDependencies)) {
             let finalValues = this.checkDependenciesForOneElement(targetId, dependencies);
             // Apply the final value for each attribute
@@ -226,6 +226,11 @@ class UI4 {
         let values = {};
 
         dependencies.forEach(dependency => {
+            if ('animation' in dependency && dependency.animation.running) {
+                requestAnimationFrame(this.checkDependencies.bind(this));
+                return;
+            }
+
             if (!this.checkCondition(targetElem, dependency)) {
                 return;
             }
@@ -252,13 +257,23 @@ class UI4 {
                 context: target.context
             };
             const previousResult = values[dependency.targetAttribute];
+            let setValue;
 
             if (previousResult) {
                 if (UI4.comparisons[dependency.comparison](previousResult.sourceValue, sourceValue)) {
-                    values[dependency.targetAttribute] = result;
+                    setValue = result;
                 }
             } else if (UI4.comparisons[dependency.comparison](target.value, sourceValue)) {
-                values[dependency.targetAttribute] = result;
+                setValue = result;
+            }
+
+            if (setValue !== undefined) {
+                if ('animation' in dependency) {
+                    this.startAnimation(dependency.targetAttribute, result, dependency.animation);
+                    dependency.animation.running = true;
+                } else {
+                    values[dependency.targetAttribute] = setValue;
+                }
             }
         });
 
@@ -396,6 +411,16 @@ class UI4 {
         }
 
         return 0;
+    }
+
+    startAnimation(targetAttr, data, animationOptions) {
+        const animation = data.targetElem.animate(
+         [
+             this.setValue[targetAttr](data.context, data.targetValue),
+             this.setValue[targetAttr](data.context, data.sourceValue)
+         ],
+         animationOptions
+        );
     }
 }
 
