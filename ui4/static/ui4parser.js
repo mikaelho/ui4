@@ -308,15 +308,15 @@
               );
             };
     var peg$f11 = function(integer_part) { return parseInt(text(integer_part)); };
-    var peg$f12 = function(func, primaries) {
-                if (primaries.every((element) => typeof element === 'number')) {
-                    return operations[func](...primaries);
+    var peg$f12 = function(func, additives) {
+                if (additives.every((element) => typeof element === 'number')) {
+                    return operations[func](...additives);
                 } else {
-                    return {func: func, values: primaries};
+                    return {func: func, values: additives};
                 }
             };
-    var peg$f13 = function(primary, primaries) { return [primary].concat(primaries); };
-    var peg$f14 = function(primary) { return [primary]; };
+    var peg$f13 = function(additive, additives) { return [additive].concat(additives); };
+    var peg$f14 = function(additive) { return [additive]; };
     var peg$f15 = function(id, attribute) { return {id: id, attribute: attribute}; };
     var peg$f16 = function(duration, easing, direction, startDelay, endDelay, iterations, id) {
                 const options = { duration: duration * 1000, fill: 'both' };
@@ -1522,7 +1522,7 @@
           if (peg$silentFails === 0) { peg$fail(peg$e5); }
         }
         if (s2 !== peg$FAILED) {
-          s3 = peg$parseprimaries();
+          s3 = peg$parseadditives();
           if (s3 !== peg$FAILED) {
             if (input.charCodeAt(peg$currPos) === 41) {
               s4 = peg$c4;
@@ -1559,11 +1559,11 @@
       return s0;
     }
 
-    function peg$parseprimaries() {
+    function peg$parseadditives() {
       var s0, s1, s2, s3;
 
       s0 = peg$currPos;
-      s1 = peg$parseprimary();
+      s1 = peg$parseadditive();
       if (s1 !== peg$FAILED) {
         if (input.charCodeAt(peg$currPos) === 44) {
           s2 = peg$c25;
@@ -1573,7 +1573,7 @@
           if (peg$silentFails === 0) { peg$fail(peg$e44); }
         }
         if (s2 !== peg$FAILED) {
-          s3 = peg$parseprimaries();
+          s3 = peg$parseadditives();
           if (s3 !== peg$FAILED) {
             peg$savedPos = s0;
             s0 = peg$f13(s1, s3);
@@ -1591,7 +1591,7 @@
       }
       if (s0 === peg$FAILED) {
         s0 = peg$currPos;
-        s1 = peg$parseprimary();
+        s1 = peg$parseadditive();
         if (s1 !== peg$FAILED) {
           peg$savedPos = s0;
           s1 = peg$f14(s1);

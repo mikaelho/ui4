@@ -207,8 +207,13 @@ class UI4 {
     }
 
     checkAllDependencies() {
+        let redrawNeeded = false;
         for (const [targetId, dependencies] of Object.entries(this.allDependencies)) {
-            let finalValues = this.checkDependenciesForOneElement(targetId, dependencies);
+            let checkResults = this.checkDependenciesForOneElement(targetId, dependencies);
+            let finalValues = checkResults[0];
+            if (checkResults[1]) {
+                redrawNeeded = true;
+            }
             // Apply the final value for each attribute
             for (const [targetAttribute, data] of Object.entries(finalValues)) {
                 const updates = this.setValue[targetAttribute](data.context, data.sourceValue);
@@ -219,15 +224,19 @@ class UI4 {
                 }
             }
         }
+        if (redrawNeeded) {
+            requestAnimationFrame(this.checkDependencies.bind(this));
+        }
     }
 
     checkDependenciesForOneElement(targetId, dependencies) {
         let targetElem = document.getElementById(targetId);
         let values = {};
+        let redrawNeeded = false;
 
         dependencies.forEach(dependency => {
             if ('animation' in dependency && dependency.animation.running) {
-                requestAnimationFrame(this.checkDependencies.bind(this));
+                redrawNeeded = true;
                 return;
             }
 
@@ -277,7 +286,7 @@ class UI4 {
             }
         });
 
-        return values;
+        return [values, redrawNeeded];
     }
 
     checkCondition(targetElem, dependency) {

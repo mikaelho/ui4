@@ -147,14 +147,17 @@ def test_comparison_constraints(get_page, js_dimensions):
     assert js_dimensions('third') == [316, 116, 200, 100]
 
 
-def test_more_complex_constraints(get_page, js_dimensions):
+def test_calculations(get_page, js_dimensions):
     get_page("test-calculations.html")
 
     # "Complex" calculations and gap
-    assert js_dimensions('first') == [8, 8, (600-2*8)/2, 400-50]
+    assert js_dimensions('first') == [4, 8, (600-2*8)/2, 400-50]
 
     # Multiple source attributes
     assert js_dimensions('second') == [8, 400-50+8, 100, 400-350-2*8]
+
+    # Trailing constraint modifier
+    assert js_dimensions('third') == [600-20-50, 8, 50, 50]
 
 
 def test_always_square(get_page, js_dimensions):
@@ -182,20 +185,16 @@ def test_aspect_conditions(get_page, js_dimensions):
 def test_animated_dimension(get_page, js_dimensions):
     get_page("test-animation.html")
 
-    # Start
-    assert js_dimensions('changing') == [8, 8, 100, 100]
-    assert js_dimensions('mirror') == [8, 116, 100, 100]
-
     time.sleep(0.05);
 
     # Animating
-    width = js_dimensions('changing')[2]
-    assert width > 100
-    assert width < 300
+    height = js_dimensions('mirror')[3]
+    assert height > 100
+    assert height < 150
 
-    time.sleep(0.05)
+    time.sleep(0.07)
 
     # Finished
-    assert js_dimensions('changing') == [8, 8, 300, 100]
-    assert js_dimensions('mirror') == [8, 116, 300, 100]
+    assert js_dimensions('changing') == [8, 8, 300, 150]
+    assert js_dimensions('mirror') == [8, 166, 300, 150]
 

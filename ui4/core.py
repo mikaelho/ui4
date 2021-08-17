@@ -1,8 +1,9 @@
 """
 Contains behind-the-scenes machinery that all views share.
 """
-
+import copy
 import json
+import operator
 import uuid
 from collections import defaultdict
 from collections.abc import Sequence
@@ -437,8 +438,9 @@ class Props(Events):
                 transition = {
                     'key': css_name,
                     'value': css_value,
+                    'animation': _animation_short_keys(spec),
                 }
-                transition['animation'] = _animation_short_keys(spec)
+
                 self._css_transitions[css_name] = transition
 
     def _css_setter(self, property_name, css_name, value, css_value_func):
@@ -507,275 +509,178 @@ class Props(Events):
             )()
         )
 
+# Constraint grammar
 
-class AnchorBase:
+# number
+# token operation number
+# function(constraint, constraint)
+# constraint operation constraint
+#
+# condition & constraint
+# constraint | constraint
+# condition & constraint | condition & constraint | constraint
+
+class Constraint:
+
+    def __init__(self, value=None, initial_value=None):
+        self.value = value
+        self.initial_value = initial_value
+        self.comparison = '='
+
+    def __str__(self):
+        return str(self.value)
+
+    def serialize(self, target):
+        return f'{target}{self.comparison}{str(self)}'
+
+    def walk(self, function):
+        result = function(self)
+
+        if result:
+            return result
+
+        if isinstance(self.value, Constraint):
+            return self.value.walk(function)
+
+        return False
+
+    def get_anchor(self):
+        return self.walk(lambda item: isinstance(item, ConstraintAnchor) and item)
+
+
+class ConstraintExpression(Constraint):
+
+    def __str__(self):
+        if self.value is None:
+            return self.initial_value
+        if type(self.value) is not dict:
+            return str(self.value)
+
+        lhs = self.value['lhs']
+        rhs = self.value['rhs']
+        if type(lhs) is ConstraintExpression and type(lhs.value) is dict:
+            lhs = f'({lhs})'
+        if type(rhs) is ConstraintExpression and type(rhs.value) is dict:
+            rhs = f'({rhs})'
+
+        return f'{lhs}{self.value["operator"]}{rhs}'
+
+    def _operator(self, operator, other):
+        return ConstraintExpression({
+            'operator': operator,
+            'lhs': type(self) is not ConstraintExpression and self or type(self)(self.value or self.initial_value),
+            'rhs': other,
+        })
+
+    def __add__(self, other):
+        return self._operator('+', other)
+
+    def __sub__(self, other):
+        return self._operator('-', other)
+
+    def __mul__(self, other):
+        return self._operator('*', other)
+
+    def __truediv__(self, other):
+        return self._operator('/', other)
+
+    def __and__(self, other):
+        return ConstraintCondition(self, other)
+
+    def __gt__(self, other):
+        return ConstraintCondition(self, comparison='>', rhs=other)
+
+    def walk(self, function):
+        result = function(self)
+
+        if result:
+            return result
+
+        if self.value:
+            for component in ('lhs', 'rhs'):
+                if isinstance(self.value[component], Constraint):
+                    result = self.value[component].walk(function)
+                    if result:
+                        return result
+
+        return False
+
+    def invert_operator(self):
+        if type(self.value) is dict and 'operator' in self.value:
+            previous = self.value['operator']
+            if previous in ('+', '-'):
+                self.value['operator'] = previous == '+' and '-' or '+'
+        return self
+
+
+class ConstraintFunction(ConstraintExpression):
+
+    def __init__(self, function_name: str):
+        self.value = self
+        self.function_name = function_name
+        self.parameters = []
+
+    def __call__(self, *parameters):
+        new_self = type(self)(self.function_name)
+        new_self.parameters = parameters
+        return new_self
+
+    def __str__(self):
+        return f'{self.function_name}({",".join(str(item) for item in self.parameters)})'
+
+    def walk(self, function):
+        raise RuntimeError('Should not walk in a function')
+
+minimum = ConstraintFunction('min')
+maximum = ConstraintFunction('max')
+
+
+class ConstraintComposite(Constraint):
+
+    def __init__(self, comparison: str):
+        self.comparison = comparison
+
+    def __call__(self, *parameters):
+        new_self = type(self)(self.comparison)
+        new_self.value = parameters
+        return new_self
+
+    def __str__(self):
+        return ' '.join(f'{self.comparison}{str(item)}' for item in self.value)
+
+    def serialize(self, target):
+        return ';'.join(f'{target}{self.comparison}{str(item)}' for item in self.value)
+
+at_least = ConstraintComposite('>')
+at_most = ConstraintComposite('<')
+
+
+class ConstraintAnchor(ConstraintExpression):
+
+    def __init__(self, view, attribute: str):
+        self.view = view
+        self.attribute = attribute
+        self.comparison = '='
+
+    @property
+    def value(self):
+        return f'{self.view.id}.{self.attribute}'
+
+
+class ConstraintCondition(Constraint):
     pass
 
 
-class Anchor(AnchorBase):
-    """
-    Utility class that holds the information about a single anchor.
-
-    "Anchor" refers to a single view size & position parameter, like view.width or view.left.
-    """
-    
-    key_order = (
-        "target_attribute comparison "
-        "source_view source_attribute multiplier modifier require"
-    ).split()
-
-    def __init__(
-        self,
-        target_view=None,
-        target_attribute=None,
-        comparison=None,
-        source_view=None,
-        source_attribute=None,
-        multiplier=None,
-        modifier=None,
-        require=None,
-        animation=None,
-    ):
-        self.target_view = target_view
-        self.target_attribute = target_attribute
-        self.comparison = comparison
-        self.source_view = source_view
-        self.source_attribute = source_attribute
-        self.multiplier = multiplier
-        self.modifier = modifier
-        self.animation = animation
-        self.require = require
-
-    def __hash__(self):
-        if self.comparison in (None, '='):
-            return hash(
-                f'{self.target_view and self.target_view.id}'
-                f'{self.target_attribute}'
-                f'{self.require}'
-            )
-        else:
-            return hash(
-                f'{self.target_view and self.target_view.id}'
-                f'{self.target_attribute}'
-                f'{self.comparison}'
-                f'{self.source_view and self.source_view.id}'
-                f'{self.source_attribute}'
-                f'{self.require}'
-            )
-
-    def __eq__(self, other):
-        return hash(self) == hash(other)
-
-    def __repr__(self):
-        items = ", ".join(
-            f"{key}: {getattr(value, 'id', value)}"
-            for key, value in zip(
-                self.key_order, [getattr(self, key2) for key2 in self.key_order]
-            )
-            if value is not None
-        )
-
-        return f"<{self.__class__.__name__} ({items})>"
-        
-    def shift_and_set(self, target_view, target_attribute, comparison):
-        self.source_view = self.target_view
-        self.source_attribute = self.target_attribute
-        self.target_view = target_view
-        self.target_attribute = target_attribute
-        if comparison == 'none':
-            self.comparison = None
-        else:
-            self.comparison = comparison or self.comparison or '='
-            
-        self.animation = _animation_context()
-
-    def as_dict(self, gap=None):
-        """
-        Returns anchor values where defined, with shortened keys.
-        """
-        dict_representation = self.main_items_as_dict(gap)
-        if self.animation:
-            dict_representation.update(_animation_short_keys(self.animation))
-        return dict_representation
-        
-    def main_items_as_dict(self, gap):
-        d = {}
-        for i, key in enumerate(self.key_order):
-            value = getattr(self, key)
-            if value is None and gap is not None and key == 'modifier':
-                value = gap
-            if value is not None:
-                value = getattr(value, "id", value)
-                d[f'a{i}'] = value
-        return d
-        
-    def as_json(self):
-        return json.dumps(
-            self.as_dict(), 
-            check_circular=False, 
-            separators=(',', ':')
-        )
-
-    def __gt__(self, other):
-        self.target_view._anchor_setter(
-            self.target_attribute,
-            other,
-            comparison='>'
-        )
-        return self
-
-    __ge__ = __gt__
-                        
-    def gt(self, other):
-        return self.__gt__(other)
-        
-    ge = gt
-
-    def __lt__(self, other):
-        self.target_view._anchor_setter(
-            self.target_attribute,
-            other,
-            comparison='<'
-        )
-        return self
-        
-    __le__ = __lt__
-        
-    def lt(self, other):
-        return self.__lt__(other)
-
-    le = lt
-
-    def release(self):
-        self.target_view._constraints.difference_update({
-            constraint
-            for constraint in self.target_view._constraints
-            if constraint.target_attribute == self.target_attribute
-        })
-        self.target_view._mark_dirty()
-
-    def __add__(self, other):
-        if other is None:
-            self.modifier = None
-        elif self.modifier is None:
-            self.modifier = other
-        else:
-            self.modifier += other
-        return self
-
-    def __sub__(self, other):
-        return self.__add__(other and -other)
-
-    def __mul__(self, other):
-        if self.multiplier is None:
-            self.multiplier = other
-        else:
-            self.multiplier *= other
-        return self
-
-    def __truediv__(self, other):
-        if self.multiplier is None:
-            self.multiplier = 1 / other
-        else:
-            self.multiplier /= other
-        return self
-
-    def maximum(self, *anchors):
-        setattr(self.target_view, self.target_attribute, AnchorContainer(
-            'max', *anchors
-        ))
-        return self
-    
-    def minimum(self, *anchors):
-        setattr(self.target_view, self.target_attribute, AnchorContainer(
-            'min', *anchors
-        ))
-        return self
-        
-    def portrait(self, anchor):
-        anchor.require = 'portrait'
-        setattr(self.target_view, self.target_attribute, anchor)
-        return self
-        
-    def landscape(self, anchor):
-        anchor.require = 'landscape'
-        setattr(self.target_view, self.target_attribute, anchor)
-        return self
-        
-    def high(self, anchor):
-        anchor.require = 'high'
-        setattr(self.target_view, self.target_attribute, anchor)
-        return self
-        
-    def wide(self, anchor):
-        anchor.require = 'wide'
-        setattr(self.target_view, self.target_attribute, anchor)
-        return self
-
-        
-class AnchorContainer(Anchor):
-    
-    def __init__(self, key, *anchors):
-        super().__init__()
-        self.key = key
-        
-        if len(anchors) < 1:
-            raise ValueError('Must provide at least 1 anchor as a parameter')
-        self.anchors = anchors
-    
-    def shift_and_set(self, target_view, target_attribute, comparison):
-        for anchor in self.anchors:
-            anchor.shift_and_set(None, None, 'none')
-        self.target_view = target_view
-        self.target_attribute = target_attribute
-        self.comparison = comparison or self.comparison or '='
-    
-    def as_dict(self, gap=None):
-        dict_representation = super().as_dict(gap)
-        dict_representation.update({
-            'key': self.key,
-            'list': [
-                anchor.main_items_as_dict(gap)
-                for anchor in self.anchors
-            ]
-        })
-        first_anchor = self.anchors[0]
-        if first_anchor.animation:
-            dict_representation.update(_animation_short_keys(first_anchor.animation))
-        return dict_representation
+class ConstraintConditionFull(ConstraintCondition):
+    pass
 
 
-def _set_comparison(anchor, comparison):
-    anchor.comparison = comparison
-    return anchor
+class ConstraintConditionFromComponents(ConstraintCondition):
+
+    def __init__(self, comparison: str, rhs: ConstraintExpression):
+        pass
 
 
-def eq(anchor):
-    return _set_comparison(anchor, '=')
-
-
-def gt(anchor):
-    return _set_comparison(anchor, '>')
-
-
-ge = gt
-
-
-def lt(anchor):
-    return _set_comparison(anchor, '<')
-
-
-le = lt
-
-
-def maximum(*anchors):
-    return AnchorContainer('max', *anchors)
-    
-    
-def minimum(*anchors):
-    return AnchorContainer('min', *anchors)
-    
-    
 def portrait(anchor):
     anchor.require = 'portrait'
     return anchor
@@ -800,7 +705,7 @@ class Anchors(Events):
 
     def __init__(self, gap=None, flow=False, **kwargs):
         self.flow = flow
-        self._constraints = set()
+        self._constraints = {}
         self._dock = None
         self._fit = False
         super().__init__(**kwargs)
@@ -814,46 +719,41 @@ class Anchors(Events):
         
     @Render._register
     def _render_anchors(self):
-        constraints = [
-            anchor.as_dict(self.gap)
-            for anchor in self._constraints
-        ]
+        constraints_str = ';'.join(
+            constraint.serialize(attribute)
+            for attribute, constraints in self._constraints.items()
+            for constraint in constraints.values()
+        )
 
-        if constraints:
-            attributes = {
-                'ui4': json.dumps(
-                    constraints,
-                    check_circular=False,
-                    separators=(',', ':'),
-                ),
-            }
-            if self._animation_id:
-                attributes['ui4anim'] = self._animation_id
-            return attributes
-        else:
-            return {}
+        #     if self._animation_id:
+        #         attributes['ui4anim'] = self._animation_id
+        #     return attributes
+        # else:
+        #     return {}
+
+        return constraints_str and {'ui4': constraints_str} or {}
 
     def _anchor_getter(self, attribute):
-        return Anchor(target_view=self, target_attribute=attribute)
+        return ConstraintAnchor(view=self, attribute=attribute)
 
     def _anchor_setter(self, attribute, value, comparison=None):
         self._mark_dirty()
         if isinstance(value, Number):
-            value = Anchor(modifier=value)
-        if isinstance(value, Sequence) and value and all(
-            (isinstance(item, AnchorBase) for item in value)
-        ):
-            self._anchor_process_sequence(attribute, value)
-        elif isinstance(value, AnchorBase):
-            value.shift_and_set(self, attribute, comparison)
+            value = ConstraintExpression(value)
+        # if isinstance(value, Sequence) and value and all(
+        #     (isinstance(item, AnchorBase) for item in value)
+        # ):
+        #     self._anchor_process_sequence(attribute, value)
+        if isinstance(value, Constraint):
+            self._constraints.setdefault(attribute, {})[value.comparison] = value
             
             # Superview check for containers
-            if value.source_view == self.parent and self.parent != self._parent:
-                value.source_view = self._parent
+            # if value.source_view == self.parent and self.parent != self._parent:
+            #     value.source_view = self._parent
 
             # Overwrite "similar" anchor, see Anchor.__hash__
-            self._constraints.discard(value)  
-            self._constraints.add(value)
+            # self._constraints.discard(value)
+            # self._constraints.add(value)
 
             # Release anchors where needed
             self._prune_anchors(attribute)
@@ -867,15 +767,20 @@ class Anchors(Events):
 
     def _prune_anchors(self, attribute):
         """
-        If caller has defined an impossible combination of anchors,
-        select the most likely set.
+        If caller has defined an impossible combination of constraints, select the most likely set.
+
+        Only equal '=' constraints are considered and pruned.
         """
-        constrained_attributes = {anchor.target_attribute for anchor in self._constraints}
+        constrained_attributes = {
+            attribute
+            for attribute in self._constraints.keys()
+            if '=' in self._constraints[attribute]
+        }
 
         # Checklists define the priority order
         for checklist in (
-            list('width center_x left right'.split()),
-            list('height center_y top bottom'.split()),
+            'width center_x left right'.split(),
+            'height center_y top bottom'.split(),
         ):
             if attribute in checklist:
                 per_dimension = constrained_attributes.intersection(set(checklist))
@@ -887,7 +792,9 @@ class Anchors(Events):
                         per_dimension.discard(other_attribute)
                         break
                 for attribute_too_many in per_dimension:
-                    getattr(self, attribute_too_many).release()
+                    del self._constraints[attribute_too_many]['=']
+                    if not self._constraints[attribute_too_many]:
+                        del self._constraints[attribute_too_many]
 
     @staticmethod
     def _anchorprop(attribute):
@@ -926,12 +833,7 @@ class Anchors(Events):
             lambda self:
                 partial(Anchors._anchor_multiple_getter, self, attributes)(),
             lambda self, value:
-                partial(
-                    Anchors._anchor_multiple_setter,
-                    self,
-                    attributes,
-                    value,
-                )()
+                partial(Anchors._anchor_multiple_setter, self, attributes, value)(),
         )
         
     @prop
@@ -966,39 +868,36 @@ class Anchors(Events):
         if value:
             value = value[0]
             self._dock = value
-            if issubclass(type(value), Sequence) and len(value) == 2:
-                value = value[0]
-                value.target_attribute = 'center'
-            if not type(value) is Anchor:
+            if isinstance(value, Sequence) and len(value) == 2:
+                setattr(self, 'center', value)
+            if not isinstance(value, Constraint):
                 raise TypeError(
                     f'Dock value must be something like view.left, not {value}'
                 )
-            other = value.target_view
-            dock_type = value.target_attribute
+            other_constraint = value.get_anchor()
+            other = other_constraint.view
+            dock_type = other_constraint.attribute
             dock_attributes = PARENT_DOCK_SPECS.get(dock_type)
             if dock_attributes:
                 self.parent = other
                 for attribute in dock_attributes:
-                    setattr(
-                        self,
-                        attribute,
-                        getattr(other, attribute)
-                        * (value.multiplier or 1)
-                        + value.modifier,
-                    )
+                    other_constraint.attribute = attribute
+                    dock_constraint = copy.deepcopy(value)
+                    if ANCHOR_TYPE[attribute] == TRAILING and isinstance(dock_constraint, ConstraintExpression):
+                        dock_constraint.invert_operator()
+                    setattr(self, attribute, dock_constraint)
             else:
                 dock_attributes = SIBLING_DOCK_SPECS.get(dock_type)
                 if dock_attributes:
                     this, that, align, size = dock_attributes
                     self.parent = other.parent
-                    setattr(
-                        self, this,
-                        getattr(other, that)
-                        * (value.multiplier or 1)
-                        + value.modifier,
-                    )
-                    setattr(self, align, getattr(other, align))
-                    setattr(self, size, getattr(other, size))
+                    other_constraint.attribute = that
+                    dock_constraint = copy.deepcopy(value)
+                    if ANCHOR_TYPE[this] == TRAILING and isinstance(dock_constraint, ConstraintExpression):
+                        dock_constraint.invert_operator()
+                    setattr(self, this, dock_constraint)  # edge
+                    setattr(self, align, getattr(other, align))  # center
+                    setattr(self, size, getattr(other, size))  # width or height
                 else:
                     raise ValueError(f'Unknown docking attribute {dock_type}')
         else:
@@ -1031,6 +930,18 @@ SIBLING_DOCK_SPECS = {
     'right_of': ('left', 'right', 'center_y', 'height'),
 }
 
+NEUTRAL, LEADING, TRAILING = 'neutral', 'leading', 'trailing'
+
+ANCHOR_TYPE = {
+    'left': LEADING,
+    'right': TRAILING,
+    'top': LEADING,
+    'bottom': TRAILING,
+    'width': NEUTRAL,
+    'height': NEUTRAL,
+    'center_x': NEUTRAL,
+    'center_y': NEUTRAL,
+}
 
 class Core(Anchors, Props):
     """

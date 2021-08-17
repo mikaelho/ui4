@@ -58,3 +58,11 @@ Similar projects
 * JustPy - https://justpy.io
 * PyWebIO - https://pywebio.readthedocs.io/en/latest/
 * PyEverywhere - https://github.com/kollivier/pyeverywhere
+
+Development installation notes
+------------------------------
+
+- Selenium/Safari
+    - `safaridriver --enable` needs to be run once
+    - In Safari, Develop > Allow Remote Automation
+    - Start `safaridriver -p 0` and stop it

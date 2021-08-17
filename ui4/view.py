@@ -32,7 +32,7 @@ class View(Core):
     center = Core._anchorprops('center_x', 'center_y')
     position = Core._anchorprops('left', 'top')
     size = Core._anchorprops('width', 'height')
-    box = Core._anchorprops('left', 'top', 'width', 'height')
+    frame = Core._anchorprops('left', 'top', 'width', 'height')
     
     # Dock to parent
     top_left = Core._anchordock('top_left')

@@ -3,8 +3,7 @@ import shutil
 from string import Template
 
 from pytest import fixture
-from selenium.webdriver import Chrome
-from selenium.webdriver import DesiredCapabilities
+from selenium import webdriver
 
 from ui4.core import Anchors
 from ui4.core import Core
@@ -49,17 +48,34 @@ def anchor_view():
         center_y = Anchors._anchorprop('center_y')
         center = Anchors._anchorprops('center_x', 'center_y')
         top_left = Anchors._anchordock('top_left')
-        
+
     yield AnchorCore
 
 
-@fixture(scope='session')
-def webdriver():
+# Browser automation
+
+def chrome_setup():
     # enable browser logging
-    capabilities = DesiredCapabilities.CHROME
+    capabilities = webdriver.DesiredCapabilities.CHROME
     capabilities['goog:loggingPrefs'] = {'browser': 'ALL'}
 
-    with Chrome(desired_capabilities=capabilities) as driver:
+    driver = webdriver.Chrome(desired_capabilities=capabilities)
+    driver.logs = lambda: [entry for entry in driver.get_log('browser') if entry['level'] != 'INFO']
+
+    return driver
+
+
+def safari_setup():
+    driver = webdriver.Safari()
+    driver.logs = lambda: []
+
+    return driver
+
+
+@fixture(scope='session', params=[chrome_setup, safari_setup])
+def driver(request):
+
+    with request.param() as driver:
         driver.set_window_size(800, 600)
 
         def js_value(script):
@@ -94,23 +110,23 @@ def set_up_test_page(tmp_path):
     return set_up
 
 @fixture
-def get_page(webdriver, set_up_test_page):
+def get_page(driver, set_up_test_page):
     def get_page_by_name(content_filename=None, gap=8):
-        webdriver.get(f'file://{set_up_test_page(content_filename)}')
-        assert webdriver.title == 'Test page'
+        driver.get(f'file://{set_up_test_page(content_filename)}')
+        assert driver.title == 'Test page'
 
-        log_messages = [entry for entry in webdriver.get_log('browser') if not entry['level'] == 'INFO']
+        log_messages = driver.logs()
         assert not log_messages, log_messages
 
-        return webdriver
+        return driver
 
     return get_page_by_name
 
 
 @fixture
-def js_with_stack(webdriver):
+def js_with_stack(driver):
     def func(script):
-        return webdriver.execute_script(f"""
+        return driver.execute_script(f"""
                 try {{
                     {script}
                 }} catch (err) {{

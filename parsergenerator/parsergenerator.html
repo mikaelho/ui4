@@ -102,8 +102,8 @@
 
             // MIN/MAX
             ['left=max(1, 2, 3)', true, [{"targetAttribute":"left","comparison":"=","value":3}]],
-            ['left=max(20, gap)', true, [{"targetAttribute":"left","comparison":"=",
-                "value":{"func":"max","values":[20,"gap"]}}]
+            ['left=max(20, gap+10)', true, 	[{"targetAttribute":"left","comparison":"=","value":{
+                "func":"max","values":[20,{"operation":"+","lhs":"gap","rhs":10}]}}]
             ],
             ['width=min(root.width, root.height) - gap * 2', true, [{"targetAttribute":"width","comparison":"=",
                 "value":{
@@ -288,18 +288,18 @@
         = integer_part:[0-9]+ { return parseInt(text(integer_part)); }
 
     function 'function'
-        = func:('min' / 'max') '(' primaries:primaries ')'
+        = func:('min' / 'max') '(' additives:additives ')'
         {
-            if (primaries.every((element) => typeof element === 'number')) {
-                return operations[func](...primaries);
+            if (additives.every((element) => typeof element === 'number')) {
+                return operations[func](...additives);
             } else {
-                return {func: func, values: primaries};
+                return {func: func, values: additives};
             }
         }
 
-    primaries
-        = primary:primary ',' primaries:primaries { return [primary].concat(primaries); }
-        / primary:primary { return [primary]; }
+    additives
+        = additive:additive ',' additives:additives { return [additive].concat(additives); }
+        / additive:additive { return [additive]; }
 
     sourceValue
         = id:elemId '.' attribute:attributeKeyword { return {id: id, attribute: attribute}; }

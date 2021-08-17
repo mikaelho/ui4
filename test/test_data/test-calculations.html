@@ -1,12 +1,15 @@
 <div class="rootApp" id="root" style="width: 600px; height: 400px; background-color: palegoldenrod">
-    <div class="view" id="first"
-         style="background-color: darkseagreen;"
-         ui4="top=root.top; left=root.left; width=(root.width-gap*2)/2; height=root.height-50;">
+    <div class="view" id="first" style="background-color: darkseagreen;"
+         ui4="top=root.top; left=root.left+4; width=(root.width-gap*2)/2; height=root.height-50;">
         First
     </div>
-    <div class="view" id="second"
-         style="background-color: darkseagreen;"
+    <div class="view" id="second" style="background-color: darkseagreen;"
          ui4="bottom=root.bottom; left=root.left; width=100; height=root.height-first.height-gap*2;">
-        First
+        Second
     </div>
+    <div class="view" id="third" style="background-color: darkseagreen;"
+         ui4="right=root.right-20; top=root.top; width=50; height=50;">
+        Third
+    </div>
+
 </div>

@@ -2,20 +2,16 @@ import inspect
 
 import pytest
 
-from ui4 import ge
 from ui4 import high
-from ui4 import le
-from ui4 import maximum
 from ui4 import minimum
 from ui4 import wide
-
-from ui4.animation import _animation_context
 from ui4.animation import animation
-from ui4.animation import AnimationSpec
-from ui4.core import Anchor
-from ui4.core import AnchorContainer
+from ui4.core import ConstraintAnchor
+from ui4.core import ConstraintExpression
 from ui4.core import Core
 from ui4.core import Events
+from ui4.core import at_least
+from ui4.core import at_most
 
 
 class TestIdentity:
@@ -86,93 +82,41 @@ class TestRender:
         render_result = parent._render()
         for view_id in (parent.id, parent.container.id, child.id):
             assert view_id in render_result
-    
-    
-class TestAnchor:
 
-    def test_anchor_identity(self):
-        view1 = Core()
-        view2 = Core()
 
-        a = Anchor(target_view=view1, target_attribute='left')
-        b = Anchor(target_view=view1, target_attribute='left')
+class TestConstraint:
 
-        assert a == b
+    def test_constraint_build_up(self):
+        gap = ConstraintExpression(initial_value='gap')
 
-        a = Anchor(target_view=view1, target_attribute='left')
-        b = Anchor(target_view=view2, target_attribute='left')
+        assert str(gap+1) == 'gap+1'
+        assert str((gap-1)*2) == '(gap-1)*2'
+        assert str(minimum(1, 2)) == 'min(1,2)'
+        assert str(minimum((gap + 1)/2, 2)) == 'min((gap+1)/2,2)'
+        assert str(minimum(1, 2)+gap) == 'min(1,2)+gap'
 
-        assert a != b
+        assert str(at_least(200)) == '>200'
+        assert str(at_least(gap+1, 200)) == '>gap+1 >200'
 
-        a = Anchor(target_view=view1, target_attribute='left', source_view=view2, source_attribute='right')
-        b = Anchor(target_view=view1, target_attribute='left', source_view=view2, source_attribute='left')
+    def test_serialize(self):
+        gap = ConstraintExpression(initial_value='gap')
 
-        assert a == b
+        assert (gap+1).serialize('foo') == 'foo=gap+1'
+        assert (at_most(minimum(1, 2))).serialize('foo') == 'foo<min(1,2)'
 
-        a = Anchor(target_view=view1, target_attribute='left')
-        b = Anchor(target_view=view1, target_attribute='left', comparison='>')
+    def test_invert(self):
+        gap = ConstraintExpression(initial_value='gap')
 
-        assert a != b
+        assert str((gap+1).invert_operator()) == 'gap-1'
+        assert str((gap-1).invert_operator()) == 'gap+1'
 
-        a = Anchor(target_view=view1, target_attribute='left', comparison='>',
-                   source_view=view2, source_attribute='right')
-        b = Anchor(target_view=view1, target_attribute='left', comparison='>',
-                   source_view=view2, source_attribute='right')
+    def test_get_anchor(self, anchor_view):
+        gap = ConstraintExpression(initial_value='gap')
+        view1 = anchor_view()
 
-        assert a == b
-
-        a = Anchor(target_view=view1, target_attribute='left', comparison='>',
-                   source_view=view2, source_attribute='right')
-        b = Anchor(target_view=view1, target_attribute='left', comparison='>',
-                   source_view=view2, source_attribute='left')
-
-        assert a != b
-
-        a = Anchor(target_view=view1, target_attribute='left', comparison='>',
-                   source_view=view2, source_attribute='right')
-        b = Anchor(target_view=view1, target_attribute='left', comparison='<',
-                   source_view=view2, source_attribute='right')
-
-        assert a != b
-
-    def test_anchor_as_dict(self, is_view_id):
-        view = Core()
-        anchor = Anchor(target_view=view, target_attribute='bar', modifier=16)
-
-        assert anchor.as_dict() == {
-            'a0': 'bar',
-            'a5': 16
-        }
-        
-    def test_anchor_as_json(self):
-        view = Core()
-        animation = AnimationSpec(
-            duration=0.5,
-            ease='ease-in',
-            start_delay=1,
-            end_delay=2,
-            direction='alternate',
-            iterations=3,
-        )
-        anchor = Anchor(
-            target_view=view, 
-            target_attribute='bar', 
-            multiplier=2,
-            animation=animation,
-        )
-        
-        assert (
-            anchor.as_json() == 
-            '{"a0":"bar","a4":2,'
-            '"a7":0.5,"a8":"ease-in","a9":1,"a10":2,"a11":"alternate","a12":3}'
-        )
-
-    def test_anchor_multipliers_and_modifiers(self):
-        anchor = Anchor()
-        anchor * 12 / 4 + 3 - 1
-
-        assert anchor.multiplier == 3
-        assert anchor.modifier == 2
+        assert gap.get_anchor() is False
+        assert (view1.left).get_anchor().view is view1
+        assert (view1.left+1).get_anchor().view is view1
 
 
 class TestAnchorProperties:
@@ -180,180 +124,45 @@ class TestAnchorProperties:
     def test_anchors_basic(self, anchor_view):
         view1 = anchor_view()
         view2 = anchor_view()
-        assert view1._constraints == set()
 
-        view1.center_x = view2.left
+        view1.left = 100
+        view1.center_x = view2.left + 1
+        view1.top = at_least(view2.bottom)
+        assert view1._render_anchors()['ui4'] == 'left=100;center_x=id2.left+1;top>id2.bottom'
 
-        anchor = view1._constraints.pop()
-        assert type(anchor) == Anchor
-        assert anchor.target_view == view1
-        assert anchor.target_attribute == 'center_x'
-        assert anchor.comparison == '='
-        assert anchor.source_view == view2
-        assert anchor.source_attribute == 'left'
-        
     def test_anchors_combo(self, anchor_view):
         view1 = anchor_view()
         view2 = anchor_view()
 
-        view2.center = view1.center
+        view1.center = view2.center
+        assert view1._render_anchors()['ui4'] == 'center_x=id2.center_x;center_y=id2.center_y'
 
-        anchor_x = Anchor(target_view=view2, target_attribute='center_x', comparison='=',
-                          source_view=view1, source_attribute='center_x')
-        anchor_y = Anchor(target_view=view2, target_attribute='center_y', comparison='=',
-                          source_view=view1, source_attribute='center_y')
-        assert view2._constraints == {anchor_x, anchor_y}
-
-    def test_anchors_dock(self, anchor_view):
-        view1 = anchor_view()
-        view2 = anchor_view()
-        
-        view2.dock = view1.top_left
-        assert view2.parent == view1
-        
-        top_anchor = Anchor(target_view=view2, target_attribute='top', comparison='=',
-                            source_view=view1, source_attribute='top')
-        left_anchor = Anchor(target_view=view2, target_attribute='left', comparison='=',
-                             source_view=view1, source_attribute='left')
-        assert view2._constraints == {top_anchor, left_anchor}
-        
     def test_anchors_center(self, anchor_view):
         view1 = anchor_view()
         view2 = anchor_view()
         
         view2.dock = view1.center
         assert view2.parent == view1
-        
-    def test_anchors_gt(self, anchor_view):
-        view1 = anchor_view()
-        view2 = anchor_view()
-        view3 = anchor_view()
-        view4 = anchor_view()
 
-        anchor = Anchor(target_view=view2, target_attribute='left', comparison='>',
-                        source_view=view1, source_attribute='center_x')
-    
-        view2.left.gt(view1.center_x)
-
-        assert view2._constraints == {anchor}
-
-        view3.left = ge(view1.center_x)
-
-        anchor.target_view = view3
-        assert view3._constraints == {anchor}
-
-        view4.left > view1.center_x  # noqa: Optional syntactic sugar (or poison)
-
-        anchor.target_view = view4
-        assert view4._constraints == {anchor}
-
-    def test_anchors_lt(self, anchor_view):
-        view1 = anchor_view()
-        view2 = anchor_view()
-        view3 = anchor_view()
-        view4 = anchor_view()
-
-        anchor = Anchor(
-            target_view=view2, target_attribute='left', 
-            comparison='<',
-            source_view=view1, source_attribute='center_x')
-
-        view2.left.lt(view1.center_x)
-
-        assert view2._constraints == {anchor}
-
-        view3.left = le(view1.center_x)
-
-        anchor.target_view = view3
-        assert view3._constraints == {anchor}
-
-        view4.left < view1.center_x  # noqa: Optional syntactic sugar (or poison)
-
-        anchor.target_view = view4
-        assert view4._constraints == {anchor}
-
-    def test_anchors_autorelease(self, anchor_view):
+    def test_anchors_pruning(self, anchor_view):
         view = anchor_view()
         
         view.left = 100
         view.width = 200
-        
-        locked = {anchor.target_attribute for anchor in view._constraints}
-        assert locked == {'left', 'width'}
+        assert set(view._constraints.keys()) == {'left', 'width'}
         
         view.right = 300
-        
-        locked = {anchor.target_attribute for anchor in view._constraints}
-        assert locked == {'right', 'width'}
+        assert set(view._constraints.keys()) == {'right', 'width'}
         
         view.top = 400
         view.bottom = 500
-        
-        locked = {anchor.target_attribute for anchor in view._constraints}
-        assert locked == {'right', 'width', 'top', 'bottom'}
+        assert set(view._constraints.keys()) == {'right', 'width', 'top', 'bottom'}
         
         view.center_y = 600
-        locked = {anchor.target_attribute for anchor in view._constraints}
-        assert locked == {'right', 'width', 'top', 'center_y'}
+        assert set(view._constraints.keys()) == {'right', 'width', 'top', 'center_y'}
 
 
 class TestExtendedAnchors:
-        
-    def test_maximum(self, anchor_view):
-        view1 = anchor_view()
-        view2 = anchor_view()
-        view3 = anchor_view()
-        
-        view1.width = view2.height
-        
-        view1.width = maximum(view2.width, view3.width)
-        
-        assert len(view1._constraints) == 1
-        anchor = list(view1._constraints)[0]
-        assert type(anchor) == AnchorContainer
-        assert anchor.as_dict() == {
-            'a0': 'width',
-            'a1': '=',
-            'key': 'max',
-            'list': [
-                {'a2': 'id2', 'a3': 'width'},
-                {'a2': 'id3', 'a3': 'width'}
-            ]
-        }
-        
-        view1.height.maximum(view2.height, view3.height).lt(300)
-        assert len(view1._constraints) == 3
-        for anchor in view1._constraints:
-            if type(anchor) is Anchor:
-                assert anchor.comparison == '<'
-
-    def test_minimum(self, anchor_view):
-        view1 = anchor_view()
-        view2 = anchor_view()
-        view3 = anchor_view()
-        
-        view1.width = view2.height
-        
-        view1.width = minimum(view2.width, view3.width)
-        
-        assert len(view1._constraints) == 1
-        anchor = list(view1._constraints)[0]
-        assert type(anchor) == AnchorContainer
-        assert anchor.as_dict() == {
-            'a0': 'width',
-            'a1': '=',
-            'key': 'min',
-            'list': [
-                {'a2': 'id2', 'a3': 'width'},
-                {'a2': 'id3', 'a3': 'width'}
-            ]
-        }
-        
-        view1.height.minimum(view2.height, view3.height).ge(300)
-        assert len(view1._constraints) == 3
-        for anchor in view1._constraints:
-            if type(anchor) is Anchor:
-                assert anchor.comparison == '>'
                 
     def test_container_with_animation(self, anchor_view):
         view1 = anchor_view()
