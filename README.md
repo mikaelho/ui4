@@ -65,4 +65,10 @@ Development installation notes
 - Selenium/Safari
     - `safaridriver --enable` needs to be run once
     - In Safari, Develop > Allow Remote Automation
-    - Start `safaridriver -p 0` and stop it
+    - Start `safaridriver -p 0` and stop it to verify operation
+  
+To explore
+---------------------
+
+- mkdocs
+- mktestdocs

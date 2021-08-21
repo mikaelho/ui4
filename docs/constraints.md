@@ -16,5 +16,5 @@ Constraints
 | With minmax helper | `view.left = maximum(view2.left, view3.left)` | Same result as above, but more readable. |
 | Condition | `view.left = wide & view2.left` | <p>Constraint is applied only when the condition before `&` is true.</p> `wide` requires that view's superview is "landscape", the alternative is `high` for "portrait". |
 | Screen aspect | `view.left = wide_root & view2.left` | As above, but references the whole viewport dimensions. |
-| Detailed condition | `view.left = view2.width > 300 & view2.left` | Single comparisons only, please, no `a < b < c`. |
+| Detailed condition | `view.left = (view2.width > 300) & view2.left` | Single comparisons only, please, no `a < b < c`. |
 ||||

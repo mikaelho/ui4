@@ -33,7 +33,17 @@ def is_view_id():
                     return False
             return False
     yield IsViewID()
-    
+
+
+@fixture
+def constraints():
+    return lambda view: view._render_anchors()['ui4']
+
+
+@fixture(scope='class')
+def constraints_class(request):
+    request.cls.constraints = lambda cls, view: view._render_anchors()['ui4']
+
     
 @fixture
 def anchor_view():

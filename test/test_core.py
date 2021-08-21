@@ -2,11 +2,9 @@ import inspect
 
 import pytest
 
-from ui4 import high
+from ui4 import landscape
 from ui4 import minimum
-from ui4 import wide
 from ui4.animation import animation
-from ui4.core import ConstraintAnchor
 from ui4.core import ConstraintExpression
 from ui4.core import Core
 from ui4.core import Events
@@ -98,6 +96,11 @@ class TestConstraint:
         assert str(at_least(200)) == '>200'
         assert str(at_least(gap+1, 200)) == '>gap+1 >200'
 
+        assert str((gap > 4) & 1 + 2) == '3'
+        assert str(((gap > 4) & 1 + 2).condition) == 'gap>4'
+        assert str(landscape & gap + 1) == 'gap+1'
+        assert str((landscape & gap + 1).condition) == 'landscape'
+
     def test_serialize(self):
         gap = ConstraintExpression(initial_value='gap')
 
@@ -121,28 +124,14 @@ class TestConstraint:
 
 class TestAnchorProperties:
 
-    def test_anchors_basic(self, anchor_view):
+    def test_anchors_basic(self, anchor_view, constraints):
         view1 = anchor_view()
         view2 = anchor_view()
 
         view1.left = 100
         view1.center_x = view2.left + 1
         view1.top = at_least(view2.bottom)
-        assert view1._render_anchors()['ui4'] == 'left=100;center_x=id2.left+1;top>id2.bottom'
-
-    def test_anchors_combo(self, anchor_view):
-        view1 = anchor_view()
-        view2 = anchor_view()
-
-        view1.center = view2.center
-        assert view1._render_anchors()['ui4'] == 'center_x=id2.center_x;center_y=id2.center_y'
-
-    def test_anchors_center(self, anchor_view):
-        view1 = anchor_view()
-        view2 = anchor_view()
-        
-        view2.dock = view1.center
-        assert view2.parent == view1
+        assert constraints(view1) == 'left=100;centerX=id2.left+1;top>id2.bottom'
 
     def test_anchors_pruning(self, anchor_view):
         view = anchor_view()
@@ -162,47 +151,47 @@ class TestAnchorProperties:
         assert set(view._constraints.keys()) == {'right', 'width', 'top', 'center_y'}
 
 
-class TestExtendedAnchors:
-                
-    def test_container_with_animation(self, anchor_view):
-        view1 = anchor_view()
-        view2 = anchor_view()
-        
-        with animation():
-            view1.width = minimum(view2.width, view2.height)
-            
-        anchor = list(view1._constraints)[0]
-        assert anchor.as_dict() == {
-            'a0': 'width',
-            'a1': '=',
-            'key': 'min',
-            'list': [
-                {'a2': 'id2', 'a3': 'width'},
-                {'a2': 'id2', 'a3': 'height'}
-            ],
-            'a7': 0.3,
-        } 
-
-    def test_high_and_wide(self, anchor_view):
-        view1 = anchor_view()
-        view2 = anchor_view()
-        view3 = anchor_view()
-        
-        view1.width = (
-            high(view2.width),
-            wide(view3.height),
-        )
-        
-        assert len(view1._constraints) == 2
-        for anchor in view1._constraints:
-            assert anchor.target_attribute == 'width'
-            assert (
-                anchor.source_attribute == 'width' and anchor.require == 'high'
-            ) or (
-                anchor.source_attribute == 'height' and anchor.require == 'wide'
-            )
-            
-            assert anchor.as_dict()['a6'] in ('high', 'wide')
+# class TestExtendedAnchors:
+#
+#     def test_container_with_animation(self, anchor_view):
+#         view1 = anchor_view()
+#         view2 = anchor_view()
+#
+#         with animation():
+#             view1.width = minimum(view2.width, view2.height)
+#
+#         anchor = list(view1._constraints)[0]
+#         assert anchor.as_dict() == {
+#             'a0': 'width',
+#             'a1': '=',
+#             'key': 'min',
+#             'list': [
+#                 {'a2': 'id2', 'a3': 'width'},
+#                 {'a2': 'id2', 'a3': 'height'}
+#             ],
+#             'a7': 0.3,
+#         }
+#
+#     def test_high_and_wide(self, anchor_view):
+#         view1 = anchor_view()
+#         view2 = anchor_view()
+#         view3 = anchor_view()
+#
+#         view1.width = (
+#             high(view2.width),
+#             wide(view3.height),
+#         )
+#
+#         assert len(view1._constraints) == 2
+#         for anchor in view1._constraints:
+#             assert anchor.target_attribute == 'width'
+#             assert (
+#                 anchor.source_attribute == 'width' and anchor.require == 'high'
+#             ) or (
+#                 anchor.source_attribute == 'height' and anchor.require == 'wide'
+#             )
+#
+#             assert anchor.as_dict()['a6'] in ('high', 'wide')
             
     
 class TestEvents:

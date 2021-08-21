@@ -517,8 +517,8 @@ class Props(Events):
 # constraint operation constraint
 #
 # condition & constraint
-# constraint | constraint
-# condition & constraint | condition & constraint | constraint
+# constraint, constraint
+# constraint, condition & constraint
 
 class Constraint:
 
@@ -526,12 +526,13 @@ class Constraint:
         self.value = value
         self.initial_value = initial_value
         self.comparison = '='
+        self.condition = None
 
     def __str__(self):
         return str(self.value)
 
     def serialize(self, target):
-        return f'{target}{self.comparison}{str(self)}'
+        return f'{f"{self.condition}?" if self.condition else ""}{target}{self.comparison}{str(self)}'
 
     def walk(self, function):
         result = function(self)
@@ -584,11 +585,13 @@ class ConstraintExpression(Constraint):
     def __truediv__(self, other):
         return self._operator('/', other)
 
-    def __and__(self, other):
-        return ConstraintCondition(self, other)
-
     def __gt__(self, other):
-        return ConstraintCondition(self, comparison='>', rhs=other)
+        return ConstraintCondition(self._operator('>', other))
+    __gte__ = __gt__
+
+    def __lt__(self, other):
+        return ConstraintCondition(self._operator('<', other))
+    __lte__ = __lt__
 
     def walk(self, function):
         result = function(self)
@@ -616,7 +619,7 @@ class ConstraintExpression(Constraint):
 class ConstraintFunction(ConstraintExpression):
 
     def __init__(self, function_name: str):
-        self.value = self
+        super().__init__(value=self)
         self.function_name = function_name
         self.parameters = []
 
@@ -638,6 +641,7 @@ maximum = ConstraintFunction('max')
 class ConstraintComposite(Constraint):
 
     def __init__(self, comparison: str):
+        super().__init__()
         self.comparison = comparison
 
     def __call__(self, *parameters):
@@ -657,51 +661,60 @@ at_most = ConstraintComposite('<')
 
 class ConstraintAnchor(ConstraintExpression):
 
-    def __init__(self, view, attribute: str):
+    def __init__(self, view, attribute):
+        super().__init__()
         self.view = view
         self.attribute = attribute
-        self.comparison = '='
 
     @property
     def value(self):
-        return f'{self.view.id}.{self.attribute}'
+        js_attribute = Anchors.to_js.get(self.attribute, self.attribute)
+        return f'{self.view.id}.{js_attribute}'
 
-
-class ConstraintCondition(Constraint):
-    pass
-
-
-class ConstraintConditionFull(ConstraintCondition):
-    pass
-
-
-class ConstraintConditionFromComponents(ConstraintCondition):
-
-    def __init__(self, comparison: str, rhs: ConstraintExpression):
+    @value.setter
+    def value(self, ignored_value):
         pass
 
 
-def portrait(anchor):
-    anchor.require = 'portrait'
-    return anchor
-    
-    
-def landscape(anchor):
-    anchor.require = 'landscape'
-    return anchor
-    
-    
-def high(anchor):
-    anchor.require = 'high'
-    return anchor
-    
-    
-def wide(anchor):
-    anchor.require = 'wide'
-    return anchor
+class ConstraintCondition(Constraint):
+
+    def __init__(self, condition):
+        super().__init__(condition)
+
+    def __and__(self, other):
+        constraint = Constraint(other)
+        constraint.condition = self.value
+        return constraint
+
+
+class ConstraintConditionFixed(ConstraintCondition):
+    """
+    E.g.
+
+        portrait?constraint - constraint applies if superview is tall
+        landscape(root)?constraint - constraint applies if root view is wide
+    """
+
+    def __init__(self, keyword, view=None):
+        if view:
+            value = ConstraintExpression(initial_value=f'{keyword}({view.id})')
+        else:
+            value = ConstraintExpression(initial_value=keyword)
+        super().__init__(value)
+
+    def __call__(self, view):
+        return ConstraintConditionFixed(self.value.initial_value, view)
+
+portrait = ConstraintConditionFixed('portrait')
+landscape = ConstraintConditionFixed('landscape')
 
 
 class Anchors(Events):
+
+    to_js = {
+        'center_x': 'centerX',
+        'center_y': 'centerY',
+    }
 
     def __init__(self, gap=None, flow=False, **kwargs):
         self.flow = flow
@@ -720,9 +733,10 @@ class Anchors(Events):
     @Render._register
     def _render_anchors(self):
         constraints_str = ';'.join(
-            constraint.serialize(attribute)
-            for attribute, constraints in self._constraints.items()
-            for constraint in constraints.values()
+            constraint.serialize(self.to_js.get(attribute, attribute))
+            for attribute, constraints_by_comparison in self._constraints.items()
+            for constraints in constraints_by_comparison.values()
+            for constraint in constraints
         )
 
         #     if self._animation_id:
@@ -740,20 +754,19 @@ class Anchors(Events):
         self._mark_dirty()
         if isinstance(value, Number):
             value = ConstraintExpression(value)
-        # if isinstance(value, Sequence) and value and all(
-        #     (isinstance(item, AnchorBase) for item in value)
-        # ):
-        #     self._anchor_process_sequence(attribute, value)
-        if isinstance(value, Constraint):
-            self._constraints.setdefault(attribute, {})[value.comparison] = value
+        if isinstance(value, Sequence):
+            for item in value:
+                setattr(self, attribute, item)
+        elif isinstance(value, Constraint):
+            if value.condition:
+                self._constraints.setdefault(attribute, {}).setdefault(value.comparison, []).append(value)
+            else:
+                self._constraints.setdefault(attribute, {})[value.comparison] = [value]
+
             
             # Superview check for containers
             # if value.source_view == self.parent and self.parent != self._parent:
             #     value.source_view = self._parent
-
-            # Overwrite "similar" anchor, see Anchor.__hash__
-            # self._constraints.discard(value)
-            # self._constraints.add(value)
 
             # Release anchors where needed
             self._prune_anchors(attribute)
@@ -769,7 +782,7 @@ class Anchors(Events):
         """
         If caller has defined an impossible combination of constraints, select the most likely set.
 
-        Only equal '=' constraints are considered and pruned.
+        Only equal ('=') constraints are considered and pruned.
         """
         constrained_attributes = {
             attribute
@@ -786,9 +799,9 @@ class Anchors(Events):
                 per_dimension = constrained_attributes.intersection(set(checklist))
                 if len(per_dimension) <= 2:
                     return  # All good
-                per_dimension.discard(attribute)
+                per_dimension.discard(attribute)  # Latest attribute is kept
                 for other_attribute in checklist:
-                    if other_attribute in per_dimension:
+                    if other_attribute in per_dimension:  # And another in list priority order
                         per_dimension.discard(other_attribute)
                         break
                 for attribute_too_many in per_dimension:
@@ -869,7 +882,9 @@ class Anchors(Events):
             value = value[0]
             self._dock = value
             if isinstance(value, Sequence) and len(value) == 2:
+                self.parent = value[0].view
                 setattr(self, 'center', value)
+                return
             if not isinstance(value, Constraint):
                 raise TypeError(
                     f'Dock value must be something like view.left, not {value}'
