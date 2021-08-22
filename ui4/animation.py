@@ -28,15 +28,20 @@ class AnimationSpec:
             if not value is None
         })
         return AnimationSpec(**new_dict)
-        
-    @property
-    def defined_values(self):
-        return {
-            key: value
-            for key, value in asdict(self).items()
-            if not value is None
-        }
-        
+
+    def render(self):
+        return ','.join(
+            component
+            for component in (
+                f'{self.duration}s',
+                self.ease,
+                self.direction,
+                self.start_delay and f'{self.start_delay}s',
+                self.end_delay and f'{self.end_delay}s',
+                self.iterations and str(self.iterations),
+            )
+            if component is not None
+        )
         
 _ui4_animation_context_variable = '_ui4_animation_context_variable'
         

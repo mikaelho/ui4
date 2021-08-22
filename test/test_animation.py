@@ -1,34 +1,21 @@
 from ui4.animation import *
 from ui4.animation import _animation_context
 
+
+def test_render():
+    spec = AnimationSpec(1, "ease", 2, 3, "reverse", 4)
+
+    assert spec.render() == '1s,ease,reverse,2s,3s,4'
+
+
 def test_merge():
     spec = AnimationSpec(1, "ease", 2, 3, "reverse", 4)
     updated_spec = spec.merge({
         "ease": "ease-in-out",
         "iterations": 5,
     })
-    assert asdict(updated_spec) == {
-        "duration": 1,
-        "ease": "ease-in-out",
-        "start_delay": 2,
-        "end_delay": 3,
-        "direction": "reverse",
-        "iterations": 5,
-    }
 
-
-def test_defined_values():
-    spec = AnimationSpec(
-        ease="ease",
-        direction="reverse",
-        iterations=2,
-    )
-    assert spec.defined_values == {
-        "duration": 0.3,
-        "ease": "ease",
-        "direction": "reverse",
-        "iterations": 2,
-    }
+    assert updated_spec.render() == '1s,ease-in-out,reverse,2s,3s,5'
 
 
 def test_animation_contextmanager():
