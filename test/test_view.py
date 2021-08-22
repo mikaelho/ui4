@@ -49,6 +49,28 @@ class TestView:
         assert view2.parent == view1
         assert self.constraints(view2) == 'centerX=id1.centerX;centerY=id1.centerY'
 
+    def test_anchors_fit_both(self):
+        view1 = View()
+        view2 = View()
+
+        view1.fit = 'both'
+        assert self.constraints(view1) == 'width=id1.fitWidth+0;height=id1.fitHeight+0'
+
+        view2.fit = True
+        assert self.constraints(view2) == 'width=id2.fitWidth+0;height=id2.fitHeight+0'
+
+    def test_anchors_fit_width(self):
+        view1 = View()
+
+        view1.fit = 'width'
+        assert self.constraints(view1) == 'width=id1.fitWidth+0'
+
+    def test_anchors_fit_extra(self):
+        view1 = View()
+
+        view1.fit = 16
+        assert self.constraints(view1) == 'width=id1.fitWidth+16;height=id1.fitHeight+16'
+
     def test_anchors_conditions(self):
         view1 = View()
         view2 = View()

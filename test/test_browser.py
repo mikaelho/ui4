@@ -124,68 +124,68 @@ def test_base_constraints(get_page, js_value, js_dimensions, js_with_stack):
     # RESULTING VALUES
 
     # Check [x/left, y/top, width, height] values
-    assert js_dimensions('centered') == [200, 150, 200, 100]  # Center
-    assert js_dimensions('below') == [200, 250+8, 200, 150-2*8]  # Below
-    assert js_dimensions('above') == [200, 8, 200, 150-2*8]  # Above
-    assert js_dimensions('left') == [8, 150, 200-2*8, 100]  # On the left
-    assert js_dimensions('right') == [400+8, 150, 200-2*8, 100]  # On the right
+    assert js_dimensions('centered') == (200, 150, 200, 100)  # Center
+    assert js_dimensions('below') == (200, 250+8, 200, 150-2*8)  # Below
+    assert js_dimensions('above') == (200, 8, 200, 150-2*8)  # Above
+    assert js_dimensions('left') == (8, 150, 200-2*8, 100)  # On the left
+    assert js_dimensions('right') == (400+8, 150, 200-2*8, 100)  # On the right
 
     # WITH UPDATED GAP
     webdriver.execute_script("ui4.setGap(0);")
 
     # Check [x/left, y/top, width, height] values
-    assert js_dimensions('centered') == [200, 150, 200, 100]  # Center
-    assert js_dimensions('below') == [200, 250, 200, 150]  # Below
-    assert js_dimensions('above') == [200, 0, 200, 150]  # Above
-    assert js_dimensions('left') == [0, 150, 200, 100]  # On the left
-    assert js_dimensions('right') == [400, 150, 200, 100]  # On the right
+    assert js_dimensions('centered') == (200, 150, 200, 100)
+    assert js_dimensions('below') == (200, 250, 200, 150)
+    assert js_dimensions('above') == (200, 0, 200, 150)
+    assert js_dimensions('left') == (0, 150, 200, 100)
+    assert js_dimensions('right') == (400, 150, 200, 100)
 
 
 def test_comparison_constraints(get_page, js_dimensions):
     get_page("test-limits.html")
 
-    assert js_dimensions('third') == [316, 116, 200, 100]
+    assert js_dimensions('third') == (316, 116, 200, 100)
 
 
 def test_calculations(get_page, js_dimensions):
     get_page("test-calculations.html")
 
     # "Complex" calculations and gap
-    assert js_dimensions('first') == [4, 8, (600-2*8)/2, 400-50]
+    assert js_dimensions('first') == (4, 8, (600-2*8)/2, 400-50)
 
     # Multiple source attributes
-    assert js_dimensions('second') == [8, 400-50+8, 100, 400-350-2*8]
+    assert js_dimensions('second') == (8, 400-50+8, 100, 400-350-2*8)
 
     # Trailing constraint modifier
-    assert js_dimensions('third') == [600-20-50, 8, 50, 50]
+    assert js_dimensions('third') == (600-20-50, 8, 50, 50)
 
 
 def test_always_square(get_page, js_dimensions):
     get_page("test-squaring.html")
 
-    assert js_dimensions('inLandscapeWithLessThan') == [8, 8, 84, 84]
-    assert js_dimensions('inLandscapeWithMin') == [208, 8, 84, 84]
-    assert js_dimensions('inPortraitWithLessThan') == [8, 8, 84, 84]
-    assert js_dimensions('inPortraitWithMin') == [8, 208, 84, 84]
+    assert js_dimensions('inLandscapeWithLessThan') == (8, 8, 84, 84)
+    assert js_dimensions('inLandscapeWithMin') == (208, 8, 84, 84)
+    assert js_dimensions('inPortraitWithLessThan') == (8, 8, 84, 84)
+    assert js_dimensions('inPortraitWithMin') == (8, 208, 84, 84)
 
-    assert js_dimensions('maxed') == [8, 242, 150, 150]
+    assert js_dimensions('maxed') == (8, 242, 150, 150)
 
 
 def test_aspect_conditions(get_page, js_dimensions):
     get_page("test-conditions.html")
 
-    assert js_dimensions('landscapeMenu1') == [8, 8, 100, 84]
-    assert js_dimensions('landscapeMenu2') == [192, 8, 100, 84]
-    assert js_dimensions('portraitMenu1') == [8, 8, 84, 100]
-    assert js_dimensions('portraitMenu2') == [8, 192, 84, 100]
+    assert js_dimensions('landscapeMenu1') == (8, 8, 100, 84)
+    assert js_dimensions('landscapeMenu2') == (192, 8, 100, 84)
+    assert js_dimensions('portraitMenu1') == (8, 8, 84, 100)
+    assert js_dimensions('portraitMenu2') == (8, 192, 84, 100)
 
-    assert js_dimensions('comparisons') == [8, 192, 250, 200]
+    assert js_dimensions('comparisons') == (8, 192, 250, 200)
 
 
 def test_animated_dimension(get_page, js_dimensions):
     get_page("test-animation.html")
 
-    time.sleep(0.05);
+    time.sleep(0.05)
 
     # Animating
     height = js_dimensions('mirror')[3]
@@ -195,6 +195,12 @@ def test_animated_dimension(get_page, js_dimensions):
     time.sleep(0.07)
 
     # Finished
-    assert js_dimensions('changing') == [8, 8, 300, 150]
-    assert js_dimensions('mirror') == [8, 166, 300, 150]
+    assert js_dimensions('changing') == (8, 8, 300, 150)
+    assert js_dimensions('mirror') == (8, 166, 300, 150)
 
+
+def test_fit_to_contents(get_page, js_dimensions):
+    get_page("test-fit.html")
+
+    assert js_dimensions('container') == (142, 142, 316, 116)
+    assert js_dimensions('content') == (8, 8, 300, 100)

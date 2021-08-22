@@ -33,7 +33,7 @@ class View(Core):
     position = Core._anchorprops('left', 'top')
     size = Core._anchorprops('width', 'height')
     frame = Core._anchorprops('left', 'top', 'width', 'height')
-    
+
     # Dock to parent
     top_left = Core._anchordock('top_left')
     top_right = Core._anchordock('top_right')
@@ -52,6 +52,10 @@ class View(Core):
     below = Core._anchordock('below')
     left_of = Core._anchordock('left_of')
     right_of = Core._anchordock('right_of')
+
+    # Dock to content
+    fit_width = Core._anchordock('fit_width')
+    fit_height = Core._anchordock('fit_height')
     
     # Appearance properties
     align = Core._css_plain_prop('align', 'text-align')

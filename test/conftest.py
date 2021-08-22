@@ -62,7 +62,7 @@ def anchor_view():
     yield AnchorCore
 
 
-# Browser automation
+# BROWSER AUTOMATION
 
 def chrome_setup():
     # enable browser logging
@@ -157,8 +157,8 @@ def js_value(js_with_stack):
 
 @fixture
 def js_dimensions(js_with_stack):
-    def func(elem_id):
-        return js_with_stack(f"""
+    def func(elem_id: str) -> tuple:
+        return tuple(js_with_stack(f"""
             style = window.getComputedStyle(document.getElementById('{elem_id}'));
             return [
                 parseInt(style.left),
@@ -166,5 +166,5 @@ def js_dimensions(js_with_stack):
                 parseInt(style.width),
                 parseInt(style.height)
             ];
-        """)
+        """))
     return func

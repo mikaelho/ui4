@@ -714,6 +714,8 @@ class Anchors(Events):
     to_js = {
         'center_x': 'centerX',
         'center_y': 'centerY',
+        'fit_height': 'fitHeight',
+        'fit_width': 'fitWidth',
     }
 
     def __init__(self, gap=None, flow=False, **kwargs):
@@ -752,6 +754,10 @@ class Anchors(Events):
 
     def _anchor_setter(self, attribute, value, comparison=None):
         self._mark_dirty()
+        if value is None:
+            self._constraints.pop(attribute, None)
+            return
+
         if isinstance(value, Number):
             value = ConstraintExpression(value)
         if isinstance(value, Sequence):
@@ -854,25 +860,22 @@ class Anchors(Events):
         if value:
             value = value[0]
             self._fit = value
+
+            if value == True:
+                value = 'both'
+
+            extra_width = extra_height = 0
+
             if isinstance(value, Number):
                 extra_width = extra_height = value
-                value = True
-            else:
-                extra_width = extra_height = 0
-            if value not in ('width', 'height', True):
-                raise ValueError(f'Invalid value for fit: {value}')
-            if value in ('width', True):
-                setattr(self, 'width', Anchor(
-                    target_view=self, 
-                    target_attribute='fitWidth',
-                    modifier=extra_width,
-                ))
-            if value in ('height', True):
-                setattr(self, 'height', Anchor(
-                    target_view=self, 
-                    target_attribute='fitHeight',
-                    modifier=extra_height,
-                ))
+                value = 'both'
+
+            if value not in ('width', 'height', 'both'):
+                raise ValueError(f'Invalid value for fit: {self._fit}')
+            if value in ('width', 'both'):
+                self.width = self.fit_width + extra_width
+            if value in ('height', 'both'):
+                self.height = self.fit_height + extra_height
         else:
             return self._fit
 

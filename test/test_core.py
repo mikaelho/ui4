@@ -133,6 +133,9 @@ class TestAnchorProperties:
         view1.top = at_least(view2.bottom)
         assert constraints(view1) == 'left=100;centerX=id2.left+1;top>id2.bottom'
 
+        view1.left = None
+        assert constraints(view1) == 'centerX=id2.left+1;top>id2.bottom'
+
     def test_anchors_pruning(self, anchor_view):
         view = anchor_view()
         

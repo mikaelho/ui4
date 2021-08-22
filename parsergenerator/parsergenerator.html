@@ -99,6 +99,10 @@
                     {"targetAttribute":"right","comparison":"=", "value":{"id":"root","attribute":"right"}}
                 ]
             ],
+            ['width=container.fitWidth; height=container.fitHeight', true, [
+                {"targetAttribute":"width","comparison":"=","value":{"id":"container","attribute":"fitWidth"}},
+                {"targetAttribute":"height","comparison":"=","value":{"id":"container","attribute":"fitHeight"}}
+            ]],
 
             // MIN/MAX
             ['left=max(1, 2, 3)', true, [{"targetAttribute":"left","comparison":"=","value":3}]],
@@ -150,7 +154,7 @@
                 "condition":{"aspect":"portrait"},
                 "animation":{"duration":1000,"fill":"both","easing":"ease","direction":"reverse",
                     "delay":2000,"endDelay":3000,"iterations":4,"id":"aa"}}]
-            ]
+            ],
         ];
     </script>
 
@@ -224,7 +228,7 @@
         = attributeKeyword
 
     attributeKeyword 'attribute keyword'
-        = edgeKeyword / sizeKeyword / centerKeyword
+        = edgeKeyword / sizeKeyword / centerKeyword / fitKeyword
 
     edgeKeyword 'edge keyword'
         = 'left' / 'right' / 'top' / 'bottom'
@@ -234,6 +238,9 @@
 
     centerKeyword 'center keyword'
         = 'centerX' / 'centerY'
+
+    fitKeyword 'fit keyword'
+        = 'fitWidth' / 'fitHeight'
 
     equal 'equal'
         = '='
@@ -267,7 +274,7 @@
         = number
         / function
         / sourceValue
-        / gap
+        / 'gap'
         / "(" additive:additive ")" { return additive; }
 
     number 'number'
@@ -303,9 +310,6 @@
 
     sourceValue
         = id:elemId '.' attribute:attributeKeyword { return {id: id, attribute: attribute}; }
-
-    gap
-        = 'gap'i
 
     whitespace 'whitespace'
         = (' ' / '\t' / '\n')+
