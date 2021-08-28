@@ -30,8 +30,12 @@ class TestView:
         assert view1.parent == view2
         assert self.constraints(view1) == 'top=id2.top;left=id2.left'
 
-        view2.dock = view3.bottom_left + 16
-        assert self.constraints(view2) == 'bottom=id3.bottom-16;left=id3.left+16'
+        view4.dock = view1.top
+        view4.height = 100
+        assert self.constraints(view4) == 'top=id1.top;left=id1.left;right=id1.right;height=100'
+
+        view2.dock = view3.top + 16
+        assert self.constraints(view2) == 'top=id3.top+16;left=id3.left+16;right=id3.right-16'
 
         view4.parent = view1
         view3.dock = view4.below

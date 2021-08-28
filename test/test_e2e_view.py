@@ -1,3 +1,5 @@
+import time
+
 from ui4 import View
 
 
@@ -25,6 +27,10 @@ def test_view_basics(get_app, views, js_dimensions):
         assert js_dimensions(views.on_the_right.id) == (408, 150, 184, 100)
         assert js_dimensions(views.above.id) == (200, 8, 200, 134)
         assert js_dimensions(views.below.id) == (200, 258, 200, 134)
+
+
+def test_basics_with_custom_gap():
+    ...
 
 
 def test_docking(get_app, views, js_dimensions):
@@ -66,3 +72,53 @@ def test_docking(get_app, views, js_dimensions):
         assert js_dimensions(views.below.id) == (250, 233, 100, 50)
         assert js_dimensions(views.left_of.id) == (142, 175, 100, 50)
         assert js_dimensions(views.right_of.id) == (358, 175, 100, 50)
+
+
+def test_docking_full_size(get_app, views, js_dimensions):
+
+    def setup(root):
+        rootlike = View(parent=root, center=root.center, width=600, height=400)
+
+        views.all = View(dock=rootlike.all, background_color='#f0f7da')
+        views.top = View(dock=rootlike.top, height=50, background_color=(119, 171, 89, 100))
+        views.bottom = View(dock=rootlike.bottom, height=50, background_color=(119, 171, 89, 100))
+        views.left = View(dock=rootlike.left, width=50, background_color=(201,223,138,100))
+        views.right = View(dock=rootlike.right, width=50, background_color=(201,223,138,100))
+
+    with get_app(setup):
+        assert js_dimensions(views.all.id) == (8, 8, 600-16, 400-16)
+        assert js_dimensions(views.top.id) == (8, 8, 600-16, 50)
+        assert js_dimensions(views.bottom.id) == (8, 400-58, 600-16, 50)
+        assert js_dimensions(views.left.id) == (8, 8, 50, 400-16)
+        assert js_dimensions(views.right.id) == (600-58, 8, 50, 400-16)
+
+
+def test_docking_with_custom_gap(get_app, views, js_dimensions):
+
+    def setup(root):
+        rootlike = View(parent=root, center=root.center, width=600, height=400)
+
+        views.top = View(dock=rootlike.top + 0)
+        views.below = View(dock=views.top.below + 4)
+
+        views._apply(text=True, background_color='darkseagreen', height=100)
+
+    with get_app(setup):
+        assert js_dimensions(views.top.id) == (0, 0, 600, 100)
+        assert js_dimensions(views.below.id) == (0, 104, 600, 100)
+
+
+def test_container(get_app, views, js_dimensions):
+
+    def setup(root):
+        rootlike = View(parent=root, center=root.center, width=600, height=400, background_color='#f0f7da')
+
+        views.component = View(dock=rootlike.all, background_color='#c9df8a')
+        views.component.container = View(dock=views.component.all, background_color='#77ab59')
+
+        views.contained = View(parent=views.component, dock=views.component.all, background_color='#36802d')
+
+    with get_app(setup):
+        assert js_dimensions(views.component.id) == (8, 8, 600-16, 400-16)
+        assert js_dimensions(views.component.container.id) == (8, 8, 600-32, 400-32)
+        assert js_dimensions(views.contained.id) == (8, 8, 600-48, 400-48)

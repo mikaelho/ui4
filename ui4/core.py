@@ -541,7 +541,7 @@ class Constraint:
             value = getattr(self, key)
             if type(value) == types.MethodType:
                 continue
-            if isinstance(value, Constraint):
+            if isinstance(value, (Constraint, dict)):
                 value = copy.deepcopy(value)
             setattr(copied, key, value)
         return copied
@@ -617,7 +617,7 @@ class ConstraintExpression(Constraint):
         if result:
             return result
 
-        if self.value and isinstance(self.value, Constraint):
+        if self.value and isinstance(self.value, (Constraint, dict)):
             for component in ('lhs', 'rhs'):
                 if isinstance(self.value[component], Constraint):
                     result = self.value[component].walk(function)
@@ -918,8 +918,9 @@ class Anchors(Events):
             if dock_attributes:
                 self.parent = other
                 for attribute in dock_attributes:
-                    other_constraint.attribute = attribute
+                    # other_constraint.attribute = attribute
                     dock_constraint = copy.deepcopy(value)
+                    dock_constraint.get_anchor().attribute = attribute
                     need_to_invert_sign = (
                         ANCHOR_TYPE[attribute] == TRAILING and
                         isinstance(dock_constraint, ConstraintExpression)
@@ -933,8 +934,9 @@ class Anchors(Events):
                 if dock_attributes:
                     this, that, align, size = dock_attributes
                     self.parent = other.parent
-                    other_constraint.attribute = that
+                    #other_constraint.attribute = that
                     dock_constraint = copy.deepcopy(value)
+                    dock_constraint.get_anchor().attribute = that
                     if ANCHOR_TYPE[this] == TRAILING and isinstance(dock_constraint, ConstraintExpression):
                         dock_constraint.invert_operator()
                     setattr(self, this, dock_constraint)  # edge
