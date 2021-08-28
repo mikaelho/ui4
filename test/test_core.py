@@ -153,6 +153,20 @@ class TestAnchorProperties:
         view.center_y = 600
         assert set(view._constraints.keys()) == {'right', 'width', 'top', 'center_y'}
 
+    def test_anchors_in_container(self, anchor_view, constraints):
+        view1 = anchor_view()
+        view2 = anchor_view()
+        view3 = anchor_view()
+
+        view1.container = view2
+
+        view3.parent = view1
+
+        view3.left = view1.left
+        view3.right = view2.right
+
+        assert constraints(view3) == 'left=id2.left;right=id2.right'
+
 
 # class TestExtendedAnchors:
 #

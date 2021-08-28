@@ -1,10 +1,12 @@
 import pathlib
 import shutil
+from contextlib import contextmanager
 from string import Template
 
 from pytest import fixture
 from selenium import webdriver
 
+from ui4.app import serve
 from ui4.core import Anchors
 from ui4.core import Core
 
@@ -131,6 +133,46 @@ def get_page(driver, set_up_test_page):
         return driver
 
     return get_page_by_name
+
+
+@fixture
+def get_app(driver):
+    @contextmanager
+    def start_server_and_open_index_page(func):
+        app = None
+        try:
+            app = serve(func)
+            driver.get('http://127.0.0.1:8080/')
+
+            if app.runner.server.exception:
+                raise app.runner.server.exception
+
+            log_messages = driver.logs()
+            if log_messages:
+                print(log_messages)
+
+            yield driver
+
+        finally:
+            if app:
+                app.stop()
+
+    return start_server_and_open_index_page
+
+
+@fixture
+def views():
+    class Views:
+        def _apply(self, **kwargs):
+            for attribute in dir(self):
+                if not attribute.startswith('_'):
+                    view = getattr(self, attribute)
+                    for key, value in kwargs.items():
+                        if key == 'text':
+                            value = attribute
+                        setattr(view, key, value)
+
+    return Views()
 
 
 @fixture

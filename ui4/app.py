@@ -22,10 +22,29 @@ class ServerThread(threading.Thread):
         self.context.push()
 
     def run(self):
-        self.server.serve_forever()
+        self.exception = None
+        try:
+            self.server.serve_forever()
+        except BaseException as exception:
+            self.exception = exception
+
+    def join(self, timeout=None):
+        super().join(timeout)
+        if self.exception:
+            raise self.exception
 
     def shutdown(self):
         self.server.shutdown()
+
+
+def capture_exceptions_in_tests(func):
+    def wrapper(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except BaseException as exception:
+            self.server.exception = exception
+            raise
+    return wrapper
 
 
 class FlaskRunner:
@@ -35,6 +54,9 @@ class FlaskRunner:
         self.protocol = protocol
         self.host = host
         self.port = port
+
+        self.app = None
+        self._setup_func = None
         
         if quiet:
             import logging
@@ -48,35 +70,20 @@ class FlaskRunner:
         self.flask.secret_key = os.urandom(24)
         Identity.get_user_id = self.current_user_id
         
-        self.flask.add_url_rule(
-            '/',
-            'index',
-            self.index,
-        )
-        self.flask.add_url_rule(
-            '/ui4',
-            'send_js',
-            self.send_js,
-        )
-        self.flask.add_url_rule(
-            '/event',
-            'handle_event', 
-            self.handle_event, 
-            methods=['GET', 'POST'],
-        )
-        self.flask.add_url_rule(
-            '/loop',
-            'event_loop',
-            self.event_loop,
-            methods=['GET', 'POST'],
-        )
+        self.flask.add_url_rule('/', 'index', self.index)
+        self.flask.add_url_rule('/ui4.js', 'send_js', self.send_js)
+        self.flask.add_url_rule('/ui4parser.js', 'send_parser', self.send_parser)
+        self.flask.add_url_rule('/event', 'handle_event', self.handle_event, methods=['GET', 'POST'])
+        self.flask.add_url_rule('/loop', 'event_loop', self.event_loop, methods=['GET', 'POST'])
         
     def run_server(self):
+        self.server = None
         try:
             self.server = ServerThread(self.flask, self.host, self.port)
             self.server.start()
-        except Exception as error:
-            print(error)
+        except BaseException as error:
+            if self.server:
+                self.server.shutdown()
             raise
         
     def stop_server(self):
@@ -85,43 +92,46 @@ class FlaskRunner:
     @staticmethod
     def current_user_id():
         return flask.session['user_id']
-        
+
+    @capture_exceptions_in_tests
     def index(self):
         user_id = flask.session.setdefault('user_id', uuid.uuid4())
         root = Root()
         self._setup_func(root)
-        template = Template(Path('ui4/static/index_template.html').read_text())
+        template = Template((Path(__file__).parent / 'static' / 'index_template.html').read_text())
         index_html = template.safe_substitute(
             app_name=self.app.name,
             gap=self.app.gap,
             content=root._render()
         )
         View._clear_dirties()
-        print(index_html)
         return index_html
-    
+
     def send_js(self):
         return self.flask.send_static_file('ui4.js')
-    
+
+    def send_parser(self):
+        return self.flask.send_static_file('ui4parser.js')
+
+    @capture_exceptions_in_tests
     def handle_event(self):
         view_id = flask.request.headers.get('Hx-Trigger')
         event_header = urllib.parse.unquote(flask.request.headers.get('Triggering-Event'))
         event_name = json.loads(event_header)['type']
         view = View.get_view(view_id)
         value = flask.request.values.get(view_id, view)
-        update_html = view._process_event(event_name, value)
-        # print(update_html)
-        return update_html
-        
+
+        return view._process_event(event_name, value)
+
+    @capture_exceptions_in_tests
     def event_loop(self):
         view_id = flask.request.headers.get('Hx-Trigger')
         event_header = json.loads(urllib.parse.unquote(
             flask.request.headers.get('Triggering-Event')
         ))
         animation_id = event_header['detail']['animationID']
-        update_html = View._process_event_loop(animation_id)
-        # print(update_html)
-        return update_html
+
+        return View._process_event_loop(animation_id)
         
 
 class PythonistaRunner(FlaskRunner):
@@ -134,7 +144,6 @@ class PythonistaRunner(FlaskRunner):
         import wkwebview
 
         try:
-            self.run_server()
             webview = wkwebview.WKWebView()
             webview.load_url(
                 f'{self.protocol}://{self.host}:{self.port}/', 
@@ -151,8 +160,6 @@ class BrowserRunner(FlaskRunner):
     def run(self):
         import webbrowser
 
-        self.run_server()
-
         webbrowser.open(f'{self.protocol}://{self.host}:{self.port}')
            
            
@@ -165,7 +172,6 @@ class Root(View):
             raise ValueError('app has no content')
         else:
             page_content = super()._render(oob)
-            #print(page_content)
             return page_content
 
 
@@ -190,7 +196,6 @@ class App:
             self._detect_runner(protocol, host, port)
         )
         self.runner.app = self
-        #self.flask = self.runner.flask
 
     def _detect_runner(self, protocol, host, port):
         try:
@@ -200,13 +205,24 @@ class App:
 
         return BrowserRunner(protocol, host, port)
 
-
     def run(self, setup_func):
-        self.runner._setup_func = setup_func
+        self.serve(setup_func)
         self.runner.run()
+
+    def serve(self, setup_func):
+        self.runner._setup_func = setup_func
+        self.runner.run_server()
+
+    def stop(self):
+        self.runner.stop_server()
 
 
 def run(setup_func, gap=None, **kwargs):
     app = App(gap=gap, **kwargs)
     app.run(setup_func)
+    return app
 
+def serve(setup_func, gap=None, **kwargs):
+    app = App(gap=gap, **kwargs)
+    app.serve(setup_func)
+    return app

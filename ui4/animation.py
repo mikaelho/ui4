@@ -42,7 +42,8 @@ class AnimationSpec:
             )
             if component is not None
         )
-        
+
+
 _ui4_animation_context_variable = '_ui4_animation_context_variable'
         
         

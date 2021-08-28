@@ -3,7 +3,7 @@ Contains behind-the-scenes machinery that all views share.
 """
 import copy
 import json
-import operator
+import types
 import uuid
 from collections import defaultdict
 from collections.abc import Sequence
@@ -528,6 +528,24 @@ class Constraint:
         self.comparison = '='
         self.condition = None
 
+    def __deepcopy__(self, memo):
+        """
+        Constraint classes can be deep copied without deep copying views and such.
+
+        All Constraint subclasses must have an __init__ that can be called without arguments.
+        """
+        copied = type(self)()
+        for key in dir(self):
+            if key.startswith('_'):
+                continue
+            value = getattr(self, key)
+            if type(value) == types.MethodType:
+                continue
+            if isinstance(value, Constraint):
+                value = copy.deepcopy(value)
+            setattr(copied, key, value)
+        return copied
+
     def __str__(self):
         return str(self.value)
 
@@ -599,7 +617,7 @@ class ConstraintExpression(Constraint):
         if result:
             return result
 
-        if self.value:
+        if self.value and isinstance(self.value, Constraint):
             for component in ('lhs', 'rhs'):
                 if isinstance(self.value[component], Constraint):
                     result = self.value[component].walk(function)
@@ -618,7 +636,7 @@ class ConstraintExpression(Constraint):
 
 class ConstraintFunction(ConstraintExpression):
 
-    def __init__(self, function_name: str):
+    def __init__(self, function_name: str = None):
         super().__init__(value=self)
         self.function_name = function_name
         self.parameters = []
@@ -640,7 +658,7 @@ maximum = ConstraintFunction('max')
 
 class ConstraintComposite(Constraint):
 
-    def __init__(self, comparison: str):
+    def __init__(self, comparison: str = None):
         super().__init__()
         self.comparison = comparison
 
@@ -661,7 +679,7 @@ at_most = ConstraintComposite('<')
 
 class ConstraintAnchor(ConstraintExpression):
 
-    def __init__(self, view, attribute):
+    def __init__(self, view=None, attribute=None):
         super().__init__()
         self.view = view
         self.attribute = attribute
@@ -678,7 +696,7 @@ class ConstraintAnchor(ConstraintExpression):
 
 class ConstraintCondition(Constraint):
 
-    def __init__(self, condition):
+    def __init__(self, condition=None):
         super().__init__(condition)
 
     def __and__(self, other):
@@ -695,7 +713,7 @@ class ConstraintConditionFixed(ConstraintCondition):
         landscape(root)?constraint - constraint applies if root view is wide
     """
 
-    def __init__(self, keyword, view=None):
+    def __init__(self, keyword=None, view=None):
         if view:
             value = ConstraintExpression(initial_value=f'{keyword}({view.id})')
         else:
@@ -769,10 +787,10 @@ class Anchors(Events):
             else:
                 self._constraints.setdefault(attribute, {})[value.comparison] = [value]
 
-            
-            # Superview check for containers
-            # if value.source_view == self.parent and self.parent != self._parent:
-            #     value.source_view = self._parent
+            # Adjust superview for containers
+            source_anchor = value.get_anchor()
+            if source_anchor and source_anchor.view == self.parent and self.parent != self._parent:
+                source_anchor.view = self._parent
 
             # Release anchors where needed
             self._prune_anchors(attribute)
@@ -896,14 +914,20 @@ class Anchors(Events):
             other = other_constraint.view
             dock_type = other_constraint.attribute
             dock_attributes = PARENT_DOCK_SPECS.get(dock_type)
+
             if dock_attributes:
                 self.parent = other
                 for attribute in dock_attributes:
                     other_constraint.attribute = attribute
                     dock_constraint = copy.deepcopy(value)
-                    if ANCHOR_TYPE[attribute] == TRAILING and isinstance(dock_constraint, ConstraintExpression):
+                    need_to_invert_sign = (
+                        ANCHOR_TYPE[attribute] == TRAILING and
+                        isinstance(dock_constraint, ConstraintExpression)
+                    )
+                    if need_to_invert_sign:
                         dock_constraint.invert_operator()
                     setattr(self, attribute, dock_constraint)
+
             else:
                 dock_attributes = SIBLING_DOCK_SPECS.get(dock_type)
                 if dock_attributes:
