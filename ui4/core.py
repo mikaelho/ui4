@@ -37,7 +37,10 @@ class Identity:
         user_id = Identity.get_user_id()
         self.id = self._get_next_id()
         Identity._views[user_id][self.id] = self
-        
+
+        self.apply(kwargs)
+
+    def apply(self, kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
@@ -999,7 +1002,7 @@ class Core(Anchors, Props):
         self.text = text
         
     text = Props._prop('text')
-    
+
     @staticmethod
     def _clean_state():
         Identity._id_counter = defaultdict(int)
