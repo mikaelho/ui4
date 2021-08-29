@@ -750,7 +750,7 @@ class Anchors(Events):
     gap = Props._prop('gap')
         
     def release(self):
-        self._constraints = set()
+        self._constraints = {}
         self._mark_dirty()
         
     @Render._register
@@ -768,7 +768,7 @@ class Anchors(Events):
         # else:
         #     return {}
 
-        return constraints_str and {'ui4': constraints_str} or {}
+        return {'ui4': constraints_str}
 
     def _anchor_getter(self, attribute):
         return ConstraintAnchor(view=self, attribute=attribute)

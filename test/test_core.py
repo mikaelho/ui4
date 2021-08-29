@@ -136,6 +136,25 @@ class TestAnchorProperties:
         view1.left = None
         assert constraints(view1) == 'centerX=id2.left+1;top>id2.bottom'
 
+    def test_anchors_release(self, anchor_view, constraints):
+        view = anchor_view()
+
+        view.left = 100
+        assert constraints(view) == 'left=100'
+
+        view.left = 200
+        view.right = 100
+        assert constraints(view) == 'left=200;right=100'
+
+        view.left = None
+        assert constraints(view) == 'right=100'
+
+        view.release()
+        assert constraints(view) == ''
+
+        view.left = 200
+        assert constraints(view) == 'left=200'
+
     def test_anchors_pruning(self, anchor_view):
         view = anchor_view()
         
