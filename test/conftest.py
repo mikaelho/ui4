@@ -138,10 +138,10 @@ def get_page(driver, set_up_test_page):
 @fixture
 def get_app(driver):
     @contextmanager
-    def start_server_and_open_index_page(func):
+    def start_server_and_open_index_page(func, gap=None):
         app = None
         try:
-            app = serve(func)
+            app = serve(func, gap)
             driver.get('http://127.0.0.1:8080/')
 
             if app.runner.server.exception:

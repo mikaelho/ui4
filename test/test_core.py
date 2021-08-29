@@ -167,49 +167,6 @@ class TestAnchorProperties:
 
         assert constraints(view3) == 'left=id2.left;right=id2.right'
 
-
-# class TestExtendedAnchors:
-#
-#     def test_container_with_animation(self, anchor_view):
-#         view1 = anchor_view()
-#         view2 = anchor_view()
-#
-#         with animation():
-#             view1.width = minimum(view2.width, view2.height)
-#
-#         anchor = list(view1._constraints)[0]
-#         assert anchor.as_dict() == {
-#             'a0': 'width',
-#             'a1': '=',
-#             'key': 'min',
-#             'list': [
-#                 {'a2': 'id2', 'a3': 'width'},
-#                 {'a2': 'id2', 'a3': 'height'}
-#             ],
-#             'a7': 0.3,
-#         }
-#
-#     def test_high_and_wide(self, anchor_view):
-#         view1 = anchor_view()
-#         view2 = anchor_view()
-#         view3 = anchor_view()
-#
-#         view1.width = (
-#             high(view2.width),
-#             wide(view3.height),
-#         )
-#
-#         assert len(view1._constraints) == 2
-#         for anchor in view1._constraints:
-#             assert anchor.target_attribute == 'width'
-#             assert (
-#                 anchor.source_attribute == 'width' and anchor.require == 'high'
-#             ) or (
-#                 anchor.source_attribute == 'height' and anchor.require == 'wide'
-#             )
-#
-#             assert anchor.as_dict()['a6'] in ('high', 'wide')
-            
     
 class TestEvents:
     

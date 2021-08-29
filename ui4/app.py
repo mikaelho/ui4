@@ -176,6 +176,8 @@ class Root(View):
 
 
 class App:
+
+    DEFAULT_GAP = 8
     
     def __init__(
         self, 
@@ -190,7 +192,7 @@ class App:
         super().__init__(
             **kwargs)
         self.name = name
-        self.gap = gap is None and 8 or gap
+        self.gap = gap is None and self.DEFAULT_GAP or gap
         self.runner = (
             runner_class and runner_class(protocol, host, port) or 
             self._detect_runner(protocol, host, port)

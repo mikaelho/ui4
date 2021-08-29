@@ -634,6 +634,9 @@ class ConstraintExpression(Constraint):
         return self
 
 
+gap = ConstraintExpression(initial_value='gap')
+
+
 class ConstraintFunction(ConstraintExpression):
 
     def __init__(self, function_name: str = None):

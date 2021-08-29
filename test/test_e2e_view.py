@@ -1,6 +1,7 @@
 import time
 
 from ui4 import View
+from ui4 import gap
 
 
 def test_view_basics(get_app, views, js_dimensions):
@@ -29,8 +30,44 @@ def test_view_basics(get_app, views, js_dimensions):
         assert js_dimensions(views.below.id) == (200, 258, 200, 134)
 
 
-def test_basics_with_custom_gap():
-    ...
+def test_basics_with_custom_gap(views, get_app, js_dimensions):
+
+    def setup(root):
+        rootlike = View(parent=root, center=root.center, width=600, height=400)
+
+        views.middle = View(parent=rootlike, center=rootlike.center, width=200, height=100)
+        views.on_the_left = View(
+            parent=rootlike,
+            center_y=views.middle.center_y / 2,
+            left=rootlike.left + gap * 2,
+            right=views.middle.left - 2,
+            height=views.middle.height * 1.5 - 2,
+        )
+
+        views._apply(text=True, background_color='darkseagreen')
+
+    with get_app(setup):
+        assert js_dimensions(views.on_the_left.id) == (16, 26, 182, 148)
+
+
+def test_basics_with_global_gap(views, get_app, js_dimensions):
+
+    def setup(root):
+        rootlike = View(parent=root, center=root.center, width=600, height=400)
+
+        views.middle = View(parent=rootlike, center=rootlike.center, width=200, height=100)
+        views.on_the_left = View(
+            parent=rootlike,
+            center_y=views.middle.center_y,
+            right=views.middle.left,
+            left=rootlike.left,
+            height=views.middle.height - gap,
+        )
+
+        views._apply(text=True, background_color='darkseagreen')
+
+    with get_app(setup, gap=16):
+        assert js_dimensions(views.on_the_left.id) == (16, 158, 168, 84)
 
 
 def test_docking(get_app, views, js_dimensions):
@@ -82,8 +119,8 @@ def test_docking_full_size(get_app, views, js_dimensions):
         views.all = View(dock=rootlike.all, background_color='#f0f7da')
         views.top = View(dock=rootlike.top, height=50, background_color=(119, 171, 89, 100))
         views.bottom = View(dock=rootlike.bottom, height=50, background_color=(119, 171, 89, 100))
-        views.left = View(dock=rootlike.left, width=50, background_color=(201,223,138,100))
-        views.right = View(dock=rootlike.right, width=50, background_color=(201,223,138,100))
+        views.left = View(dock=rootlike.left, width=50, background_color=(201, 223, 138, 100))
+        views.right = View(dock=rootlike.right, width=50, background_color=(201, 223, 138, 100))
 
     with get_app(setup):
         assert js_dimensions(views.all.id) == (8, 8, 600-16, 400-16)
