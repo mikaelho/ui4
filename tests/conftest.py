@@ -106,7 +106,9 @@ def set_up_test_page(tmp_path):
         template = Template((statics / 'index_template.html').read_text())
 
         if content_filename:
-            contents = content_filename and (pathlib.Path(__file__).parent / 'test_data' / content_filename).read_text()
+            contents = content_filename and (
+                    pathlib.Path(__file__).parent / 'test_browser' / 'test_data' / content_filename
+            ).read_text()
         else:
             contents = ''
 
