@@ -27,6 +27,10 @@
                 const testCase = value[0];
                 const shouldMatch = value[1];
                 const expectedResult = shouldMatch && JSON.stringify(value[2]);
+                let expectedSourceIDs = [];
+                if (value.length === 4) {
+                    expectedSourceIDs = value[3];
+                }
 
                 const tbody = document.getElementById('tests').getElementsByTagName('tbody')[0];
                 const row = tbody.insertRow();
@@ -39,12 +43,18 @@
 
                 let didMatch = '🟢';
                 let matchResult = '';
+                let sourceIDsResult = '';
                 try {
                     const result = parser.parse(testCase.replace(/\s/g,''));
                     if (shouldMatch) {
-                        matchResult = JSON.stringify(result);
+                        matchResult = JSON.stringify(result[0]);
+
                         if (matchResult !== expectedResult) {
                             didMatch = '🔴';
+                        }
+                        sourceIDs = result[1];
+                        if (sourceIDs.size > 0) {
+                            sourceIDsResult = JSON.stringify(...sourceIDs);
                         }
                     }
                 } catch (error) {
@@ -59,6 +69,8 @@
                 const cellMatchResult = row.insertCell();
                 cellMatchResult.appendChild(document.createTextNode(matchResult));
 
+                const cellSourceIDsResult = row.insertCell();
+                cellSourceIDsResult.appendChild(document.createTextNode(sourceIDsResult))
             });
         }
 
@@ -76,11 +88,13 @@
 
             // FULL CONSTRAINTS
             ['left=root.left', true,
-                [{"targetAttribute":"left","comparison":"=", "value":{"id":"root","attribute":"left"}}]
+                [{"targetAttribute":"left","comparison":"=", "value":{"id":"root","attribute":"left"}}],
+                'root'
             ],
             ['left=root.left+20', true,
                 [{"targetAttribute":"left","comparison":"=",
-                    "value":{"operation":"+","lhs":{"id":"root","attribute":"left"},"rhs":20}}]
+                    "value":{"operation":"+","lhs":{"id":"root","attribute":"left"},"rhs":20}}],
+                'root'
             ],
             ['width=(root.width-2*gap)/2', true,
                 [{"targetAttribute":"width","comparison":"=","value":{
@@ -165,7 +179,8 @@
 <pre id="grammar">
 
     {
-        let result = [];
+        const result = [];
+        const sourceIDs = new Set();
 
         const operations = {
             '+': (a, b) => a + b,
@@ -187,7 +202,7 @@
     }
 
     constraints
-        = constraintSpec* (';' constraintSpec)* ';'? { return result; }
+        = constraintSpec* (';' constraintSpec)* ';'? { return [result, sourceIDs]; }
 
     constraintSpec
         = condition:(condition '?')? constraint:constraint animation:(':' animation)?
@@ -309,7 +324,10 @@
         / additive:additive { return [additive]; }
 
     sourceValue
-        = id:elemId '.' attribute:attributeKeyword { return {id: id, attribute: attribute}; }
+        = id:elemId '.' attribute:attributeKeyword {
+            sourceIDs.add(id);
+            return {id: id, attribute: attribute};
+        }
 
     whitespace 'whitespace'
         = (' ' / '\t' / '\n')+
@@ -357,7 +375,7 @@
 <table id="tests">
     <thead>
         <tr>
-            <th>Test case</th><th>Should match</th><th>Match result</th><th>Result</th>
+            <th>Test case</th><th>Should match</th><th>Match result</th><th>Result</th><th>Source</th>
         </tr>
     </thead>
     <tbody>
