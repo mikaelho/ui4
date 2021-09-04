@@ -30,12 +30,26 @@
 	      box-sizing: border-box;
 	      overflow: hidden;
 	      text-overflow: ellipsis;
+          overflow-wrap: break-word;
+          /* white-space: break-spaces; */
 	      /*pointer-events: none;*/
 	      margin: 0;
-	      padding: 8px;
-	      font-family: Verdana sans-serif;
-	      font-size: 14px;
-	      text-align: center;
+	      padding: 0;
+      }
+      .label {
+          position: absolute;
+	      box-sizing: border-box;
+	      margin: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+      }
+      .label-content {
+          display: inline-block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          overflow-wrap: break-word;
+          margin: 8px;
       }
       .flow-container {
 	      position: absolute;

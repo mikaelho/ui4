@@ -191,7 +191,7 @@ class Render(Hierarchy):
             viewclass=self._css_class,
             rendered_attributes=rendered_attributes,
             oob=htmx_oob,
-            content=rendered_children or self.text or "",
+            content=rendered_children or getattr(self, 'text', ''),
         )
 
     @classmethod
@@ -388,7 +388,7 @@ class Props(Events):
             return css_properties
         
         for key in dir(self.style):
-            if key in css_properties:
+            if key in css_properties or key.startswith('_'):
                 continue
             css_spec = Props._css_value_funcs.get(key)
             if css_spec:
@@ -471,7 +471,9 @@ class Props(Events):
         def css_value_func(value):
             css_value = value
             if type(css_value) in (int, float):
-                css_value = f"{css_value}px"
+                css_value = f'{css_value}px'
+            elif isinstance(css_value, (tuple, list)):
+                css_value = ','.join(css_value)
             return css_value
         return Props._css_func_prop(css_value_func, property_name, css_name)
         
@@ -510,6 +512,16 @@ class Props(Events):
                 value,
                 css_value_func,
             )()
+        )
+
+    @staticmethod
+    def _passthrough(inner_view, property_name):
+        """
+        For properties to be transparently passed through and from an enclosed view.
+        """
+        return property(
+            lambda self: getattr(getattr(self, inner_view), property_name),
+            lambda self, value: setattr(getattr(self, inner_view), property_name, value)
         )
 
 # Constraint grammar
@@ -997,16 +1009,10 @@ class Core(Anchors, Props):
     """
     This class is here simply to collect the different mechanical parts of the core view class for inheritance.
     """
-    def __init__(self, text=None, **kwargs):
-        super().__init__(**kwargs)
-        self.text = text
-        
-    text = Props._prop('text')
-
     @staticmethod
     def _clean_state():
         Identity._id_counter = defaultdict(int)
         Identity._views = defaultdict(dict)
         Events._dirties = dict()
         Events._animation_generators = dict()
-        Props._css_value_funcs = {}
+        # Props._css_value_funcs = {}

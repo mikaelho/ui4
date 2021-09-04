@@ -366,4 +366,3 @@ class TestStyleProperties:
         
         view.scrollable = False
         assert view._css_properties['overflow'] == None
-

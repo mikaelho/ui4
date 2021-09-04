@@ -1,21 +1,11 @@
 # Base view class
-
-from collections.abc import Sequence
-from contextlib import contextmanager
-from pathlib import Path
-from string import Template
-from types import GeneratorType
-
-import ui4.constants as constants
-
-from ui4.prop import css, cssprop_color, cssprop_onoff, cssprop_px_or_str
-from ui4.prop import prop, ui4prop, ui4props, ui4dock, Anchor
-
 from ui4.core import Core
 
 
 class View(Core):
-    
+
+    text = Core._prop('text')
+
     # Layout properties
     left = Core._anchorprop('left')
     x = left
@@ -73,5 +63,8 @@ class View(Core):
         'vertical': 'hidden auto',
     })
     shadow = Core._css_plain_prop('shadow', 'box-shadow')
-    text_color = Core._css_color_prop('text_color', 'color')
     z = Core._css_plain_prop('z', 'z-index')
+
+    # Text properties
+    font = Core._css_plain_prop('font', 'font-family')
+    text_color = Core._css_color_prop('text_color', 'color')

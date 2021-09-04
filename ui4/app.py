@@ -75,6 +75,7 @@ class FlaskRunner:
         self.flask.add_url_rule('/ui4parser.js', 'send_parser', self.send_parser)
         self.flask.add_url_rule('/event', 'handle_event', self.handle_event, methods=['GET', 'POST'])
         self.flask.add_url_rule('/loop', 'event_loop', self.event_loop, methods=['GET', 'POST'])
+        self.flask.add_url_rule('/close', 'close_window', self.close_window)
         
     def run_server(self):
         self.server = None
@@ -132,6 +133,11 @@ class FlaskRunner:
         animation_id = event_header['detail']['animationID']
 
         return View._process_event_loop(animation_id)
+
+    @capture_exceptions_in_tests
+    def close_window(self):
+        if self.app.run_mode == 'run':
+            self.stop_server()
         
 
 class PythonistaRunner(FlaskRunner):
@@ -198,6 +204,7 @@ class App:
             self._detect_runner(protocol, host, port)
         )
         self.runner.app = self
+        self.run_mode = 'serve'
 
     def _detect_runner(self, protocol, host, port):
         try:
@@ -209,6 +216,7 @@ class App:
 
     def run(self, setup_func):
         self.serve(setup_func)
+        self.run_mode = 'run'
         self.runner.run()
 
     def serve(self, setup_func):

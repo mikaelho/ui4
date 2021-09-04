@@ -28,3 +28,9 @@ def test_dock_keys():
     assert label._get_dock_key(['right', 'top']) == 'top_right'
     assert label._get_dock_key(['right', 'bottom']) == 'bottom_right'
     assert label._get_dock_key(['right', 'middle']) == 'right_center'
+
+
+def test_theme_style_fill():
+    label = Label()
+    assert label._text_view._render_props() == ''
+    assert label._render_props() == ''

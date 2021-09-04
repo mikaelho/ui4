@@ -344,9 +344,10 @@ class Style:
     
 class BaseStyle(Style):
     
-    text_alignment = 'center'
+    #text_alignment = 'center'
     font = theme.font
     font_size = theme('font_m')
+    text_color = contrast('tinted')
     
     
 class TextInputStyle(BaseStyle):
@@ -375,5 +376,4 @@ class VariantButtonStyle(ButtonStyle):
 
 class CardStyle(BaseStyle):
     background_color = theme('tinted')
-    text_color = contrast('tinted')
 

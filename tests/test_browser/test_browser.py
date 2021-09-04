@@ -141,6 +141,13 @@ def test_base_constraints(get_page, js_value, js_dimensions, js_with_stack):
     assert js_dimensions('right') == (400, 150, 200, 100)
 
 
+def test_width_and_height(get_page, js_dimensions):
+    get_page('test_width_and_height.html')
+
+    assert js_dimensions('wide') == (8, 100, 600, 200)
+    assert js_dimensions('high') == (200, 8, 200, 400)
+
+
 def test_comparison_constraints(get_page, js_dimensions):
     get_page("test-limits.html")
 

@@ -94,3 +94,9 @@ class TestView:
         view2.left = view1.right, portrait & view1.left
 
         assert self.constraints(view2) == 'left=id1.right;portrait?left=id1.left'
+
+    def test_properties__font(self):
+        view = View()
+        view.font = 'Roboto', 'Arial', 'Verdana'
+
+        assert view._render_props() == {'style': 'font-family:Roboto Arial Verdana'}

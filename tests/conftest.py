@@ -200,6 +200,13 @@ def js_value(js_with_stack):
 
 
 @fixture
+def js_style(js_value):
+    def func(elem_id, style_name):
+        return js_value(f'window.getComputedStyle(document.getElementById("{elem_id}")).{style_name}')
+    return func
+
+
+@fixture
 def js_dimensions(js_with_stack):
     def func(elem_id: str) -> tuple:
         return tuple(js_with_stack(f"""
