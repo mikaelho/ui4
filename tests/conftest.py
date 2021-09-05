@@ -1,5 +1,6 @@
 import pathlib
 import shutil
+from collections import namedtuple
 from contextlib import contextmanager
 from string import Template
 
@@ -208,8 +209,9 @@ def js_style(js_value):
 
 @fixture
 def js_dimensions(js_with_stack):
+    Dimensions = namedtuple('Dimensions', 'left top width height')
     def func(elem_id: str) -> tuple:
-        return tuple(js_with_stack(f"""
+        return Dimensions(*js_with_stack(f"""
             style = window.getComputedStyle(document.getElementById('{elem_id}'));
             return [
                 parseInt(style.left),

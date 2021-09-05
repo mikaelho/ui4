@@ -1,16 +1,63 @@
 import time
 
+from ui4 import Label
 from ui4 import View
+from ui4 import at_most
 from ui4.app import run
 
 
-def main(root):
-    top_view = View(dock=root.top + 0)
-    below_view = View(dock=top_view.below + 4)
+def setup(root):
+    rootlike = View(dock=root.center, width=600, height=400)
 
-    for view in (top_view, below_view):
-        view.background_color = 'darkseagreen'
-        view.height = 100
+    # Baseline fitted label
+    label1 = Label(text='Label with text', dock=rootlike.center, background_color='darkseagreen')
+
+    # Limiting one dimension flexes the other if needed
+    label1b = Label(text='Label with text', dock=rootlike.right_center, background_color='darkseagreen')
+    label1b.width = at_most(80)
+
+    # Docking requires releasing the fit
+    label2 = Label(text='Label with text', dock=rootlike.top, background_color='darkseagreen')
+
+    # Fixing one dimension flexes the other - width locked
+    label3 = Label(
+        text='A little more text to make things interesting',
+        background_color='darkseagreen',
+        dock=rootlike.bottom_center,
+        width=150,
+    )
+
+    # Fixing one dimension flexes the other - height locked
+    label4 = Label(
+        text='A little more text to fit',
+        background_color='darkseagreen',
+        dock=rootlike.left_center,
+        height=50,
+    )
+
+    # Fixing both dimensions truncates the text if needed
+    label_not_numbered__how_to_test_questionmark = Label(
+        text='Just too much text that gets neatly cut at the end, or does it? Well, of course not.',
+        background_color='darkseagreen',
+        dock=rootlike.bottom_right,
+        width=150,
+        height=50,
+    )
+
+    # Different text alignment
+    label5 = Label(
+        text='Top right corner',
+        alignment=('top', 'right'),
+        background_color='darkseagreen',
+        dock=rootlike.bottom_left,
+        width=150,
+        height=150,
+    )
+    print(label5._render_props())
+
+    # for view in (top_view, below_view):
+    #     view.background_color = 'darkseagreen'
+    #     view.height = 100
 
     # root.background_color = 'grey'
     #
@@ -56,5 +103,5 @@ def main(root):
     #         setattr(ball, vertical, getattr(play_area, vertical))
     #         ball.background_color = color
 
-run(main)
+run(setup)
 

@@ -43,13 +43,15 @@
           display: flex;
           align-items: center;
           justify-content: center;
+          overflow: hidden;
+          flex-direction: column;
       }
       .label-content {
           display: inline-block;
+          box-sizing: border-box;
           overflow: hidden;
           text-overflow: ellipsis;
           overflow-wrap: break-word;
-          margin: 8px;
       }
       .flow-container {
 	      position: absolute;
