@@ -120,9 +120,11 @@ class FlaskRunner:
         event_header = urllib.parse.unquote(flask.request.headers.get('Triggering-Event'))
         event_name = json.loads(event_header)['type']
         view = View.get_view(view_id)
-        value = flask.request.values.get(view_id, view)
+        value = flask.request.values.get(view_id)
+        if value:
+            view._properties['value'] = value  # No update to front
 
-        return view._process_event(event_name, value)
+        return view._process_event(event_name, view)
 
     @capture_exceptions_in_tests
     def event_loop(self):

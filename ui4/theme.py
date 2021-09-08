@@ -376,4 +376,3 @@ class VariantButtonStyle(ButtonStyle):
 
 class CardStyle(BaseStyle):
     background_color = theme('tinted')
-

@@ -6,6 +6,10 @@ from string import Template
 
 from pytest import fixture
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.expected_conditions import text_to_be_present_in_element
+from selenium.webdriver.support.wait import WebDriverWait
 
 from ui4.app import serve
 from ui4.core import Anchors
@@ -15,6 +19,7 @@ from ui4.core import Core
 @fixture
 def test_data_dir():
     return str(pathlib.Path(__file__).parent / 'test_data')
+
 
 @fixture(autouse=True)
 def clean_state():
@@ -92,7 +97,7 @@ def driver(request):
         driver.set_window_size(800, 600)
 
         def js_value(script):
-            return  driver.execute_script((f"return {script};"))
+            return driver.execute_script(f"return {script};")
         driver.js_value = js_value
 
         yield driver
@@ -123,6 +128,7 @@ def set_up_test_page(tmp_path):
         return str(index_file)
 
     return set_up
+
 
 @fixture
 def get_page(driver, set_up_test_page):
@@ -182,13 +188,12 @@ def views():
 def js_with_stack(driver):
     def func(script):
         return driver.execute_script(f"""
-                try {{
-                    {script}
-                }} catch (err) {{
-                    return err.stack;
-                }}
-            """
-        )
+            try {{
+                {script}
+            }} catch (err) {{
+                return err.stack;
+            }}
+        """)
 
     return func
 
@@ -196,7 +201,7 @@ def js_with_stack(driver):
 @fixture
 def js_value(js_with_stack):
     def func(script):
-        return js_with_stack((f"return {script};"))
+        return js_with_stack(f"return {script};")
     return func
 
 
@@ -208,8 +213,16 @@ def js_style(js_value):
 
 
 @fixture
+def js_text(js_value):
+    def func(elem_id):
+        return js_value(f'document.getElementById("{elem_id}").innerText')
+    return func
+
+
+@fixture
 def js_dimensions(js_with_stack):
     Dimensions = namedtuple('Dimensions', 'left top width height')
+
     def func(elem_id: str) -> tuple:
         return Dimensions(*js_with_stack(f"""
             style = window.getComputedStyle(document.getElementById('{elem_id}'));
@@ -220,4 +233,47 @@ def js_dimensions(js_with_stack):
                 parseInt(style.height)
             ];
         """))
+
+    return func
+
+
+@fixture
+def view_has_text(driver):
+    def func(view, text):
+        try:
+            element = WebDriverWait(driver, 1, 0.1).until(
+                text_to_be_present_in_element((By.ID, view.id), text)
+            )
+            return element
+        except TimeoutException:
+            return False
+    return func
+
+
+@fixture
+def expect(driver):
+    class func_to_be_true:
+        """ A Selenium expectation that the function will return a True value. """
+
+        def __init__(self, func):
+            self.func = func
+
+        def __call__(self, driver):
+            return self.func()
+
+    def func(expect_func, how_long_to_try=1, time_between_attempts=0.1):
+        try:
+            element = WebDriverWait(driver, 1, 0.1).until(
+                func_to_be_true(expect_func)
+            )
+            return element
+        except TimeoutException:
+            return False
+    return func
+
+
+@fixture
+def does_not_happen(expect):
+    def func(expect_func, how_long_to_try=1, time_between_attempts=0.1):
+        return expect(expect_func, how_long_to_try, time_between_attempts) == False
     return func

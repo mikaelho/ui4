@@ -12,3 +12,7 @@ class Button(View):
     )
     style = ButtonStyle
 
+    def __init__(self, padding=8, **kwargs):
+        super().__init__(self)
+        self.padding = padding
+        self.apply(kwargs)

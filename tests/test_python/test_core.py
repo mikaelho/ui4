@@ -10,6 +10,7 @@ from ui4.core import Core
 from ui4.core import Events
 from ui4.core import at_least
 from ui4.core import at_most
+from ui4.core import delay
 
 
 class TestIdentity:
@@ -205,6 +206,24 @@ class TestEvents:
         assert view._render_events() == {
             'hx-post': '/event',
             'hx-trigger': 'click'
+        }
+
+    def test_event_handler_option_decorator(self):
+        view = Core()
+
+        @view
+        @delay
+        def on_click(_):
+            pass
+
+        @view
+        @delay
+        def on_change(_):
+            pass
+
+        assert view._render_events() == {
+            'hx-post': '/event',
+            'hx-trigger': 'change delay:0.5s,click delay:0.5s'
         }
 
     def test_get_roots(self):

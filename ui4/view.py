@@ -50,7 +50,6 @@ class View(Core):
     # Appearance properties
     align = Core._css_plain_prop('align', 'text-align')
     background_color = Core._css_color_prop('background_color', 'background-color')
-    bold = Core._css_bool_prop('bold', 'font-weight', 'bold')
     border_color = Core._css_color_prop('border_color', 'border-color')
     border_style = Core._css_plain_prop('border_style', 'border-style')
     border_width = Core._css_plain_prop('border_width', 'border-width')
@@ -66,5 +65,7 @@ class View(Core):
     z = Core._css_plain_prop('z', 'z-index')
 
     # Text properties
+    bold = Core._css_bool_prop('bold', 'font-weight', 'bold')
     font = Core._css_plain_prop('font', 'font-family')
     text_color = Core._css_color_prop('text_color', 'color')
+    font_size = Core._css_plain_prop('font_size', 'font-size')

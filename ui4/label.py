@@ -14,7 +14,7 @@ class Label(View):
     }
     DEFAULT_ALIGNMENT = {'center', 'middle'}
 
-    def __init__(self, alignment=None, **kwargs):
+    def __init__(self, alignment=None, padding=8, **kwargs):
         super().__init__(self)
         self._text_view = View(
             parent=self,
@@ -24,7 +24,7 @@ class Label(View):
         self._css_class = 'label'
         self._alignment = self.DEFAULT_ALIGNMENT
         self.alignment = alignment or set(self.DEFAULT_ALIGNMENT)
-        self.padding = 8
+        self.padding = padding
         self.apply(kwargs)
 
     font = View._passthrough('_text_view', 'font')

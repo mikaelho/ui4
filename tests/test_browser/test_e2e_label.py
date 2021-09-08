@@ -6,7 +6,7 @@ from ui4 import View
 from ui4 import at_most
 
 
-def test_view_basics(get_app, views, js_dimensions, js_style, js_with_stack):
+def test_label_layout(get_app, views, js_dimensions, js_style, js_with_stack):
     def setup(root):
         rootlike = View(dock=root.center, width=600, height=400)
 

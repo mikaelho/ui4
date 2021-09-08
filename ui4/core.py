@@ -8,6 +8,7 @@ import uuid
 from collections import defaultdict
 from collections.abc import Sequence
 from functools import partial
+from functools import wraps
 from numbers import Number
 from string import Template
 from types import GeneratorType
@@ -15,6 +16,7 @@ from types import GeneratorType
 from ui4.animation import _animation_context
 from ui4.animation import _animation_short_keys
 from ui4.color import Color
+from ui4.utils import decorator_argument_wrapper
 
 
 def prop(func):
@@ -54,6 +56,9 @@ class Identity:
     
     @staticmethod    
     def get_view(view_id):
+        """
+        Get view object by id _for the current user_.
+        """
         user_id = Identity.get_user_id()
         views = Identity._views.get(user_id)
         return views.get(view_id)
@@ -191,7 +196,7 @@ class Render(Hierarchy):
             viewclass=self._css_class,
             rendered_attributes=rendered_attributes,
             oob=htmx_oob,
-            content=rendered_children or getattr(self, 'text', ''),
+            content=rendered_children or getattr(self, 'text', None) or '',
         )
 
     @classmethod
@@ -201,7 +206,7 @@ class Render(Hierarchy):
         """
         cls._renderers.append(f)
         return f
-    
+
 
 class Events(Render):
     """
@@ -229,21 +234,46 @@ class Events(Render):
     _event_methods = {
         'on_change': 'change',
         'on_click': 'click',
+        'on_input': 'input',
+        # 'on_input_delay': 'input',
     }
 
-    def __call__(self, f):
+    def __call__(self, func):
         """
         Enable using instances of this class as event-handler decorators.
         Works only when the method name matches one of the predefined event handler names.
         """
-        if f.__name__ in self._event_methods.keys():
-            setattr(self, f.__name__, f)
+        wrapped_func = func.__dict__.get('__wrapped__')
+        event_options = wrapped_func and wrapped_func.event_options
+        if event_options:
+            print('CALL', event_options)
+
+        if func.__name__ in self._event_methods.keys():
+            setattr(self, func.__name__, func)
         else:
             raise ValueError(
-                f"{f.__name__} is not an event handler name: "
+                f"{func.__name__} is not an event handler name: "
                 f"{self._event_methods.keys()}"
             )
-        return f
+        return func
+
+    @Render._register
+    def _render_events(self):
+        triggers = []
+        for method_name, event in self._event_methods.items():
+            method = getattr(self, method_name, None)
+            if method:
+                wrapped = method.__dict__.get('__wrapped__')
+                options = wrapped and wrapped.__dict__.get('event_options') or {}
+                trigger_components = [event] + [f'{key}:{value}' for key, value in options.items()]
+                triggers.append(' '.join(trigger_components))
+
+        trigger_str = ",".join(triggers)
+
+        return {
+            'hx-post': '/event',
+            'hx-trigger': trigger_str,
+        } if trigger_str else {}
 
     def _process_event(self, event_name, value=None):
         event_method = getattr(self, f'on_{event_name}', None)
@@ -319,21 +349,48 @@ class Events(Render):
             else:
                 roots.add(dirty)
         return roots
-        
-    @Render._register
-    def _render_events(self):
-        triggers = [
-            event
-            for method_name, event in self._event_methods.items()
-            if hasattr(self, method_name)
-        ]
 
-        trigger_str = ",".join(triggers)
 
-        return {
-            'hx-post': '/event',
-            'hx-trigger': trigger_str,
-        } if trigger_str else {}
+def set_event_options(func, **options):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    if not hasattr(func, 'event_options'):
+        func.event_options = {}
+    func.event_options.update(options)
+
+    return wrapper
+
+
+@decorator_argument_wrapper
+def delay(func, seconds: float = 0.5):
+    """
+    Delay event sending. If event occurs again, start the delay again.
+    """
+    seconds = f'{float(seconds)}s'
+    return set_event_options(func, delay=seconds)
+
+
+@decorator_argument_wrapper
+def trigger(func, every: float = 5):
+    """
+    Causes the event handler to be called repeatedly every x seconds. Default is 5 seconds.
+
+    Use the view's `stop_trigger` and `start_trigger` methods to change polling status dynamically.
+    """
+    seconds = f'{float(every)}s'
+    return set_event_options(func, every=seconds)
+
+
+# @decorator_argument_wrapper
+# def queue(func, keyword: str):
+#     """
+#     Manage handling of events that repeat before they have been handled.
+#
+#     Keywords: 'all', 'first', 'last' (default), 'none'
+#     """
+#     return set_event_options(func, queue=keyword)
 
 
 class Props(Events):
