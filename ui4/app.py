@@ -117,8 +117,12 @@ class FlaskRunner:
     @capture_exceptions_in_tests
     def handle_event(self):
         view_id = flask.request.headers.get('Hx-Trigger')
-        event_header = urllib.parse.unquote(flask.request.headers.get('Triggering-Event'))
-        event_name = json.loads(event_header)['type']
+        event_header_raw = flask.request.headers.get('Triggering-Event')
+        if event_header_raw:
+            event_header = urllib.parse.unquote(event_header_raw)
+            event_name = json.loads(event_header)['type']
+        else:
+            event_name = 'load'  # Load events do not include a "Triggering-Event" header
         view = View.get_view(view_id)
         value = flask.request.values.get(view_id)
         if value:

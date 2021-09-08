@@ -1,17 +1,22 @@
-from ui4 import TextField
-from ui4 import View
+from ui4 import Button
 from ui4.app import run
+from ui4.core import delay
 
 
 def setup(root):
-    rootlike = View(dock=root.center, width=600, height=400)
+    button = Button(text='Click me', dock=root.center, width=150)
+    button.counter = 0
 
-    textfield = TextField(placeholder='Enter text', dock=rootlike.center)
+    @button
+    @delay(0.1)
+    def on_load(view):
+        print('CALLED')
+        view.counter += 1
+        view.text = f'Clicked {view.counter} time(s)'
+        if view.counter == 2:
+            view.remove_event('load')
 
-    @textfield
-    @delay(0.7)
-    def on_change(value):
-        print('Bling')
+    assert button._render_events() == {'hx-post': '/event', 'hx-trigger': 'load delay:0.1s'}
 
 run(setup)
 

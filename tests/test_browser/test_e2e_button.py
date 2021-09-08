@@ -3,7 +3,7 @@ import pytest
 from ui4 import Button
 from ui4 import DefaultFont
 from ui4 import View
-from ui4.core import trigger
+from ui4.core import delay
 
 
 def test_button_layout_and_styles(get_app, views, js_dimensions, js_style):
@@ -50,19 +50,21 @@ def test_update_on_click(get_app, views, driver, view_has_text):
         assert view_has_text(views.button, f'{views.button.id} was clicked')
 
 
-# def test_polling(get_app, views, expect, does_not_happen):
-#     def setup(root):
-#         views.button = Button(text='Click me', dock=root.center, width=150)
-#         views.button.counter = 0
-#
-#         @views.button
-#         @trigger(every=0.1)
-#         def on_click(view):
-#             view.counter += 1
-#             views.button.text = f'Clicked {view.counter} time(s)'
-#             if view.counter == 2:
-#                 view.on_click.stop()
-#
-#     with get_app(setup):
-#         assert expect(lambda: views.button.counter == 2)
-#         assert does_not_happen(lambda: views.button.counter == 3, 0.2)
+def test_polling(get_app, views, expect, does_not_happen):
+    def setup(root):
+        views.button = Button(text='Click me', dock=root.center, width=150)
+        views.button.counter = 0
+
+        @views.button
+        @delay(0.1)
+        def on_load(view):
+            view.counter += 1
+            views.button.text = f'Clicked {view.counter} time(s)'
+            if view.counter == 2:
+                view.remove_event('load')
+
+        assert views.button._render_events() == {'hx-post': '/event', 'hx-trigger': 'load delay:0.1s'}
+
+    with get_app(setup):
+        assert expect(lambda: views.button.counter == 2)
+        assert does_not_happen(lambda: views.button.counter == 3, 0.2)

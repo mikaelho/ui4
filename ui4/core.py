@@ -235,6 +235,7 @@ class Events(Render):
         'on_change': 'change',
         'on_click': 'click',
         'on_input': 'input',
+        'on_load': 'load',
         # 'on_input_delay': 'input',
     }
 
@@ -243,11 +244,6 @@ class Events(Render):
         Enable using instances of this class as event-handler decorators.
         Works only when the method name matches one of the predefined event handler names.
         """
-        wrapped_func = func.__dict__.get('__wrapped__')
-        event_options = wrapped_func and wrapped_func.event_options
-        if event_options:
-            print('CALL', event_options)
-
         if func.__name__ in self._event_methods.keys():
             setattr(self, func.__name__, func)
         else:
@@ -350,6 +346,12 @@ class Events(Render):
                 roots.add(dirty)
         return roots
 
+    def remove_event(self, event_name):
+        if not event_name in self._event_methods.values():
+            ValueError('Unknown event, expecting one of {",".join(self._event_methods.values())}', event_name)
+        setattr(self, f'on_{event_name}', None)
+        self._mark_dirty()
+
 
 def set_event_options(func, **options):
     @wraps(func)
@@ -368,19 +370,7 @@ def delay(func, seconds: float = 0.5):
     """
     Delay event sending. If event occurs again, start the delay again.
     """
-    seconds = f'{float(seconds)}s'
-    return set_event_options(func, delay=seconds)
-
-
-@decorator_argument_wrapper
-def trigger(func, every: float = 5):
-    """
-    Causes the event handler to be called repeatedly every x seconds. Default is 5 seconds.
-
-    Use the view's `stop_trigger` and `start_trigger` methods to change polling status dynamically.
-    """
-    seconds = f'{float(every)}s'
-    return set_event_options(func, every=seconds)
+    return set_event_options(func, delay=f'{float(seconds)}s')
 
 
 # @decorator_argument_wrapper

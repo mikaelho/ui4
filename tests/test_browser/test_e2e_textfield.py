@@ -53,7 +53,7 @@ def test_input_events_with_delay(get_app, views, driver, expect):
         views.textfield.counter = 0
 
         @views.textfield
-        @delay
+        @delay(0.2)
         def on_input(view):
             view.counter += 1
 
