@@ -221,10 +221,11 @@ class TestEvents:
         def on_change(_):
             pass
 
-        assert view._render_events() == {
-            'hx-post': '/event',
-            'hx-trigger': 'change delay:0.5s,click delay:0.5s'
-        }
+        assert view._render_events()['hx-trigger'] == 'change delay:0.5s,click delay:0.5s'
+
+        view.remove_event('change')
+
+        assert view._render_events()['hx-trigger'] == 'click delay:0.5s'
 
     def test_get_roots(self):
         view1 = Core()

@@ -1,22 +1,14 @@
-from ui4 import Button
+from ui4 import TextField
+from ui4 import View
 from ui4.app import run
-from ui4.core import delay
 
 
 def setup(root):
-    button = Button(text='Click me', dock=root.center, width=150)
-    button.counter = 0
+    textfield = TextField(placeholder='Enter color', dock=root.center, width=150)
+    color_display = View(dock=textfield.below, height=textfield.height)
 
-    @button
-    @delay(0.1)
-    def on_load(view):
-        print('CALLED')
-        view.counter += 1
-        view.text = f'Clicked {view.counter} time(s)'
-        if view.counter == 2:
-            view.remove_event('load')
-
-    assert button._render_events() == {'hx-post': '/event', 'hx-trigger': 'load delay:0.1s'}
+    @textfield
+    def on_change(view):
+        color_display.background_color = textfield.value
 
 run(setup)
-

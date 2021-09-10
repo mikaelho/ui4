@@ -21,6 +21,7 @@ class Label(View):
             style=BaseStyle,
             _css_class='label-content',
         )
+        # self._text_view._mark_dirty = lambda: self._mark_dirty()
         self._css_class = 'label'
         self._alignment = self.DEFAULT_ALIGNMENT
         self.alignment = alignment or set(self.DEFAULT_ALIGNMENT)

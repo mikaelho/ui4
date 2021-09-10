@@ -4,6 +4,7 @@ import pytest
 from ui4 import Label
 from ui4 import View
 from ui4 import at_most
+from ui4.core import delay
 
 
 def test_label_layout(get_app, views, js_dimensions, js_style, js_with_stack):
@@ -101,3 +102,23 @@ def test_label_layout(get_app, views, js_dimensions, js_style, js_with_stack):
         # Check correct flex alignment
         assert js_style(views.aligned_top_right.id, 'alignItems') == 'flex-end'
         assert js_style(views.aligned_top_right.id, 'justifyContent') == 'flex-start'
+
+
+def test_polling(get_app, views, expect, does_not_happen):
+    def setup(root):
+        views.label = Label(text='Start', dock=root.center, width=150)
+        views.label.counter = 0
+
+        @views.label
+        @delay(0.1)
+        def on_load(view):
+            view.counter += 1
+            view.text = f'Visited {view.counter} time(s)'
+            if view.counter == 2:
+                view.remove_event('load')
+
+        assert views.label._render_events() == {'hx-post': '/event', 'hx-trigger': 'load delay:0.1s'}
+
+    with get_app(setup):
+        assert expect(lambda: views.label.counter == 2)
+        assert does_not_happen(lambda: views.label.counter == 3, 0.2)

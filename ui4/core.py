@@ -536,14 +536,14 @@ class Props(Events):
             return css_value_mapping.get(value)
         return Props._css_func_prop(css_value_func, property_name, css_name)
         
-    def _css_color_setter(self, property_name, css_name, value, css_value_func):
-        if not type(value) is Color:
+    def _css_color_setter(self, property_name: str, css_name: str, value: ..., css_value_func: callable):
+        if type(value) is not Color:
             value = Color(value)
         css_value = css_value_func(value)
         self._set_css_property(property_name, value, css_name, css_value)
 
     @staticmethod
-    def _css_color_prop(property_name, css_name):
+    def _css_color_prop(property_name: str, css_name: str) -> property:
         def css_value_func(value):
             return value.css
         Props._css_value_funcs[property_name] = css_name, css_value_func
@@ -562,13 +562,19 @@ class Props(Events):
         )
 
     @staticmethod
-    def _passthrough(inner_view, property_name):
+    def _passthrough(inner_view_attribute_name: str, property_name: str) -> property:
         """
         For properties to be transparently passed through and from an enclosed view.
+
+        Setting a passthrough property also marks the enclosing view as needing an update.
         """
+        def setter(self, value):
+            self._mark_dirty()
+            setattr(getattr(self, inner_view_attribute_name), property_name, value)
+
         return property(
-            lambda self: getattr(getattr(self, inner_view), property_name),
-            lambda self, value: setattr(getattr(self, inner_view), property_name, value)
+            lambda self: getattr(getattr(self, inner_view_attribute_name), property_name),
+            setter,
         )
 
 # Constraint grammar
