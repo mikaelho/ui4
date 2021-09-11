@@ -177,12 +177,14 @@ class UI4 {
         if (!targetId) { return; }
 
         // const ui4AnimationID = node.getAttribute("ui4anim");
-        const ui4AttrValue = node.getAttribute("ui4");
 
-        if (ui4AttrValue) {
+        // Check constraints
+        const ui4Attr = node.getAttribute('ui4');
+
+        if (ui4Attr) {
             let dependencies;
             try {
-                dependencies = this.parseAndOrder(ui4AttrValue);
+                dependencies = this.parseAndOrderDependencies(ui4Attr);
             } catch(error) {
                 console.error(error.toString());
                 return;
@@ -193,12 +195,45 @@ class UI4 {
                 this.allDependencies[targetId] = dependencies;
             }
         }
+
+        // Check animated styles
+        const ui4Style = node.getAttribute('ui4style');
+
+        if (ui4Style) {
+            let styles;
+            try {
+                styles = parse(ui4Style.replace(/\s/g,''), {startRule: 'styles'});
+            } catch(error) {
+                console.error(error.toString());
+                return;
+            }
+            if (styles) {
+                this.startCSSAnimations(node, styles);
+            }
+        }
+
     }
 
-    parseAndOrder(spec) {
+    parseAndOrderDependencies(spec) {
         const dependencies = parse(spec.replace(/\s/g,''));
         dependencies.sort((a, b) => UI4.ordering[a.comparison] - UI4.ordering[b.comparison]);
         return dependencies;
+    }
+
+    startCSSAnimations(elem, styles) {
+        const startingStyles = window.getComputedStyle(elem);
+
+        styles.forEach((targetStyle) => {
+            //const animationID = spec.animationID;
+            //targetStyle.options.fill = 'forwards';
+            const key = this.toCamelCase(targetStyle.key);
+            const fromFrame = {};
+            fromFrame[key] = startingStyles[targetStyle.key];
+            const toFrame = {};
+            toFrame[key] = targetStyle.value;
+
+            const animation = elem.animate([fromFrame, toFrame], targetStyle.options);
+        });
     }
 
     checkDependencies() {
@@ -429,6 +464,17 @@ class UI4 {
              this.setValue[targetAttr](data.context, data.sourceValue)
          ],
          animationOptions
+        );
+    }
+
+    // Utilities
+
+    toCamelCase(variableName) {
+        return variableName.replace(
+            /-([a-z])/g,
+            function(str, letter) {
+                return letter.toUpperCase();
+            }
         );
     }
 }

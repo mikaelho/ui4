@@ -20,16 +20,21 @@
             const grammarElem = document.getElementById("grammar");
             const parserElem = document.getElementById("parser")
             const grammar = grammarElem.innerText;
-            parserElem.innerText = peggy.generate(grammar, {format: "globals", output: "source"});
-            const parser = peggy.generate(grammar);
+            const startRules = ['constraints', 'styles']
+            parserElem.innerText = peggy.generate(grammar, {
+                format: "globals",
+                output: "source",
+                allowedStartRules: startRules
+            });
+            const parser = peggy.generate(grammar, {allowedStartRules: startRules});
 
             testCases.forEach(function (value) {
                 const testCase = value[0];
                 const shouldMatch = value[1];
                 const expectedResult = shouldMatch && JSON.stringify(value[2]);
-                let expectedSourceIDs = [];
+                const options = {};
                 if (value.length === 4) {
-                    expectedSourceIDs = value[3];
+                    options.startRule = value[3];
                 }
 
                 const tbody = document.getElementById('tests').getElementsByTagName('tbody')[0];
@@ -45,17 +50,21 @@
                 let matchResult = '';
                 let sourceIDsResult = '';
                 try {
-                    const result = parser.parse(testCase.replace(/\s/g,''));
+                    const result = parser.parse(testCase.replace(/\s/g,''), options);
                     if (shouldMatch) {
-                        matchResult = JSON.stringify(result[0]);
+                        matchResult = JSON.stringify(result);
 
                         if (matchResult !== expectedResult) {
                             didMatch = '🔴';
                         }
-                        sourceIDs = result[1];
-                        if (sourceIDs.size > 0) {
-                            sourceIDsResult = JSON.stringify(...sourceIDs);
+                        /**
+                        if (result.length > 1) {
+                            sourceIDs = result[1];
+                            if (sourceIDs.size > 0) {
+                                sourceIDsResult = JSON.stringify(...sourceIDs);
+                            }
                         }
+                        **/
                     }
                 } catch (error) {
                     if (shouldMatch) {
@@ -88,13 +97,11 @@
 
             // FULL CONSTRAINTS
             ['left=root.left', true,
-                [{"targetAttribute":"left","comparison":"=", "value":{"id":"root","attribute":"left"}}],
-                'root'
+                [{"targetAttribute":"left","comparison":"=", "value":{"id":"root","attribute":"left"}}]
             ],
             ['left=root.left+20', true,
                 [{"targetAttribute":"left","comparison":"=",
-                    "value":{"operation":"+","lhs":{"id":"root","attribute":"left"},"rhs":20}}],
-                'root'
+                    "value":{"operation":"+","lhs":{"id":"root","attribute":"left"},"rhs":20}}]
             ],
             ['width=(root.width-2*gap)/2', true,
                 [{"targetAttribute":"width","comparison":"=","value":{
@@ -169,6 +176,12 @@
                 "animation":{"duration":1000,"fill":"both","easing":"ease","direction":"reverse",
                     "delay":2000,"endDelay":3000,"iterations":4,"id":"aa"}}]
             ],
+
+            // ANIMATED STYLES (use a different starting rule)
+            ['background-color: red: 3s', true,
+             [{"key":"background-color","value":"red","options":{"duration":3000,"fill":"both"}}],
+                'styles'
+            ],
         ];
     </script>
 
@@ -202,7 +215,7 @@
     }
 
     constraints
-        = constraintSpec* (';' constraintSpec)* ';'? { return [result, sourceIDs]; }
+        = constraintSpec* (';' constraintSpec)* ';'? { return result; }
 
     constraintSpec
         = condition:(condition '?')? constraint:constraint animation:(':' animation)?
@@ -368,6 +381,17 @@
 
     direction
         = $ ('normal' / 'reverse' / 'alternate-reverse' / 'alternate')
+
+    // Animated styles
+
+    styles
+        = styleSpec* (';' styleSpec)* ';'? { return result; }
+
+    styleSpec
+        = key:$([^:]+) ':' value:$([^:]+) ':' animation:animation
+            {
+                result.push({key: key, value: value, options: animation});
+            }
 
 </pre>
 

@@ -174,8 +174,9 @@ class Render(Hierarchy):
             child._render(animation_id=animation_id) for child in self._children
         )
 
-
-        return self._render_result(subrendered_attributes, htmx_oob, rendered_children)
+        render_result = self._render_result(subrendered_attributes, htmx_oob, rendered_children)
+        print(render_result)
+        return render_result
         
     def _subrenderer_results(self):
         subrenderer_results = {}
@@ -407,7 +408,7 @@ class Props(Events):
         styles = ";".join(
             f"{name}:{value}"
             for name, value in css_properties.items()
-            if name not in self._css_transitions
+            # if name not in self._css_transitions
         )
 
         attributes = {}
@@ -416,15 +417,10 @@ class Props(Events):
             attributes['style'] = styles
 
         if self._css_transitions:
-            transitions_json = json.dumps(
-                list(self._css_transitions.values()),
-                check_circular=False,
-                separators=(',', ':')
-            )
+            attributes['ui4style'] = ';'.join(self._css_transitions.values())
             self._css_transitions = {}
-            if self._animation_id:
-                attributes['ui4anim'] = self._animation_id
-            attributes['ui4css'] = transitions_json
+            # if self._animation_id:
+            #     attributes['ui4anim'] = self._animation_id
 
         return attributes
             
@@ -482,15 +478,10 @@ class Props(Events):
         self._properties[property_name] = property_value
         if css_name:
             self._mark_dirty()
+            animation = _animation_context()
             self._css_properties[css_name] = css_value
-            spec = _animation_context()
-            if spec and spec.duration:
-                transition = {
-                    'key': css_name,
-                    'value': css_value,
-                    'animation': _animation_short_keys(spec),
-                }
-
+            if animation and animation.duration:
+                transition = f'{css_name}:{css_value}:{animation.render()}'
                 self._css_transitions[css_name] = transition
 
     def _css_setter(self, property_name, css_name, value, css_value_func):
