@@ -6,6 +6,12 @@ def prop(func):
 
 
 class Color(list):
+    """
+    Class for storing color values.
+
+    Accepts following inputs
+    """
+
     def __init__(self, *args, alpha=None):
         value = False
         if len(args) == 0:
@@ -131,9 +137,11 @@ class Color(list):
         else:
             return self.alpha == 0
 
-    def contrast_color(self,
-                       low_brightness_color='black',
-                       high_brightness_color='white'):
+    def contrast_color(
+        self,
+        low_brightness_color='black',
+        high_brightness_color='white'
+    ):
         r, g, b, a = self
         return Color(low_brightness_color) if (
             ((r * 255 * 299 + g * 255 * 587 + b * 255 * 114) / 1000) > 150

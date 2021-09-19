@@ -49,12 +49,12 @@ class View(Core):
     
     # Appearance properties
     align = Core._css_plain_prop('align', 'text-align')
+    alpha = Core._css_plain_prop('alpha', 'opacity')
     background_color = Core._css_color_prop('background_color', 'background-color')
     border_color = Core._css_color_prop('border_color', 'border-color')
     border_style = Core._css_plain_prop('border_style', 'border-style')
     border_width = Core._css_plain_prop('border_width', 'border-width')
     corner_radius = Core._css_plain_prop('corner_radius', 'border-radius')
-    alpha = Core._css_plain_prop('alpha', 'opacity')
     padding = Core._css_plain_prop('padding', 'padding')
     scrollable = Core._css_mapping_prop('scrollable', 'overflow', {
         True: 'auto',

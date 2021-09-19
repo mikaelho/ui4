@@ -20,39 +20,46 @@
   <style>
       * {
 	      user-select: none;
+          overflow: hidden;
+          margin: 0;
+          padding: 0;
+          outline: 0;
+          box-sizing: border-box;
+          text-overflow: ellipsis;
+          overflow-wrap: break-word;
 	  }
       body {
-	      overflow: hidden;
 	      -webkit-text-size-adjust: none;
 	  }
       .view {
 	      position: absolute;
-	      box-sizing: border-box;
-	      overflow: hidden;
-	      text-overflow: ellipsis;
-          overflow-wrap: break-word;
-          /* white-space: break-spaces; */
-	      /*pointer-events: none;*/
-	      margin: 0;
-	      padding: 0;
+      }
+      .view-float {
+          position: static;
+      }
+      .rootApp {
+	      position: absolute;
+	      top: 0;
+	      left: 0;
+	      width: 100%;
+	      height: 100%;
       }
       .label {
           position: absolute;
-	      box-sizing: border-box;
-	      margin: 0;
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
-          overflow: hidden;
-          flex-direction: column;
       }
       .label-content {
           display: inline-block;
-          box-sizing: border-box;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          overflow-wrap: break-word;
       }
+      .table {
+          position: absolute;
+          border-collapse: collapse;
+      }
+
+      /* OBSOLETE */
       .flow-container {
 	      position: absolute;
 	      display: flex;
@@ -99,21 +106,6 @@
 	      text-overflow: ellipsis;
 	      /*pointer-events: none;*/
 	      padding: 8px;
-	      font-family: Verdana sans-serif;
-	      font-size: 14px;
-	      text-align: center;
-      }
-      .rootApp {
-	      position: absolute;
-	      top: 0;
-	      left: 0;
-	      width: 100%;
-	      height: 100%;
-	      box-sizing: border-box;
-	      margin: 0;
-	      overflow: hidden;
-	      text-overflow: ellipsis;
-	      /*pointer-events: none;*/
 	      font-family: Verdana sans-serif;
 	      font-size: 14px;
 	      text-align: center;

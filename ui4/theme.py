@@ -314,6 +314,7 @@ class DefaultLook:
     button_border_width = 1
     button_border_style = 'none'
     inner_shadow = 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);'
+    field_border_width = 1
 
 
 class DefaultTheme(DefaultColor, DefaultFont, DefaultLook):
@@ -325,7 +326,8 @@ def theme(property_name):
 
 theme.background = theme('background')
 theme.font = theme('font')
-    
+
+
 def contrast(property_name):
     return lambda cls: getattr(
         cls.current_theme, property_name
@@ -354,9 +356,10 @@ class TextInputStyle(BaseStyle):
     
     text_alignment = 'left'
     background_color = theme.background
-    shadow = theme('inner_shadow')
     border_color = theme('primary')
-    
+    border_width = theme('field_border_width')
+    border_style = 'solid'
+
     
 class ButtonStyle(BaseStyle):
     
@@ -376,3 +379,9 @@ class VariantButtonStyle(ButtonStyle):
 
 class CardStyle(BaseStyle):
     background_color = theme('tinted')
+
+
+class TableStyle(BaseStyle):
+    border_color = theme('primary')
+    border_width = theme('field_border_width')
+    border_style = 'solid'

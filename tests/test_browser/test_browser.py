@@ -4,7 +4,7 @@ import time
 def test_constraint_parsing_and_ordering(get_page, js_value):
     get_page()
 
-    assert js_value("ui4.parseAndOrder('left=root.left; left<another.left; left>other.left')") == [
+    assert js_value("ui4.parseAndOrderDependencies('left=root.left; left<another.left; left>other.left')") == [
         {'comparison': '=', 'targetAttribute': 'left', 'value': {'attribute': 'left', 'id': 'root'}},
         {'comparison': '<', 'targetAttribute': 'left', 'value': {'attribute': 'left', 'id': 'another'}},
         {'comparison': '>', 'targetAttribute': 'left', 'value': {'attribute': 'left', 'id': 'other'}},
@@ -17,7 +17,7 @@ def test_constraint_parsing_and_ordering(get_page, js_value):
         "ui4.parseAndOrder('left>other.left; left=root.left; left<another.left')"
     )
 
-    assert js_value("ui4.parseAndOrder('left=root.left; bottom=root.bottom; width=100; height=100; "
+    assert js_value("ui4.parseAndOrderDependencies('left=root.left; bottom=root.bottom; width=100; height=100; "
                     "root.width>root.height?width=200; root.height<root.width?height=250')") == [
         {'comparison': '=', 'targetAttribute': 'left', 'value': {'attribute': 'left', 'id': 'root'}},
         {'comparison': '=', 'targetAttribute': 'bottom', 'value': {'attribute': 'bottom', 'id': 'root'}},

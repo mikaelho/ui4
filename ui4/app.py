@@ -97,7 +97,7 @@ class FlaskRunner:
     @capture_exceptions_in_tests
     def index(self):
         user_id = flask.session.setdefault('user_id', uuid.uuid4())
-        root = Root()
+        root = View(_css_class='rootApp')
         self._setup_func(root)
         template = Template((Path(__file__).parent / 'static' / 'index_template.html').read_text())
         index_html = template.safe_substitute(
@@ -173,18 +173,6 @@ class BrowserRunner(FlaskRunner):
         import webbrowser
 
         webbrowser.open(f'{self.protocol}://{self.host}:{self.port}')
-           
-           
-class Root(View):
-    
-    _css_class = 'rootApp'
-    
-    def _render(self, oob=''):
-        if not self.children and not self.text:
-            raise ValueError('app has no content')
-        else:
-            page_content = super()._render(oob)
-            return page_content
 
 
 class App:

@@ -11,4 +11,3 @@ ALTERNATE = 'alternate'
 
 # animation iterations
 FOREVER = 'forever'
-
