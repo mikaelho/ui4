@@ -29,8 +29,11 @@ class TestStyles:
         assert style.text_color(style) == Color('white')
 
     def test_style_fill(self):
-        Core.text_color = Core._css_color_prop('text_color', 'color')
-        Core.background_color = Core._css_color_prop('background_color', 'background-color')
+        class TestCore(Core):
+            pass
+
+        TestCore.text_color = Core._css_color_prop('text_color', 'color')
+        TestCore.background_color = Core._css_color_prop('background_color', 'background-color')
         
         class SomeStyle(Style):
             background_color = theme.background
@@ -40,15 +43,15 @@ class TestStyles:
             
         Style.current_theme = OtherTheme
             
-        Core.style = SomeStyle
+        TestCore.style = SomeStyle
             
-        view = Core()
+        view = TestCore()
         view.text_color = 'black'
         
         assert 'color' in view._css_properties
         assert len(view._css_properties) == 1
         
-        css_properties = view._fill_from_theme()
+        css_properties = view._set_position_and_fill_from_theme()
         
         assert 'background-color' in css_properties
         assert len(css_properties) == 2

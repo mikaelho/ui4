@@ -403,7 +403,7 @@ class Props(Events):
         
     @Render._register
     def _render_props(self):
-        css_properties = self._fill_from_theme()
+        css_properties = self._set_position_and_fill_from_theme()
 
         styles = ";".join(
             f"{name}:{value}"
@@ -424,9 +424,9 @@ class Props(Events):
 
         return attributes
             
-    def _fill_from_theme(self):
+    def _set_position_and_fill_from_theme(self):
         css_properties = dict(self._css_properties)
-        
+
         if not self.style:
             return css_properties
         

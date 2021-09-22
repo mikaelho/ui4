@@ -99,4 +99,6 @@ class TestView:
         view = View()
         view.font = 'Roboto', 'Arial', 'Verdana'
 
-        assert view._render_props() == {'style': 'font-family:Roboto Arial Verdana'}
+        assert view._render_props() == {
+            'style': 'font-family:Roboto,Arial,Verdana',
+        }

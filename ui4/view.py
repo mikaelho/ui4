@@ -55,6 +55,7 @@ class View(Core):
     border_style = Core._css_plain_prop('border_style', 'border-style')
     border_width = Core._css_plain_prop('border_width', 'border-width')
     corner_radius = Core._css_plain_prop('corner_radius', 'border-radius')
+    margin = Core._css_plain_prop('margin', 'margin')
     padding = Core._css_plain_prop('padding', 'padding')
     scrollable = Core._css_mapping_prop('scrollable', 'overflow', {
         True: 'auto',
