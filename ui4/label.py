@@ -1,6 +1,3 @@
-from ui4 import at_most
-from ui4 import gap
-from ui4.core import Constraint
 from ui4.prop import prop
 from ui4.theme import BaseStyle
 from ui4.view import View
@@ -15,7 +12,7 @@ class Label(View):
     DEFAULT_ALIGNMENT = {'center', 'middle'}
 
     def __init__(self, alignment=None, padding=8, **kwargs):
-        super().__init__(self)
+        super().__init__()
         self._text_view = View(
             parent=self,
             style=BaseStyle,

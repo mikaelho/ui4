@@ -1,5 +1,6 @@
 from ui4.animation import animation, duration, ease
 from ui4.app import run
+from ui4.app import serve
 from ui4.button import Button
 from ui4.card import Card
 from ui4.constants import *
@@ -9,6 +10,8 @@ from ui4.flow import FlowView
 from ui4.flow import GridContainer
 from ui4.flow import GridView
 from ui4.label import Label
+from ui4.switch import Switch
+from ui4.table import Table
 from ui4.textfield import TextField
 from ui4.theme import *
 from ui4.view import View

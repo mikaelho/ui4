@@ -5,10 +5,7 @@ from ui4 import View
 
 
 class Slider(View):
-    _template = Template(
-        '<input type="range" id="$id" class="$viewclass" '
-        '$rendered_attributes $oob hx-swap="none" step="any"></input>'
-    )
+    _tag = 'input'
     style = ButtonStyle
 
     def __init__(self, min_value=0, max_value=1, **kwargs):
@@ -22,10 +19,12 @@ class Slider(View):
     max_value = View._prop('max_value')
 
     def _additional_attributes(self):
-        add = super()._additional_attributes()
-        add.update({
+        attributes = super()._additional_attributes()
+        attributes.update({
+            'type': 'range',
+            'step': 'any',
             'min': self.min_value,
             'max': self.max_value,
             'value': self.value or '',
         })
-        return add
+        return attributes

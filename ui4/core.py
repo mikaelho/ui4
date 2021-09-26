@@ -144,11 +144,8 @@ class Hierarchy(Identity):
 class Render(Hierarchy):
     
     _renderers = []
-    _template = Template(
-        '<$tag id="$id" class="$viewclass" $rendered_attributes '
-        '$oob hx-swap="none">$content</$tag>'
-    )
-    _css_class = 'view'
+    _template = Template('<$tag id="$id" $rendered_attributes $oob hx-swap="none">$content</$tag>')
+    _css_class = None
     _tag = 'div'
     
     def _render(self, htmx_oob=False, animation_id=None):
@@ -162,9 +159,14 @@ class Render(Hierarchy):
         """
         self._animation_id = animation_id
 
+        attributes = self._subrenderer_results()
+
+        if self._css_class:
+            attributes['class'] = self._css_class
+
         subrendered_attributes = ' '.join(
             f"{key}='{value}'" for key, value
-            in self._subrenderer_results().items()
+            in attributes.items()
         )
 
         htmx_oob = htmx_oob and 'hx-swap-oob="true"' or ''
@@ -184,7 +186,7 @@ class Render(Hierarchy):
             subrenderer_results.update(renderer(self))
                 
         subrenderer_results.update(self._additional_attributes())
-        
+
         return subrenderer_results
         
     def _additional_attributes(self):
@@ -192,9 +194,9 @@ class Render(Hierarchy):
         
     def _render_result(self, rendered_attributes, htmx_oob, rendered_children):
         return self._template.safe_substitute(
-            tag='div',
+            tag=self._tag,
             id=self.id,
-            viewclass=self._css_class,
+            #viewclass=self._css_class,
             rendered_attributes=rendered_attributes,
             oob=htmx_oob,
             content=rendered_children or getattr(self, 'text', None) or '',
@@ -280,7 +282,7 @@ class Events(Render):
             if isinstance(animation_generator, GeneratorType):
                 animation_id = Events._get_animation_loop(animation_generator)
             updates = Events._render_updates(animation_id)
-            # print(updates)
+
             return updates
         return ""
 
@@ -384,200 +386,42 @@ def delay(func, seconds: float = 0.5):
 #     return set_event_options(func, queue=keyword)
 
 
-class Props(Events):
+class BasicProperties(Events):
     """
     Logic for handling view properties.
-    
+
     Property setters can mark the view as dirty, which means that the view
     (along with children) will be rendered when next update is sent to browser.
     """
-    
-    style = None
-    _css_value_funcs = {}
-    
     def __init__(self, **kwargs):
         self._properties = {}
-        self._css_properties = {}
-        self._css_transitions = {}
         super().__init__(**kwargs)
-        
-    @Render._register
-    def _render_props(self):
-        css_properties = self._set_position_and_fill_from_theme()
 
-        styles = ";".join(
-            f"{name}:{value}"
-            for name, value in css_properties.items()
-            # if name not in self._css_transitions
-        )
-
-        attributes = {}
-
-        if styles:
-            attributes['style'] = styles
-
-        if self._css_transitions:
-            attributes['ui4style'] = ';'.join(self._css_transitions.values())
-            self._css_transitions = {}
-            # if self._animation_id:
-            #     attributes['ui4anim'] = self._animation_id
-
-        return attributes
-            
-    def _set_position_and_fill_from_theme(self):
-        css_properties = dict(self._css_properties)
-
-        if not self.style:
-            return css_properties
-        
-        for key in dir(self.style):
-            if key in css_properties or key.startswith('_'):
-                continue
-            css_spec = Props._css_value_funcs.get(key)
-            if css_spec:
-                css_name, css_value_func = css_spec
-                value = getattr(self.style, key)
-                if callable(value):
-                    value = value(self.style)
-                css_properties[css_name] = css_value_func(value)
-        
-        return css_properties
-        
     def _getter(self, attribute):
         """
         Note we do not return the CSS value.
         """
         return self._properties.get(attribute)
-        
+
     def _setter(self, attribute, value):
         if value != self._properties.get(attribute):
             self._mark_dirty()
             self._properties[attribute] = value
-            
+
     @staticmethod
     def _prop(property_name):
         return property(
             lambda self: partial(
-                Props._getter, self, property_name,
+                BasicProperties._getter, self, property_name,
             )(),
             lambda self, value: partial(
-                Props._setter, 
-                self, 
-                property_name, 
-                value, 
-            )()
-        )
-
-    def _set_css_property(
-        self,
-        property_name,
-        property_value,
-        css_name=None,
-        css_value=None
-    ):
-        self._properties[property_name] = property_value
-        if css_name:
-            self._mark_dirty()
-            animation = _animation_context()
-            self._css_properties[css_name] = css_value
-            if animation and animation.duration:
-                transition = f'{css_name}:{css_value}:{animation.render()}'
-                self._css_transitions[css_name] = transition
-
-    def _css_setter(self, property_name, css_name, value, css_value_func):
-        css_value = css_value_func(value)
-        self._set_css_property(property_name, value, css_name, css_value)
-
-    @staticmethod
-    def _css_func_prop(css_value_func, property_name, css_name):
-        Props._css_value_funcs[property_name] = css_name, css_value_func
-        return property(
-            lambda self: partial(
-                Props._getter, self, property_name,
-            )(),
-            lambda self, value: partial(
-                Props._css_setter,
-                self, property_name, 
-                css_name,
-                value,
-                css_value_func,
-            )()
-        )
-        
-    @staticmethod
-    def _css_plain_prop(property_name, css_name):
-        def css_value_func(value):
-            css_value = value
-            if type(css_value) in (int, float):
-                css_value = f'{css_value}px'
-            elif isinstance(css_value, (tuple, list)):
-                css_value = ','.join(css_value)
-            return css_value
-        return Props._css_func_prop(css_value_func, property_name, css_name)
-        
-    @staticmethod
-    def _css_bool_prop(property_name, css_name, css_true_value):
-        def css_value_func(value):
-            return value and css_true_value or None
-        return Props._css_func_prop(css_value_func, property_name, css_name)
-        
-    @staticmethod
-    def _css_mapping_prop(property_name, css_name, css_value_mapping):
-        def css_value_func(value):
-            return css_value_mapping.get(value)
-        return Props._css_func_prop(css_value_func, property_name, css_name)
-        
-    def _css_color_setter(self, property_name: str, css_name: str, value: ..., css_value_func: callable):
-        if type(value) is not Color:
-            value = Color(value)
-        css_value = css_value_func(value)
-        self._set_css_property(property_name, value, css_name, css_value)
-
-    @staticmethod
-    def _css_color_prop(property_name: str, css_name: str) -> property:
-        def css_value_func(value):
-            return value.css
-        Props._css_value_funcs[property_name] = css_name, css_value_func
-        return property(
-            lambda self: partial(
-                Props._getter, self, property_name,
-            )(),
-            lambda self, value: partial(
-                Props._css_color_setter, 
+                BasicProperties._setter,
                 self,
                 property_name,
-                css_name,
                 value,
-                css_value_func,
             )()
         )
 
-    @staticmethod
-    def _passthrough(inner_view_attribute_name: str, property_name: str) -> property:
-        """
-        For properties to be transparently passed through and from an enclosed view.
-
-        Setting a passthrough property also marks the enclosing view as needing an update.
-        """
-        def setter(self, value):
-            self._mark_dirty()
-            setattr(getattr(self, inner_view_attribute_name), property_name, value)
-
-        return property(
-            lambda self: getattr(getattr(self, inner_view_attribute_name), property_name),
-            setter,
-        )
-
-# Constraint grammar
-
-# number
-# token operation number
-# function(constraint, constraint)
-# constraint operation constraint
-#
-# condition & constraint
-# constraint, constraint
-# constraint, condition & constraint
 
 class Constraint:
 
@@ -586,6 +430,7 @@ class Constraint:
         self.initial_value = initial_value
         self.comparison = '='
         self.condition = None
+        self.animation = None
 
     def __deepcopy__(self, memo):
         """
@@ -609,7 +454,12 @@ class Constraint:
         return str(self.value)
 
     def serialize(self, target):
-        return f'{f"{self.condition}?" if self.condition else ""}{target}{self.comparison}{str(self)}'
+        serialised = f'{f"{self.condition}?" if self.condition else ""}{target}{self.comparison}{str(self)}'
+
+        if self.animation:
+            serialised = f'{serialised}:{self.animation.render()}'
+
+        return serialised
 
     def walk(self, function):
         result = function(self)
@@ -789,7 +639,7 @@ portrait = ConstraintConditionFixed('portrait')
 landscape = ConstraintConditionFixed('landscape')
 
 
-class Anchors(Events):
+class Anchors(BasicProperties):
 
     to_js = {
         'center_x': 'centerX',
@@ -806,11 +656,19 @@ class Anchors(Events):
         super().__init__(**kwargs)
         self.gap = gap
         
-    gap = Props._prop('gap')
+    gap = BasicProperties._prop('gap')
         
     def release(self):
         self._constraints = {}
         self._mark_dirty()
+
+    def _is_fixed(self) -> bool:
+        """
+        Returns True if the position of the view is constrained, i.e. if any of left, top, right, bottom are used.
+        """
+        return bool(
+            {'left', 'top', 'right', 'bottom', 'centerX', 'centerY'}.intersection(set(self._constraints.keys()))
+        )
         
     @Render._register
     def _render_anchors(self):
@@ -839,11 +697,15 @@ class Anchors(Events):
             return
 
         if isinstance(value, Number):
-            value = ConstraintExpression(value)
+            if attribute in ('right', 'bottom') and self.parent:
+                value = getattr(self.parent, attribute) - value
+            else:
+                value = ConstraintExpression(value)
         if isinstance(value, Sequence):
             for item in value:
                 setattr(self, attribute, item)
         elif isinstance(value, Constraint):
+            value.animation = _animation_context()
             if value.condition:
                 self._constraints.setdefault(attribute, {}).setdefault(value.comparison, []).append(value)
             else:
@@ -937,77 +799,77 @@ class Anchors(Events):
         
     @prop
     def fit(self, *value):
-        if value:
-            value = value[0]
-            self._fit = value
-
-            if value == True:
-                value = 'both'
-
-            extra_width = extra_height = 0
-
-            if isinstance(value, Number):
-                extra_width = extra_height = value
-                value = 'both'
-
-            if value not in ('width', 'height', 'both'):
-                raise ValueError(f'Invalid value for fit: {self._fit}')
-            if value in ('width', 'both'):
-                self.width = self.fit_width + extra_width
-            if value in ('height', 'both'):
-                self.height = self.fit_height + extra_height
-        else:
+        if not value:
             return self._fit
+
+        value = value[0]
+        self._fit = value
+
+        if value == True:
+            value = 'both'
+
+        extra_width = extra_height = 0
+
+        if isinstance(value, Number):
+            extra_width = extra_height = value
+            value = 'both'
+
+        if value not in ('width', 'height', 'both'):
+            raise ValueError(f'Invalid value for fit: {self._fit}')
+        if value in ('width', 'both'):
+            self.width = self.fit_width + extra_width
+        if value in ('height', 'both'):
+            self.height = self.fit_height + extra_height
 
     @prop
     def dock(self, *value):
-        if value:
-            value = value[0]
-            self._dock = value
-            if isinstance(value, Sequence) and len(value) == 2:
-                self.parent = value[0].view
-                setattr(self, 'center', value)
-                return
-            if not isinstance(value, Constraint):
-                raise TypeError(
-                    f'Dock value must be something like view.left, not {value}'
-                )
-            other_constraint = value.get_anchor()
-            other = other_constraint.view
-            dock_type = other_constraint.attribute
-            dock_attributes = PARENT_DOCK_SPECS.get(dock_type)
-
-            if dock_attributes:
-                self.parent = other
-                for attribute in dock_attributes:
-                    # other_constraint.attribute = attribute
-                    dock_constraint = copy.deepcopy(value)
-                    dock_constraint.get_anchor().attribute = attribute
-                    need_to_invert_sign = (
-                        ANCHOR_TYPE[attribute] == TRAILING and
-                        isinstance(dock_constraint, ConstraintExpression)
-                    )
-                    if need_to_invert_sign:
-                        dock_constraint.invert_operator()
-                    setattr(self, attribute, dock_constraint)
-
-            else:
-                dock_attributes = SIBLING_DOCK_SPECS.get(dock_type)
-                if dock_attributes:
-                    this, that, align, size = dock_attributes
-                    self.parent = other.parent
-                    #other_constraint.attribute = that
-                    dock_constraint = copy.deepcopy(value)
-                    dock_constraint.get_anchor().attribute = that
-                    if ANCHOR_TYPE[this] == TRAILING and isinstance(dock_constraint, ConstraintExpression):
-                        dock_constraint.invert_operator()
-                    setattr(self, this, dock_constraint)  # edge
-                    setattr(self, align, getattr(other, align))  # center
-                    setattr(self, size, getattr(other, size))  # width or height
-                else:
-                    raise ValueError(f'Unknown docking attribute {dock_type}')
-        else:
+        if not value:
             return self._dock
+
+        value = value[0]
+        self._dock = value
+        if isinstance(value, Sequence) and len(value) == 2:
+            self.parent = value[0].view
+            setattr(self, 'center', value)
+            return
+        if not isinstance(value, Constraint):
+            raise TypeError(
+                f'Dock value must be something like view.left, not {value}'
+            )
+        other_constraint = value.get_anchor()
+        other = other_constraint.view
+        dock_type = other_constraint.attribute
+        dock_attributes = PARENT_DOCK_SPECS.get(dock_type)
+
+        if dock_attributes:
+            self.parent = other
+            for attribute in dock_attributes:
+                # other_constraint.attribute = attribute
+                dock_constraint = copy.deepcopy(value)
+                dock_constraint.get_anchor().attribute = attribute
+                need_to_invert_sign = (
+                    ANCHOR_TYPE[attribute] == TRAILING and
+                    isinstance(dock_constraint, ConstraintExpression)
+                )
+                if need_to_invert_sign:
+                    dock_constraint.invert_operator()
+                setattr(self, attribute, dock_constraint)
+
+        else:
+            dock_attributes = SIBLING_DOCK_SPECS.get(dock_type)
+            if dock_attributes:
+                this, that, align, size = dock_attributes
+                self.parent = other.parent
+                #other_constraint.attribute = that
+                dock_constraint = copy.deepcopy(value)
+                dock_constraint.get_anchor().attribute = that
+                if ANCHOR_TYPE[this] == TRAILING and isinstance(dock_constraint, ConstraintExpression):
+                    dock_constraint.invert_operator()
+                setattr(self, this, dock_constraint)  # edge
+                setattr(self, align, getattr(other, align))  # center
+                setattr(self, size, getattr(other, size))  # width or height
+            else:
+                raise ValueError(f'Unknown docking attribute {dock_type}')
 
 
 PARENT_DOCK_SPECS = {
@@ -1049,7 +911,175 @@ ANCHOR_TYPE = {
     'center_y': NEUTRAL,
 }
 
-class Core(Anchors, Props):
+
+class CSSProperties(Anchors):
+    """
+    Logic for handling view properties.
+
+    Property setters can mark the view as dirty, which means that the view
+    (along with children) will be rendered when next update is sent to browser.
+    """
+
+    style = None
+    _css_value_funcs = {}
+
+    def __init__(self, **kwargs):
+        self._css_properties = {}
+        self._css_transitions = {}
+        super().__init__(**kwargs)
+
+    @Render._register
+    def _render_props(self):
+        css_properties = self._set_position_and_fill_from_theme()
+
+        styles = ";".join(
+            f"{name}:{value}"
+            for name, value in css_properties.items()
+            # if name not in self._css_transitions
+        )
+
+        attributes = {}
+
+        if styles:
+            attributes['style'] = styles
+
+        if self._css_transitions:
+            attributes['ui4style'] = ';'.join(self._css_transitions.values())
+            self._css_transitions = {}
+            # if self._animation_id:
+            #     attributes['ui4anim'] = self._animation_id
+
+        return attributes
+
+    def _set_position_and_fill_from_theme(self):
+        css_properties = dict(self._css_properties)
+
+        if self._is_fixed():
+            css_properties['position'] = 'absolute'
+
+        if not self.style:
+            return css_properties
+
+        for key in dir(self.style):
+            if key in css_properties or key.startswith('_'):
+                continue
+            css_spec = CSSProperties._css_value_funcs.get(key)
+            if css_spec:
+                css_name, css_value_func = css_spec
+                value = getattr(self.style, key)
+                if callable(value):
+                    value = value(self.style)
+                css_properties[css_name] = css_value_func(value)
+
+        return css_properties
+
+    def _set_css_property(
+        self,
+        property_name,
+        property_value,
+        css_name=None,
+        css_value=None
+    ):
+        self._properties[property_name] = property_value
+        if css_name:
+            self._mark_dirty()
+            animation = _animation_context()
+            self._css_properties[css_name] = css_value
+            if animation and animation.duration:
+                transition = f'{css_name}:{css_value}:{animation.render()}'
+                self._css_transitions[css_name] = transition
+
+    def _css_setter(self, property_name, css_name, value, css_value_func):
+        css_value = css_value_func(value)
+        self._set_css_property(property_name, value, css_name, css_value)
+
+    @staticmethod
+    def _css_func_prop(css_value_func, property_name, css_name):
+        CSSProperties._css_value_funcs[property_name] = css_name, css_value_func
+        return property(
+            lambda self: partial(
+                CSSProperties._getter, self, property_name,
+            )(),
+            lambda self, value: partial(
+                CSSProperties._css_setter,
+                self, property_name,
+                css_name,
+                value,
+                css_value_func,
+            )()
+        )
+
+    @staticmethod
+    def _css_plain_prop(property_name, css_name):
+        def css_value_func(value):
+            css_value = value
+            if type(css_value) in (int, float):
+                css_value = f'{css_value}px'
+            elif isinstance(css_value, (tuple, list)):
+                css_value = ','.join(css_value)
+            return css_value
+
+        return CSSProperties._css_func_prop(css_value_func, property_name, css_name)
+
+    @staticmethod
+    def _css_bool_prop(property_name, css_name, css_true_value):
+        def css_value_func(value):
+            return value and css_true_value or None
+
+        return CSSProperties._css_func_prop(css_value_func, property_name, css_name)
+
+    @staticmethod
+    def _css_mapping_prop(property_name, css_name, css_value_mapping):
+        def css_value_func(value):
+            return css_value_mapping.get(value)
+
+        return CSSProperties._css_func_prop(css_value_func, property_name, css_name)
+
+    def _css_color_setter(self, property_name: str, css_name: str, value: ..., css_value_func: callable):
+        if type(value) is not Color:
+            value = Color(value)
+        css_value = css_value_func(value)
+        self._set_css_property(property_name, value, css_name, css_value)
+
+    @staticmethod
+    def _css_color_prop(property_name: str, css_name: str) -> property:
+        def css_value_func(value):
+            return value.css
+
+        CSSProperties._css_value_funcs[property_name] = css_name, css_value_func
+        return property(
+            lambda self: partial(
+                CSSProperties._getter, self, property_name,
+            )(),
+            lambda self, value: partial(
+                CSSProperties._css_color_setter,
+                self,
+                property_name,
+                css_name,
+                value,
+                css_value_func,
+            )()
+        )
+
+    @staticmethod
+    def _passthrough(inner_view_attribute_name: str, property_name: str) -> property:
+        """
+        For properties to be transparently passed through and from an enclosed view.
+
+        Setting a passthrough property also marks the enclosing view as needing an update.
+        """
+
+        def setter(self, value):
+            self._mark_dirty()
+            setattr(getattr(self, inner_view_attribute_name), property_name, value)
+
+        return property(
+            lambda self: getattr(getattr(self, inner_view_attribute_name), property_name),
+            setter,
+        )
+
+
+class Core(CSSProperties):
     """
     This class is here simply to collect the different mechanical parts of the core view class for inheritance.
     """
@@ -1059,4 +1089,4 @@ class Core(Anchors, Props):
         Identity._views = defaultdict(dict)
         Events._dirties = dict()
         Events._animation_generators = dict()
-        # Props._css_value_funcs = {}
+        # CSSProperties._css_value_funcs = {}

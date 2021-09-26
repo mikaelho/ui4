@@ -65,10 +65,12 @@ class FlaskRunner:
         
         self.flask = flask.Flask(
             'ui4server', 
-            static_folder=str(Path(__file__).parent / 'static')
+            static_folder=str(Path(__file__).parent / 'static'),
         )
         self.flask.secret_key = os.urandom(24)
         Identity.get_user_id = self.current_user_id
+
+        self.flask.debug = True
         
         self.flask.add_url_rule('/', 'index', self.index)
         self.flask.add_url_rule('/ui4.js', 'send_js', self.send_js)

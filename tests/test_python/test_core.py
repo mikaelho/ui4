@@ -137,6 +137,15 @@ class TestAnchorProperties:
         view1.left = None
         assert constraints(view1) == 'centerX=id2.left+1;top>id2.bottom'
 
+    def test_right_and_bottom_shorthand(self, anchor_view, constraints):
+        view1 = anchor_view()
+        view2 = anchor_view()
+        view2.parent = view1
+
+        view2.right = 1
+        view2.bottom = 2
+        assert constraints(view2) == 'right=id1.right-1;bottom=id1.bottom-2'
+
     def test_anchors_release(self, anchor_view, constraints):
         view = anchor_view()
 
@@ -186,6 +195,22 @@ class TestAnchorProperties:
         view3.right = view2.right
 
         assert constraints(view3) == 'left=id2.left;right=id2.right'
+
+    def test_is_fixed(self, anchor_view):
+        view1 = anchor_view()
+        assert not view1._is_fixed()
+
+        view1.left = 100
+        assert view1._is_fixed()
+
+        view1.left = None
+        assert not view1._is_fixed()
+
+        view1.center_y = 200
+        assert view1._is_fixed()
+
+        view1.release()
+        assert not view1._is_fixed()
 
     
 class TestEvents:
@@ -282,8 +307,8 @@ class TestEvents:
 
 class TestStyleProperties:
         
-    def test_base_setter_and_render(self):
-        view = Core()
+    def test_base_setter_and_render(self, anchor_view):
+        view = anchor_view()
         
         assert view not in Core._get_dirties()
         
@@ -296,10 +321,12 @@ class TestStyleProperties:
         
         assert view in Core._get_dirties()
 
+        view.left = 100  # Triggers position: absolute
+
         rendered = view._render_props()
 
         assert rendered == {
-            'style': 'color:rgba(255,255,255,255)',
+            'style': 'color:rgba(255,255,255,255);position:absolute',
         }
         
     def test_animated_css_properties(self):

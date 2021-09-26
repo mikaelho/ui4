@@ -1,10 +1,11 @@
 # Base view class
 from ui4.core import Core
+from ui4.theme import BaseStyle
 
 
 class View(Core):
 
-    text = Core._prop('text')
+    style = BaseStyle
 
     # Layout properties
     left = Core._anchorprop('left')
@@ -66,6 +67,8 @@ class View(Core):
     z = Core._css_plain_prop('z', 'z-index')
 
     # Text properties
+    text = Core._prop('text')
+
     bold = Core._css_bool_prop('bold', 'font-weight', 'bold')
     font = Core._css_plain_prop('font', 'font-family')
     text_color = Core._css_color_prop('text_color', 'color')

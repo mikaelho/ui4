@@ -3,7 +3,6 @@ import pytest
 from ui4 import Button
 from ui4 import DefaultFont
 from ui4 import View
-from ui4.core import delay
 
 
 def test_button_layout_and_styles(get_app, views, js_dimensions, js_style):
@@ -20,7 +19,6 @@ def test_button_layout_and_styles(get_app, views, js_dimensions, js_style):
 
         assert js_style(views.button.id, 'fontFamily').startswith(DefaultFont.font[:5])
         assert js_style(views.button.id, 'fontSize') == f'{DefaultFont.font_m}px'
-
 
 def test_button_click(get_app, views, driver, expect):
     def setup(root):

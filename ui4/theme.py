@@ -285,6 +285,7 @@ class Green:
     variant = green_500
     accent = red_500
     tinted = green_50
+    inactive = cool_gray_400
     alert = red_900
     background = white
     

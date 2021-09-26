@@ -62,8 +62,8 @@ def anchor_view():
         right = Anchors._anchorprop('right')
         width = Anchors._anchorprop('width')
         height = Anchors._anchorprop('height')
-        center_x = Anchors._anchorprop('center_x')
-        center_y = Anchors._anchorprop('center_y')
+        center_x = Anchors._anchorprop('centerX')
+        center_y = Anchors._anchorprop('centerY')
         center = Anchors._anchorprops('center_x', 'center_y')
         top_left = Anchors._anchordock('top_left')
 
@@ -157,8 +157,7 @@ def get_app(driver):
                 raise app.runner.server.exception
 
             log_messages = driver.logs()
-            if log_messages:
-                print(log_messages)
+            assert not log_messages, log_messages
 
             yield driver
 

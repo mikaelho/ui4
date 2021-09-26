@@ -1,5 +1,3 @@
-from string import Template
-
 from ui4.core import Core
 from ui4.theme import TextInputStyle
 from ui4.view import View
@@ -20,12 +18,7 @@ class TextField(View):
     WEEK = 'week'
     COLOR = 'color'
 
-    _template = Template(
-        '<input id="$id" name="$id" class="$viewclass" '
-        '$rendered_attributes '
-        '$oob hx-swap="none" '
-        '></input>'
-    )
+    _tag = 'input'
     style = TextInputStyle
     
     def __init__(self, field_type=NORMAL, placeholder="", **kwargs):
@@ -43,11 +36,11 @@ class TextField(View):
         self._properties['text'] = value
     
     def _additional_attributes(self):
-        add = super()._additional_attributes()
-        add.update({
+        attributes = super()._additional_attributes()
+        attributes.update({
+            'name': self.id,
             'type': self.field_type,
             'placeholder': self.placeholder,
             'value': self.value or '',
         })
-        return add
-
+        return attributes

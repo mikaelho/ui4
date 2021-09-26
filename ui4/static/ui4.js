@@ -212,6 +212,8 @@ class UI4 {
             }
         }
 
+        // Check children, since mutation observer only seems to pick the root of changes
+        node.childNodes.forEach(childNode => this.setDependencies(childNode));
     }
 
     parseAndOrderDependencies(spec) {
@@ -225,7 +227,6 @@ class UI4 {
 
         styles.forEach((targetStyle) => {
             //const animationID = spec.animationID;
-            //targetStyle.options.fill = 'forwards';
             const key = this.toCamelCase(targetStyle.key);
             const fromFrame = {};
             fromFrame[key] = startingStyles[targetStyle.key];
@@ -309,12 +310,14 @@ class UI4 {
                 }
             } else if (UI4.comparisons[dependency.comparison](target.value, sourceValue)) {
                 setValue = result;
+            } else if ('animation' in dependency && !dependency.animation.running) {
+                delete dependency.animation;
+                setValue = result;
             }
 
             if (setValue !== undefined) {
                 if ('animation' in dependency) {
-                    this.startAnimation(dependency.targetAttribute, result, dependency.animation);
-                    dependency.animation.running = true;
+                    this.startAnimation(dependency.targetAttribute, result, dependency);
                 } else {
                     values[dependency.targetAttribute] = setValue;
                 }
@@ -457,7 +460,8 @@ class UI4 {
         return 0;
     }
 
-    startAnimation(targetAttr, data, animationOptions) {
+    startAnimation(targetAttr, data, dependency) {
+        const animationOptions = dependency.animation;
         const animation = data.targetElem.animate(
          [
              this.setValue[targetAttr](data.context, data.targetValue),
@@ -465,6 +469,10 @@ class UI4 {
          ],
          animationOptions
         );
+        animationOptions.running = true;
+        animation.onfinish = function() {
+            dependency.animation.running = false;
+        };
     }
 
     // Utilities
