@@ -245,9 +245,13 @@ class Events(Render):
     def __call__(self, func):
         """
         Enable using instances of this class as event-handler decorators.
-        Works only when the method name matches one of the predefined event handler names.
+        Works only when the method name matches one of the predefined event handler names,
+        or one of them preceeded by the `_internal_` prefix for component-internal event handling.
         """
-        if func.__name__ in self._event_methods.keys():
+        if (
+            func.__name__ in self._event_methods.keys() or
+            func.__name__.startswith('_internal_') and func.__name__[:len('_internal_')] in self._event_methods.keys()
+        ):
             setattr(self, func.__name__, func)
         else:
             raise ValueError(
@@ -260,7 +264,7 @@ class Events(Render):
     def _render_events(self):
         triggers = []
         for method_name, event in self._event_methods.items():
-            method = getattr(self, method_name, None)
+            method = getattr(self, method_name, getattr(self, f'_internal_{method_name}', None))
             if method:
                 wrapped = method.__dict__.get('__wrapped__')
                 options = wrapped and wrapped.__dict__.get('event_options') or {}
@@ -275,16 +279,17 @@ class Events(Render):
         } if trigger_str else {}
 
     def _process_event(self, event_name, value=None):
-        event_method = getattr(self, f'on_{event_name}', None)
-        if event_method:
-            animation_generator = event_method(value)
-            animation_id = None
-            if isinstance(animation_generator, GeneratorType):
-                animation_id = Events._get_animation_loop(animation_generator)
-            updates = Events._render_updates(animation_id)
+        updates = ''
+        for method_name in (f'_internal_on_{event_name}', f'on_{event_name}'):
+            event_method = getattr(self, method_name, None)
+            if event_method:
+                animation_generator = event_method(value)
+                animation_id = None
+                if isinstance(animation_generator, GeneratorType):
+                    animation_id = Events._get_animation_loop(animation_generator)
 
-            return updates
-        return ""
+                updates += Events._render_updates(animation_id)
+        return updates
 
     @staticmethod
     def _process_event_loop(animation_id):

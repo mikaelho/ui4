@@ -28,7 +28,7 @@ class Switch(View):
 
         self._set_state_appearance()
 
-    def on_click(self, _):
+    def _internal_on_click(self, _):
         self.on = not self.on
         with animation(0.1):
             self._set_state_appearance()
