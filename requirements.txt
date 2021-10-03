@@ -1,4 +1,4 @@
+dataclasses; python_version < '3.7'
 flask
 webcolors
-dataclasses; python_version < '3.7'
 

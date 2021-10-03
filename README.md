@@ -9,13 +9,13 @@ Roadmap
 
 - [x] Anchor minmax, portrait/landscape, high/wide
 - [x] Event loop basics
+- [x] JS tests
+- [x] Run and serve
 - [ ] Grid/flow
-- [ ] Run and serve
 - [ ] Basic demo
 - [ ] Widget demo
 - [ ] UI tester
 - [ ] Sound
-- [ ] JS tests
 - [ ] Deployment story
 - [ ] Authentication support
 - [ ] Thread safety
@@ -28,11 +28,13 @@ Widget coverage
 - [x] View
 - [x] Button
 - [x] Textfield
+- [x] Table
+- [x] Switch
+- [ ] Form
+- [ ] Image
 - [ ] Card
 - [ ] Navigator
-- [ ] Slider
-- [ ] Checkbox
-- [ ] Image
+- [x] Slider
 
 Small features
 --------------
@@ -62,8 +64,11 @@ Similar projects
 Development installation notes
 ------------------------------
 
-- Selenium/Safari
-    - `safaridriver --enable` needs to be run once
+- Selenium/ChromeDriver on Mac
+  - brew install chromedriver
+
+- Selenium/Safari on Mac
+  - `safaridriver --enable` needs to be run once
     - In Safari, Develop > Allow Remote Automation
     - Start `safaridriver -p 0` and stop it to verify operation
   

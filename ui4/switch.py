@@ -5,10 +5,8 @@ from ui4.view import View
 
 class Switch(View):
 
-    def __init__(self, **kwargs):
+    def __init__(self, on=False, **kwargs):
         super().__init__()
-
-        self.on = False
 
         self._base_height = 24
 
@@ -26,10 +24,29 @@ class Switch(View):
         self.corner_radius = '50%'
         self.apply(kwargs)
 
+        self._properties['on'] = on
         self._set_state_appearance()
 
-    def _internal_on_click(self, _):
+    @prop
+    def on(self, *value):
+        if not value:
+            return self._properties.get('on', False)
+
+        value = value[0]
+        if value != self._properties.get('on'):
+            self._mark_dirty()
+            self._properties['on'] = value
+            self._set_state_appearance_animated()
+
+    def toggle(self):
         self.on = not self.on
+
+    def _internal_on_click(self, view):
+        self.toggle()
+        event_handler = getattr(self, 'on_change', None)
+        return event_handler and event_handler(view)
+
+    def _set_state_appearance_animated(self):
         with animation(0.1):
             self._set_state_appearance()
 

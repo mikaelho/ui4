@@ -279,7 +279,7 @@ class Events(Render):
         } if trigger_str else {}
 
     def _process_event(self, event_name, value=None):
-        updates = ''
+        animation_id = None
         for method_name in (f'_internal_on_{event_name}', f'on_{event_name}'):
             event_method = getattr(self, method_name, None)
             if event_method:
@@ -288,8 +288,7 @@ class Events(Render):
                 if isinstance(animation_generator, GeneratorType):
                     animation_id = Events._get_animation_loop(animation_generator)
 
-                updates += Events._render_updates(animation_id)
-        return updates
+        return Events._render_updates(animation_id)
 
     @staticmethod
     def _process_event_loop(animation_id):

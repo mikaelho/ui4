@@ -1,4 +1,6 @@
 -r requirements.txt
 
+pydantic
+pydantic[email]
 pytest
 selenium

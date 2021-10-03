@@ -106,7 +106,18 @@ class Color(list):
             self.b = c.b
             self.a = c.a
         else:
-            return f'rgba({",".join([str(segment) for segment in self.ints])})'
+            return f'rgba({",".join([str(component) for component in self.ints])})'
+
+    @prop
+    def css_rgb(self, *args):
+        if args:
+            c = Color(args[0])
+            self.r = c.r
+            self.g = c.g
+            self.b = c.b
+            self.a = c.a
+        else:
+            return f'rgb({", ".join([str(component) for component in self.ints[:3]])})'
 
     @prop
     def name(self, *args):
