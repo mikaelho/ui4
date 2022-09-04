@@ -34,4 +34,8 @@ def setup(root):
 
     button = Button(text='Button', dock=right_column.top_left)
 
+    @button
+    def on_click(event):
+        print("Click")
+
 run(setup)
