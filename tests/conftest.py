@@ -90,7 +90,8 @@ def safari_setup():
     return driver
 
 
-@fixture(scope='session', params=[chrome_setup, safari_setup])
+# @fixture(scope='session', params=[chrome_setup, safari_setup])
+@fixture(scope='session', params=[safari_setup])
 def driver(request):
 
     with request.param() as driver:
