@@ -30,7 +30,7 @@ def test_button_click(get_app, views, driver, expect):
             views.button.was_clicked = True
 
     with get_app(setup):
-        driver.find_element_by_id(views.button.id).click()
+        driver.find_element("id", views.button.id).click()
         assert expect(lambda: views.button.was_clicked)
 
 
@@ -44,5 +44,5 @@ def test_update_on_click(get_app, views, driver, view_has_text):
             views.button.text = f'{view.id} was clicked'
 
     with get_app(setup):
-        driver.find_element_by_id(views.button.id).click()
+        driver.find_element("id", views.button.id).click()
         assert view_has_text(views.button, f'{views.button.id} was clicked')

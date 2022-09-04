@@ -14,7 +14,7 @@ def test_label_layout(get_app, views, driver, expect, js_style):
         assert not views.switch2.on
         assert js_style(views.switch2.id, 'backgroundColor') == views.switch2.style.current_theme.inactive.css_rgb
 
-        driver.find_element_by_id(views.switch1.id).click()
+        driver.find_element("id", views.switch1.id).click()
 
         assert expect(lambda: views.switch2.on)
         assert expect(

@@ -21,7 +21,7 @@ def test_basics(get_app, views, driver, js_dimensions, js_style, does_not_happen
         assert pytest.approx(x + w / 2, abs=1) == 300
         assert pytest.approx(y + h / 2, abs=1) == 200
 
-        textfield = driver.find_element_by_id(views.textfield.id)
+        textfield = driver.find_element("id", views.textfield.id)
         textfield.send_keys('ABC')
 
         assert does_not_happen(lambda: views.textfield.value == 'ABC', 0.1)
@@ -42,7 +42,7 @@ def test_input_events(get_app, views, driver, expect):
             views.textfield.counter += 1
 
     with get_app(setup):
-        driver.find_element_by_id(views.textfield.id).send_keys('ABC')  # No enter needed
+        driver.find_element("id", views.textfield.id).send_keys('ABC')  # No enter needed
         assert expect(lambda: views.textfield.value == 'ABC')
         assert views.textfield.counter > 1  # Separate event for each keypress (or so)
 
@@ -58,6 +58,6 @@ def test_input_events_with_delay(get_app, views, driver, expect):
             view.counter += 1
 
     with get_app(setup):
-        driver.find_element_by_id(views.textfield.id).send_keys('ABC')
+        driver.find_element("id", views.textfield.id).send_keys('ABC')
         assert expect(lambda: views.textfield.value == 'ABC')
         assert views.textfield.counter == 1  # Only one event due to the delayed sending
