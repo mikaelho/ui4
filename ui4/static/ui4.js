@@ -7,6 +7,21 @@ const parse = this.null.parse;  // From ui4parser.js
 
 class UI4 {
 
+    static rootStyles = {
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        padding: 0
+    };
+
+    static elementStyles = {
+        position: "absolute",
+        margin: 0,
+        outline: 0,
+        "box-sizing": "border-box"
+    }
+
     static LEADING = 'leading';
     static TRAILING = 'trailing';
     static NEUTRAL = 'neutral';
@@ -22,6 +37,32 @@ class UI4 {
         centerX: UI4.NEUTRAL,
         centerY: UI4.NEUTRAL,
     };
+
+    static parentDock = {
+        top: ["left", "top", "right"],
+        left: ["top", "left", "bottom"],
+        bottom: ["left", "bottom", "right"],
+        right: ["top", "right", "bottom"],
+        topLeft: ["top", "left"],
+        topRight: ["top", "right"],
+        bottomLeft: ["bottom", "left"],
+        bottomRight: ["bottom", "right"],
+        center: ["centerX", "centerY"],
+        topCenter: ["top", "centerX"],
+        bottomCenter: ["bottom", "centerX"],
+        leftCenter: ["left", "centerY"],
+        rightCenter: ["right", "centerY"],
+        sides: ["left", "right"],
+        top_and_bottom: ["top", "bottom"],
+        all: ["left", "right", "top", "bottom"],
+    };
+
+    static peerDock = {
+        above: {size: "width", center: "centerX", myEdge: "bottom", yourEdge: "top"},
+        below: {size: "width", center: "centerX", myEdge: "top", yourEdge: "bottom"},
+        rightOf: {size: "height", center: "centerY", myEdge: "left", yourEdge: "right"},
+        leftOf: {size: "height", center: "centerY", myEdge: "right", yourEdge: "left"},
+    }
 
     static operations = {
         "+": (a, b) => a + b,
@@ -41,6 +82,7 @@ class UI4 {
         this.callLog = [];
 
         this.allDependencies = {};
+        this.sourceDependencies = {};
 
         const _this = this;
         this.getValue = {
@@ -137,6 +179,13 @@ class UI4 {
         this.checkDependencies();
     }
 
+    setResizeObserver(node) {
+        const sourceID = node.id;
+        if (!sourceID) { return; }
+        const resizeObserver = new ResizeObserver(this.checkSourceDependencies.bind(this, sourceID));
+        resizeObserver.observe(node);
+    }
+
     startClassObserver() {
         const observer = new MutationObserver(this.classChangeHandler.bind(this));
         observer.observe(document, {
@@ -144,6 +193,7 @@ class UI4 {
           childList: true,
           attributeFilter: ["ui4"]
         });
+        console.log("Start class observer");
     }
 
     classChangeHandler(mutations, observer) {
@@ -152,10 +202,12 @@ class UI4 {
                 case 'childList':
                     mutation.addedNodes.forEach((node) => {
                         this.setDependencies(node);
+                        this.setResizeObserver(node);
                     });
                     break;
                 case 'attributes':
                     this.setDependencies(mutation.target);
+                    this.setResizeObserver(mutation.target);
                     break;
             }
         });
@@ -172,6 +224,24 @@ class UI4 {
         this.checkDependencies();
     }
 
+    combineConstraintAttributes(node) {
+        let ui4Attr = node.getAttribute('ui4');
+
+        for (const attributeName of node.getAttributeNames()) {
+            if (attributeName.startsWith('ui4-')) {
+                const constraintValue = node.getAttribute(attributeName);
+                if (constraintValue) {
+                    if (!ui4Attr.endsWith(';')) {
+                        ui4Attr += ';'
+                    }
+                    ui4Attr += attributeName.substring('ui4-'.length) + '=' + constraintValue;
+                }
+            }
+        }
+
+        return ui4Attr
+    }
+
     setDependencies(node) {
         const targetId = node.id;
         if (!targetId) { return; }
@@ -179,7 +249,16 @@ class UI4 {
         // const ui4AnimationID = node.getAttribute("ui4anim");
 
         // Check constraints
-        const ui4Attr = node.getAttribute('ui4');
+        const ui4Attr = this.combineConstraintAttributes(node);
+        const isRootElem = node.classList.contains("ui4Root");
+
+        if (ui4Attr || isRootElem) {
+            Object.assign(node.style, UI4.elementStyles);
+        }
+
+        if (isRootElem) {
+            Object.assign(node.style, UI4.rootStyles);
+        }
 
         if (ui4Attr) {
             let dependencies;
@@ -190,9 +269,26 @@ class UI4 {
                 return;
             }
             if (!dependencies.length) {
+                if (targetId in this.allDependencies) {
+                    for (const dependency of this.allDependencies[targetId]) {
+                        if ('id' in dependency.value) {
+                            const sourceID = dependency.value.id;
+                            delete this.sourceDependencies[sourceID][targetId];
+                        }
+                    }
+                }
                 delete this.allDependencies[targetId];
             } else {
+                dependencies = this.expandDockDependencies(node, dependencies);
                 this.allDependencies[targetId] = dependencies;
+                for (const dependency of dependencies) {
+                    if ('id' in dependency.value) {
+                        const sourceID = dependency.value.id;
+                        const targetIds = this.sourceDependencies[sourceID] || {};
+                        targetIds[targetId] = true;
+                        this.sourceDependencies[sourceID] = targetIds;
+                    }
+                }
             }
         }
 
@@ -222,6 +318,29 @@ class UI4 {
         return dependencies;
     }
 
+    expandDockDependencies(node, dependencies) {
+        let updatedDependencies = Array();
+        dependencies.forEach(dependency => {
+            console.log(dependency.targetAttribute);
+            if (dependency.targetAttribute === 'dock') {
+                console.log("Docking");
+                if (!('id' in dependency.value)) {
+                    const parentId = node.parentNode.id;
+                    UI4.parentDock[dependency.value.attribute].forEach(attribute => {
+                       updatedDependencies.push({
+                           targetAttribute: attribute,
+                           comparison: '=',
+                           value: {id: parentId, attribute: attribute},
+                       });
+                    });
+                }
+            } else {
+                updatedDependencies.push(dependency);
+            }
+        });
+        return updatedDependencies;
+    }
+
     startCSSAnimations(elem, styles) {
         const startingStyles = window.getComputedStyle(elem);
 
@@ -237,6 +356,19 @@ class UI4 {
         });
     }
 
+    checkSourceDependencies(sourceID) {
+        const dependants = this.sourceDependencies[sourceID];
+        if (dependants) {
+            for (const targetId of Object.keys(dependants)) {
+                const dependencies = this.allDependencies[targetId];
+                if (dependencies) {
+                    this.checkDependenciesFor(targetId, dependencies);
+                }
+            }
+        }
+
+    }
+
     checkDependencies() {
         this.callLog.push("checkDependencies");
         this.checkAllDependencies();
@@ -245,27 +377,35 @@ class UI4 {
     checkAllDependencies() {
         let redrawNeeded = false;
         for (const [targetId, dependencies] of Object.entries(this.allDependencies)) {
-            let checkResults = this.checkDependenciesForOneElement(targetId, dependencies);
-            let finalValues = checkResults[0];
-            if (checkResults[1]) {
-                redrawNeeded = true;
-            }
-            // Apply the final value for each attribute
-            for (const [targetAttribute, data] of Object.entries(finalValues)) {
-                const updates = this.setValue[targetAttribute](data.context, data.sourceValue);
-                for (const [key, value] of Object.entries(updates)) {
-                    if (data.context.style[key] !== value) {
-                        data.context.style[key] = value;
-                    }
-                }
-            }
+            redrawNeeded = this.checkDependenciesFor(targetId, dependencies);
         }
         if (redrawNeeded) {
             requestAnimationFrame(this.checkDependencies.bind(this));
         }
     }
 
-    checkDependenciesForOneElement(targetId, dependencies) {
+    checkDependenciesFor(targetId, dependencies) {
+        let redrawNeeded = false;
+
+        let checkResults = this.checkResults(targetId, dependencies);
+        let finalValues = checkResults[0];
+        if (checkResults[1]) {
+            redrawNeeded = true;
+        }
+        // Apply the final value for each attribute
+        for (const [targetAttribute, data] of Object.entries(finalValues)) {
+            const updates = this.setValue[targetAttribute](data.context, data.sourceValue);
+            for (const [key, value] of Object.entries(updates)) {
+                if (data.context.style[key] !== value) {
+                    data.context.style[key] = value;
+                }
+            }
+        }
+
+        return redrawNeeded;
+    }
+
+    checkResults(targetId, dependencies) {
         let targetElem = document.getElementById(targetId);
         let values = {};
         let redrawNeeded = false;
