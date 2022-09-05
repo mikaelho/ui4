@@ -324,7 +324,25 @@ class UI4 {
             console.log(dependency.targetAttribute);
             if (dependency.targetAttribute === 'dock') {
                 console.log("Docking");
-                if (!('id' in dependency.value)) {
+                if ('id' in dependency.value) {
+                    const spec = UI4.peerDock[dependency.value.attribute];
+                    const sourceId = dependency.value.id;
+                    updatedDependencies.push({
+                       targetAttribute: spec.size,
+                       comparison: '=',
+                       value: {id: sourceId, attribute: spec.size},
+                    });
+                    updatedDependencies.push({
+                       targetAttribute: spec.center,
+                       comparison: '=',
+                       value: {id: sourceId, attribute: spec.center},
+                    });
+                    updatedDependencies.push({
+                       targetAttribute: spec.myEdge,
+                       comparison: '=',
+                       value: {id: sourceId, attribute: spec.yourEdge},
+                    });
+                } else {
                     const parentId = node.parentNode.id;
                     UI4.parentDock[dependency.value.attribute].forEach(attribute => {
                        updatedDependencies.push({
