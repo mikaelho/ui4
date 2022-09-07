@@ -75,7 +75,7 @@ Constraints:
 
 Width values:
 
-- `hx-at="width=share(2,3)"` - two thirds of available space, considering gaps
+- `width=2of3` - two thirds of available space, considering gaps
 - `= (full - ((3 + 1) * gap)) / 3 * 2 + ((2 - 1) * gap)`
 - if gap = 0, reduces to `= full / 3 * 2`
 

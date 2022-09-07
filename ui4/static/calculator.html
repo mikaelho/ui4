@@ -1,0 +1,163 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>Calculator</title>
+    <script src="ui4parser.js"></script>
+    <script src="ui4.js"></script>
+    <script>ui4.gap = 10;</script>
+</head>
+<body>
+    <div id="root" class="ui4Root">
+        <div id="frame" ui4="fit=true dock=center">
+            <input id="result" ui4="dock=topLeft right=divide.right" value="0">
+            <button id="ac" class="roundButton greyButton" ui4="left=frame.left top=result.bottom" onclick="clean()">AC</button>
+            <button id="plusminus" class="roundButton greyButton" ui4="dock=ac.rightOf" onclick="swap()">+/‒</button>
+            <button id="percent" class="roundButton greyButton" ui4="dock=plusminus.rightOf" onclick="percent()">%</button>
+
+            <button id="seven" class="roundButton darkButton" ui4="dock=ac.below" onclick="entry(7)">7</button>
+            <button id="eight" class="roundButton darkButton" ui4="dock=seven.rightOf" onclick="entry(8)">8</button>
+            <button id="nine" class="roundButton darkButton" ui4="dock=eight.rightOf" onclick="entry(9)">9</button>
+            <button id="four" class="roundButton darkButton" ui4="dock=seven.below" onclick="entry(4)">4</button>
+            <button id="five" class="roundButton darkButton" ui4="dock=four.rightOf" onclick="entry(5)">5</button>
+            <button id="six" class="roundButton darkButton" ui4="dock=five.rightOf" onclick="entry(6)">6</button>
+            <button id="one" class="roundButton darkButton" ui4="dock=four.below" onclick="entry(1)">1</button>
+            <button id="two" class="roundButton darkButton" ui4="dock=one.rightOf" onclick="entry(2)">2</button>
+            <button id="three" class="roundButton darkButton" ui4="dock=two.rightOf" onclick="entry(3)">3</button>
+            <button id="zero" class="zeroButton darkButton" ui4="dock=comma.leftOf left=one.left" onclick="entry(0)"></button>
+            <div id="zeroText" class="zeroText" ui4="centerX=one.centerX centerY=zero.centerY">0</div>
+            <button id="comma" class="roundButton darkButton" ui4="dock=three.below" onclick="entry('.')">.</button>
+
+            <button id="divide" class="roundButton yellowButton" ui4="dock=percent.rightOf" onclick="operation('/')">÷</button>
+            <button id="multiply" class="roundButton yellowButton" ui4="dock=divide.below" onclick="operation('*')">×</button>
+            <button id="minus" class="roundButton yellowButton" ui4="dock=multiply.below" onclick="operation('-')">−</button>
+            <button id="plus" class="roundButton yellowButton" ui4="dock=minus.below" onclick="operation('+')">+</button>
+            <button id="equals" class="roundButton yellowButton" ui4="dock=plus.below" onclick="operation('=')">=</button>
+        </div>
+    </div>
+    <style>
+        body { background-color: black; }
+        input {
+            -webkit-appearance: none;
+            background-color: black;
+            height: 50px;
+            color: white;
+            font-size: 48px;
+            border: 0;
+            text-align: right;
+        }
+        .roundButton {
+            width: 50px;
+            height: 50px;
+            border-radius: 25px;
+            color: white;
+            border: 0;
+            font-size: larger;
+        }
+        .zeroButton {
+            border-radius: 25px;
+            border: 0;
+        }
+        .zeroText {
+            color: white;
+            font-size: larger;
+            pointer-events: none;
+        }
+        .greyButton {
+            background-color: darkgray;
+            color: black;
+        }
+        .greyButton:active {
+            background-color: #c9c9c9;
+        }
+        .darkButton {
+            background-color: #303030;
+        }
+        .darkButton:active {
+            background-color: #505050;
+        }
+        .yellowButton {
+            background-color: darkorange;
+            font-size: xx-large;
+        }
+        .yellowButton:active {
+            background-color: orange;
+        }
+    </style>
+    <script>
+        let results = [];
+        let replace = false;
+
+        function entry(value) {
+            console.log((1.000).toString());
+            const resultElem = document.getElementById("result");
+            let currentValue;
+            if (replace) {
+                replace = false;
+                currentValue = value;
+                if (results.length === 1) {
+                    results = [];
+                }
+            } else {
+                currentValue = resultElem.value;
+                if (currentValue === "0") { currentValue = ""; }
+                currentValue += value;
+            }
+            resultElem.value = currentValue;
+        }
+
+        const operations = {
+            "+": (a, b) => a + b,
+            "-": (a, b) => a - b,
+            "*": (a, b) => a * b,
+            "/": (a, b) => a / b,
+        };
+
+        function operation(operationAsString) {
+            const resultElem = document.getElementById("result");
+            if (replace === false) {
+                results.push(resultElem.value);
+            }
+            console.log("Middle: " + results.toString());
+            if (results.length === 3) {
+                let newResult;
+                const op = operations[results[1]];
+                if (op) {
+                    newResult = op(parseFloat(results[0]), parseFloat(results[2]));
+                }
+                const resultAsString = parseFloat(newResult.toPrecision(5).toString()).toString();
+                results = [resultAsString];
+                resultElem.value = resultAsString;
+            }
+            if (operationAsString !== "=") {
+                results.push(operationAsString);
+            }
+            replace = true;
+            console.log("After: " + results.toString());
+        }
+
+        function clean() {
+            results = [];
+            const resultElem = document.getElementById("result");
+            resultElem.value = '0';
+        }
+
+        function swap() {
+            const resultElem = document.getElementById("result");
+            let asNumber = parseFloat(resultElem.value);
+            asNumber = 0 - asNumber;
+            const asString = asNumber.toString();
+            resultElem.value = asString;
+            if (results.length === 1) {
+                results = [asString];
+            }
+        }
+
+        function percent() {
+            const resultElem = document.getElementById("result");
+            let asNumber = parseFloat(resultElem.value);
+            asNumber /= 100;
+            resultElem.value = asNumber.toString();
+        }
+    </script>
+</body>

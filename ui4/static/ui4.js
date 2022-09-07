@@ -57,6 +57,13 @@ class UI4 {
         all: ["left", "right", "top", "bottom"],
     };
 
+    static composites = {
+        center: ["centerX", "centerY"],
+        position: ["left", "top"],
+        size: ["width", "height"],
+        frame: ["top", "left", "width", "height"],
+    }
+
     static peerDock = {
         above: {size: "width", center: "centerX", myEdge: "bottom", yourEdge: "top"},
         below: {size: "width", center: "centerX", myEdge: "top", yourEdge: "bottom"},
@@ -271,7 +278,7 @@ class UI4 {
             if (!dependencies.length) {
                 if (targetId in this.allDependencies) {
                     for (const dependency of this.allDependencies[targetId]) {
-                        if ('id' in dependency.value) {
+                        if (typeof dependency.value === 'object' && 'id' in dependency.value) {
                             const sourceID = dependency.value.id;
                             delete this.sourceDependencies[sourceID][targetId];
                         }
@@ -279,10 +286,10 @@ class UI4 {
                 }
                 delete this.allDependencies[targetId];
             } else {
-                dependencies = this.expandDockDependencies(node, dependencies);
+                dependencies = this.expandCompositeDependencies(node, dependencies);
                 this.allDependencies[targetId] = dependencies;
                 for (const dependency of dependencies) {
-                    if ('id' in dependency.value) {
+                    if (typeof dependency.value === 'object' && 'id' in dependency.value) {
                         const sourceID = dependency.value.id;
                         const targetIds = this.sourceDependencies[sourceID] || {};
                         targetIds[targetId] = true;
@@ -318,38 +325,72 @@ class UI4 {
         return dependencies;
     }
 
-    expandDockDependencies(node, dependencies) {
+    expandCompositeDependencies(node, dependencies) {
         let updatedDependencies = Array();
         dependencies.forEach(dependency => {
-            console.log(dependency.targetAttribute);
-            if (dependency.targetAttribute === 'dock') {
-                console.log("Docking");
+            if (dependency.targetAttribute in UI4.composites && dependency.value) {
+
+                if (dependency.targetAttribute == dependency.value.attribute) {
+                    UI4.composites[dependency.targetAttribute].forEach(attribute => {
+                        const cloned = structuredClone(dependency);
+                        cloned.targetAttribute = attribute;
+                        cloned.value.attribute = attribute;
+                        updatedDependencies.push(cloned);
+                    });
+                } else {
+                    const allowed = {center: true, position: true};
+                    if (dependency.targetAttribute in allowed && dependency.value.attribute in allowed) {
+                        const sourceComposite = UI4.composites[dependency.value.attribute];
+                        UI4.composites[dependency.targetAttribute].forEach((attribute, index) => {
+                            const cloned = structuredClone(dependency);
+                            cloned.targetAttribute = attribute;
+                            cloned.value.attribute = sourceComposite[index];
+                            updatedDependencies.push(cloned);
+                        });
+                    }
+                }
+            } else if (dependency.targetAttribute === 'dock') {
                 if ('id' in dependency.value) {
                     const spec = UI4.peerDock[dependency.value.attribute];
                     const sourceId = dependency.value.id;
                     updatedDependencies.push({
-                       targetAttribute: spec.size,
-                       comparison: '=',
-                       value: {id: sourceId, attribute: spec.size},
+                        targetAttribute: spec.size,
+                        comparison: '=',
+                        value: {id: sourceId, attribute: spec.size},
                     });
                     updatedDependencies.push({
-                       targetAttribute: spec.center,
-                       comparison: '=',
-                       value: {id: sourceId, attribute: spec.center},
+                        targetAttribute: spec.center,
+                        comparison: '=',
+                        value: {id: sourceId, attribute: spec.center},
                     });
-                    updatedDependencies.push({
-                       targetAttribute: spec.myEdge,
-                       comparison: '=',
-                       value: {id: sourceId, attribute: spec.yourEdge},
-                    });
+                    const cloned = structuredClone(dependency);
+                    cloned.targetAttribute = spec.myEdge;
+                    cloned.value.attribute = spec.yourEdge;
+                    updatedDependencies.push(cloned);
                 } else {
                     const parentId = node.parentNode.id;
                     UI4.parentDock[dependency.value.attribute].forEach(attribute => {
-                       updatedDependencies.push({
-                           targetAttribute: attribute,
-                           comparison: '=',
-                           value: {id: parentId, attribute: attribute},
-                       });
+                        const cloned = structuredClone(dependency);
+                        cloned.targetAttribute = attribute;
+                        cloned.value.id = parentId;
+                        cloned.value.attribute = attribute;
+                        updatedDependencies.push(cloned);
+                    });
+                }
+            } else if (dependency.targetAttribute === 'fit') {
+                const fitKeyword = dependency.value.attribute;
+                if (fitKeyword === "width" || fitKeyword === "true") {
+                    updatedDependencies.push({
+                        targetAttribute: "width",
+                        comparison: '=',
+                        value: {id: node.id, attribute: "fitWidth"},
+                    });
+                }
+                if (fitKeyword === "height" || fitKeyword === "true") {
+                    updatedDependencies.push({
+                        targetAttribute: "height",
+                        comparison: '=',
+                        value: {id: node.id, attribute: "fitHeight"},
                     });
                 }
             } else {
@@ -620,6 +661,9 @@ class UI4 {
 
     startAnimation(targetAttr, data, dependency) {
         const animationOptions = dependency.animation;
+        if ('iterations' in animationOptions && animationOptions.iterations === 0) {
+            animationOptions.iterations = Infinity;
+        }
         const animation = data.targetElem.animate(
          [
              this.setValue[targetAttr](data.context, data.targetValue),

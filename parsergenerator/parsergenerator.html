@@ -100,6 +100,12 @@
             ['left=root.left', true,
                 [{"targetAttribute": "left", "comparison": "=", "value": {"id": "root", "attribute": "left"}}]
             ],
+            ['x=root.x', true,
+                [{"targetAttribute": "left", "comparison": "=", "value": {"id": "root", "attribute": "left"}}]
+            ],
+            ['center=root.center', true,
+                [{"targetAttribute": "center", "comparison": "=", "value": {"id": "root", "attribute": "center"}}]
+            ],
             ['left=root.left+20', true,
                 [{
                     "targetAttribute": "left", "comparison": "=",
@@ -117,6 +123,10 @@
                     }
                 }]
             ],
+
+            // SPECIAL WIDTH OR HEIGHT
+            ['width=1of', true, [{"targetAttribute":"width","comparison":"=","value":{"share":1}}]],
+            ['width=2of3', true, [{"targetAttribute":"width","comparison":"=","value":{"share": 2, "total": 3}}]],
 
             // DOCKING
             ['dock=root.above', true, [{
@@ -147,9 +157,8 @@
                     {"targetAttribute": "right", "comparison": "=", "value": {"id": "root", "attribute": "right"}}
                 ]
             ],
-            ['width=container.fitWidth; height=container.fitHeight', true, [
-                {"targetAttribute": "width", "comparison": "=", "value": {"id": "container", "attribute": "fitWidth"}},
-                {"targetAttribute": "height", "comparison": "=", "value": {"id": "container", "attribute": "fitHeight"}}
+            ['fit=true', true, [
+                {"targetAttribute": "fit", "comparison": "=", "value": {"attribute": "true"}},
             ]],
 
             // MIN/MAX
@@ -213,7 +222,7 @@
             }]],
             ['left=1:1s,0', true, [{
                 "targetAttribute": "left", "comparison": "=", "value": 1,
-                "animation": {"duration": 1000, "fill": "both", "iterations": null}
+                "animation": {"duration": 1000, "fill": "both", "iterations": 0}
             }]],
             ['left=1:1s,2', true, [{
                 "targetAttribute": "left", "comparison": "=", "value": 1,
@@ -277,7 +286,7 @@
         = constraintSpec* (';' constraintSpec)* ';'? { return result; }
 
     constraintSpec
-        = condition:(condition '?')? constraint:(constraint / dockConstraint) animation:(':' animation)?
+        = condition:(condition '?')? constraint:(constraint / dockConstraint / fitConstraint) animation:(':' animation)?
             {
                 if (condition) { constraint.condition = condition[0]; }
                 if (animation) { constraint.animation = animation[1]; }
@@ -292,6 +301,11 @@
     dockConstraint 'dock constraint'
         = 'dock' equal value:(parentDockKeyword / peerDockRightHandSide) {
             return {targetAttribute: 'dock', comparison: '=', value: value};
+          }
+
+    fitConstraint 'fit constraint'
+        = 'fit' equal attribute:('width' / 'height' / 'true' / 'false') {
+            return {targetAttribute: 'fit', comparison: '=', value: {attribute: attribute}};
           }
 
     condition 'condition for the constraint to apply'
@@ -320,7 +334,7 @@
         = attributeKeyword
 
     attributeKeyword 'attribute keyword'
-        = edgeKeyword / sizeKeyword / centerKeyword / fitKeyword
+        = edgeKeyword / sizeKeyword / centerKeyword / compositeKeyword
 
     parentDockKeyword 'parent dock keyword'
         = keyword:('center' / edgeCenterKeyword / oppositeEdgesKeyword / cornerKeyword / edgeKeyword / 'all') {
@@ -328,7 +342,13 @@
           }
 
     edgeKeyword 'edge keyword'
-        = 'left' / 'right' / 'top' / 'bottom'
+        = 'left' / 'right' / 'top' / 'bottom' / x / y
+
+    x 'alias for left'
+        = 'x' { return 'left'; }
+
+    y 'alias for top'
+        = 'y' { return 'top'; }
 
     sizeKeyword 'size keyword'
         = 'width' / 'height'
@@ -336,8 +356,8 @@
     centerKeyword 'center keyword'
         = 'centerX' / 'centerY'
 
-    fitKeyword 'fit keyword'
-        = 'fitWidth' / 'fitHeight'
+    compositeKeyword 'composite keyword'
+        = 'center' / 'position' / 'size' / 'frame'
 
     peerDockRightHandSide 'peer dock right-hand-side'
         = id:elemId '.' attribute:peerDockKeyword {
@@ -385,11 +405,19 @@
         / primary
 
     primary
-        = number
+        = xOfY
+        / number
         / function
         / sourceValue
         / 'gap'
         / "(" additive:additive ")" { return additive; }
+
+    xOfY 'x of y (for width or height)'
+        = howMany:positiveInteger 'of' howManyInTotal:(positiveInteger)? {
+            const returnValue = {share: howMany}
+            if (howManyInTotal) { returnValue.total = howManyInTotal; }
+            return returnValue;
+          }
 
     number 'number'
         = sign:[+-]? integer_part:[0-9]+ decimal_part:('.' [0-9]+)?
@@ -452,9 +480,7 @@
               options.endDelay = endDelay[1] * 1000;
             }
             if (iterations !== null) {
-              iterations = iterations[1];
-              if (iterations === 0) { iterations = Infinity; }
-              options.iterations = iterations;
+              options.iterations = iterations[1];
             }
             if (id) {
                 options.id = id[1];
