@@ -250,13 +250,11 @@ class UI4 {
     setResizeObserver(node) {
         const sourceID = node.id;
         if (!sourceID) { return; }
-        console.log("Set resize observer for " + node.id);
         const resizeObserver = new ResizeObserver(this.checkSourceDependencies.bind(this));
         resizeObserver.observe(node);
     }
 
     startClassObserver() {
-        console.log("Start class observer");
         const observer = new MutationObserver(this.classChangeHandler.bind(this));
         observer.observe(document, {
           subtree: true,
@@ -266,7 +264,6 @@ class UI4 {
     }
 
     classChangeHandler(mutations, observer) {
-        console.log("classChangeHandler");
         mutations.forEach((mutation) => {
             switch (mutation.type) {
                 case 'childList':
@@ -288,7 +285,6 @@ class UI4 {
     }
 
     startTracking() {
-        this.callLog.push("startTracking");
         const observer = new MutationObserver(this.checkDependencies.bind(this));
         observer.observe(document.body, {
             subtree: true,
@@ -317,8 +313,6 @@ class UI4 {
     }
 
     setDependencies(node) {
-        console.log("setDependencies");
-
         const targetId = node.id;
         if (!targetId) { return; }
 
@@ -344,7 +338,6 @@ class UI4 {
                 console.error(error);
                 return;
             }
-            console.log("Dependencies: " + JSON.stringify(dependencies));
             if (!dependencies.length) {
                 if (targetId in this.allDependencies) {
                     for (const dependency of this.allDependencies[targetId]) {
@@ -467,7 +460,7 @@ class UI4 {
             source.id = sourceID;
             source.valueFunction = createGetFunction(sourceSpec, this);
         } else {
-            const toEvaluate = `(function(context) {return ${sourceSpec};})`;
+            const toEvaluate = `(function(gap) {return ${sourceSpec};})`;
             source.valueFunction = eval(toEvaluate);
         }
         return source;
@@ -604,12 +597,10 @@ class UI4 {
         if (checkResults[1]) {
             redrawNeeded = true;
         }
-        console.log("finalValues: " + JSON.stringify(finalValues["right"]));
 
         // Apply the final value for each attribute
         for (const [targetAttribute, data] of Object.entries(finalValues)) {
             const updates = this.setValue[targetAttribute](data.context, data.sourceValue);
-            console.log("updates: " + JSON.stringify(updates));
             for (const [key, value] of Object.entries(updates)) {
                 if (data.context.style[key] !== value) {
                     data.context.style[key] = value;
@@ -621,8 +612,6 @@ class UI4 {
     }
 
     checkResults(targetId) {
-        console.log("Target: " + targetId);
-        console.log("allDependencies: " + JSON.stringify(this.allDependencies))
         const targetElem = document.getElementById(targetId);
         const dependencies = this.allDependencies[targetId];
         let values = {};
@@ -640,22 +629,18 @@ class UI4 {
 
             const source = this.processSourceSpec(targetElem, dependency.value);
 
-            console.log("SOURCE " + JSON.stringify(source));
-
             if (source === undefined) {
                 return;
             }
 
             let targetContext = this.getTargetContext(targetElem, dependencies);
             let target = this.getTargetValue(dependency.targetAttribute, targetContext);
-            console.log("TARGET " + JSON.stringify(target));
 
             let sourceValue = source;
             if (typeof source !== 'number') {
                 sourceValue = source.value;
                 sourceValue += this.gapAdjustment(source, target);
             }
-            console.log("sourceValue: " + sourceValue);
 
             const result = {
                 targetElem: targetElem,
@@ -728,6 +713,7 @@ class UI4 {
     }
 
     processSourceSpec(targetElem, sourceSpec) {
+        console.log("Source spec " + JSON.stringify(sourceSpec));
         if (typeof sourceSpec === 'number') {
             return sourceSpec;
         }
@@ -735,8 +721,14 @@ class UI4 {
         //     return this.gap;
         // }
         else if ('id' in sourceSpec) {
-            console.log("HERE");
             return this.processSourceAttribute(targetElem, sourceSpec);
+        }
+        else if (sourceSpec.attribute === "constant") {
+            return {
+                value: sourceSpec.valueFunction(this.gap),
+                type: UI4.attrType[sourceSpec.attribute],
+                contained: true,
+            };
         }
         else if ('operation' in sourceSpec) {
             let lhs = this.processSourceSpec(targetElem, sourceSpec.lhs);
@@ -778,11 +770,14 @@ class UI4 {
             parentStyle: window.getComputedStyle(sourceElem.parentElement),
             targetElem: targetElem
         };
-        return {
+        const source = {
             value: sourceSpec.valueFunction(sourceElem.id, sourceSpec.attribute, sourceContext),  //this.getValue[sourceSpec.attribute](sourceContext),
             type: UI4.attrType[sourceSpec.attribute],
             contained: contained,
         };
+        console.log("Source " + JSON.stringify(source));
+
+        return source;
     }
 
     getTargetContext(targetElem, dependencies) {
