@@ -9,30 +9,30 @@
 </head>
 <body>
     <div id="root" class="ui4Root">
-        <div id="frame" ui4="fit=true dock=center">
-            <input id="result" ui4="dock=topLeft right=divide.right" value="0">
-            <button id="ac" class="roundButton greyButton" ui4="left=frame.left top=result.bottom" onclick="clean()">AC</button>
-            <button id="plusminus" class="roundButton greyButton" ui4="dock=ac.rightOf" onclick="swap()">+/‒</button>
-            <button id="percent" class="roundButton greyButton" ui4="dock=plusminus.rightOf" onclick="percent()">%</button>
+        <div id="frame" ui4="fit=true;dock=center">
+            <input id="result" ui4="dock=topLeft; right=right.divide" value="0">
+            <button id="ac" class="roundButton greyButton" ui4="left=left.root; top=bottom.result" onclick="clean()">AC</button>
+            <button id="plusminus" class="roundButton greyButton" ui4="dock=rightOf.ac" onclick="swap()">+/‒</button>
+            <button id="percent" class="roundButton greyButton" ui4="dock=rightOf.plusminus" onclick="percent()">%</button>
 
-            <button id="seven" class="roundButton darkButton" ui4="dock=ac.below" onclick="entry(7)">7</button>
-            <button id="eight" class="roundButton darkButton" ui4="dock=seven.rightOf" onclick="entry(8)">8</button>
-            <button id="nine" class="roundButton darkButton" ui4="dock=eight.rightOf" onclick="entry(9)">9</button>
-            <button id="four" class="roundButton darkButton" ui4="dock=seven.below" onclick="entry(4)">4</button>
-            <button id="five" class="roundButton darkButton" ui4="dock=four.rightOf" onclick="entry(5)">5</button>
-            <button id="six" class="roundButton darkButton" ui4="dock=five.rightOf" onclick="entry(6)">6</button>
-            <button id="one" class="roundButton darkButton" ui4="dock=four.below" onclick="entry(1)">1</button>
-            <button id="two" class="roundButton darkButton" ui4="dock=one.rightOf" onclick="entry(2)">2</button>
-            <button id="three" class="roundButton darkButton" ui4="dock=two.rightOf" onclick="entry(3)">3</button>
-            <button id="zero" class="zeroButton darkButton" ui4="dock=comma.leftOf left=one.left" onclick="entry(0)"></button>
-            <div id="zeroText" class="zeroText" ui4="centerX=one.centerX centerY=zero.centerY">0</div>
-            <button id="comma" class="roundButton darkButton" ui4="dock=three.below" onclick="entry('.')">.</button>
+            <button id="seven" class="roundButton darkButton" ui4="dock=below.ac" onclick="entry(7)">7</button>
+            <button id="eight" class="roundButton darkButton" ui4="dock=rightOf.seven" onclick="entry(8)">8</button>
+            <button id="nine" class="roundButton darkButton" ui4="dock=rightOf.eight" onclick="entry(9)">9</button>
+            <button id="four" class="roundButton darkButton" ui4="dock=below.seven" onclick="entry(4)">4</button>
+            <button id="five" class="roundButton darkButton" ui4="dock=rightOf.four" onclick="entry(5)">5</button>
+            <button id="six" class="roundButton darkButton" ui4="dock=rightOf.five" onclick="entry(6)">6</button>
+            <button id="one" class="roundButton darkButton" ui4="dock=below.four" onclick="entry(1)">1</button>
+            <button id="two" class="roundButton darkButton" ui4="dock=rightOf.one" onclick="entry(2)">2</button>
+            <button id="three" class="roundButton darkButton" ui4="dock=rightOf.two" onclick="entry(3)">3</button>
+            <button id="zero" class="zeroButton darkButton" ui4="dock=leftOf.comma; left=left.one" onclick="entry(0)"></button>
+            <div id="zeroText" class="zeroText" ui4="centerX=centerX.one; centerY=centerY.zero">0</div>
+            <button id="comma" class="roundButton darkButton" ui4="dock=below.three" onclick="entry('.')">.</button>
 
-            <button id="divide" class="roundButton yellowButton" ui4="dock=percent.rightOf" onclick="operation('/')">÷</button>
-            <button id="multiply" class="roundButton yellowButton" ui4="dock=divide.below" onclick="operation('*')">×</button>
-            <button id="minus" class="roundButton yellowButton" ui4="dock=multiply.below" onclick="operation('-')">−</button>
-            <button id="plus" class="roundButton yellowButton" ui4="dock=minus.below" onclick="operation('+')">+</button>
-            <button id="equals" class="roundButton yellowButton" ui4="dock=plus.below" onclick="operation('=')">=</button>
+            <button id="divide" class="roundButton yellowButton" ui4="dock=rightOf.percent" onclick="operation('/')">÷</button>
+            <button id="multiply" class="roundButton yellowButton" ui4="dock=below.divide" onclick="operation('*')">×</button>
+            <button id="minus" class="roundButton yellowButton" ui4="dock=below.multiply" onclick="operation('-')">−</button>
+            <button id="plus" class="roundButton yellowButton" ui4="dock=below.minus" onclick="operation('+')">+</button>
+            <button id="equals" class="roundButton yellowButton" ui4="dock=below.plus" onclick="operation('=')">=</button>
         </div>
     </div>
     <style>

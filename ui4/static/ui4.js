@@ -302,7 +302,6 @@ class UI4 {
                         const sourceID = dependency.value.id;
                         const targetIds = this.sourceDependencies[sourceID] || {};
                         targetIds[targetId] = true;
-                        console.log(sourceID + " -> " + JSON.stringify(targetIds));
                         this.sourceDependencies[sourceID] = targetIds;
                     }
                 }
@@ -348,14 +347,14 @@ class UI4 {
             if (conditionAndCore.length === 2) {
                 coreSpec = conditionAndCore[1];
             } else if (conditionAndCore.length > 2) {
-                console.log(`Too many '?' in '${spec}'`);
+                console.error(`Too many '?' in '${spec}'`);
                 return;
             }
             const coreAndAnimation = spec.split(":");
             if (coreAndAnimation.length === 2) {
                 coreSpec = coreAndAnimation[0];
             } else if (coreAndAnimation.length > 2) {
-                console.log(`Too many ':' in '${spec}'`);
+                console.error(`Too many ':' in '${spec}'`);
                 return;
             }
             let targetAttribute, comparison, sourceSpec;
@@ -369,20 +368,54 @@ class UI4 {
                 }
             }
             if (comparison === undefined) {
-                console.log(`Could not locate '=', '>' or '<' in ${spec}`);
+                console.error(`Could not locate '=', '>' or '<' in ${spec}`);
                 return;
             }
 
             if (targetAttribute === "dock") {
-                for (const [dockAttribute, attributes] of Object.entries(UI4.parentDock)) {
-                    if (sourceSpec.startsWith(dockAttribute)) {
-                        const parentId = node.parentNode.id;
-                        attributes.forEach(attribute => {
-                            const modifiedSourceSpec = sourceSpec.replace(dockAttribute, `${attribute}.${parentId}`);
-                            this.addToDependencies(dependencies, attribute, comparison, modifiedSourceSpec);
-                        });
+                let peerDocked = false;
+                for (const [dockAttribute, attributes] of Object.entries(UI4.peerDock)) {
+                    if (sourceSpec.startsWith(`${dockAttribute}.`)) {
+                        let modifiedSourceSpec = sourceSpec.replace(dockAttribute, attributes.size);
+                        this.addToDependencies(dependencies, attributes.size, comparison, modifiedSourceSpec);
+
+                        modifiedSourceSpec = sourceSpec.replace(dockAttribute, attributes.center);
+                        this.addToDependencies(dependencies, attributes.center, comparison, modifiedSourceSpec);
+
+                        modifiedSourceSpec = sourceSpec.replace(dockAttribute, attributes.yourEdge);
+                        this.addToDependencies(dependencies, attributes.myEdge, comparison, modifiedSourceSpec);
+
+                        peerDocked = true;
                         break;
                     }
+                }
+
+                if (!peerDocked) {
+                    for (const [dockAttribute, attributes] of Object.entries(UI4.parentDock)) {
+                        if (sourceSpec.startsWith(dockAttribute)) {
+                            const parentId = node.parentNode.id;
+                            attributes.forEach(attribute => {
+                                const modifiedSourceSpec = sourceSpec.replace(
+                                    dockAttribute, `${attribute}.${parentId}`
+                                );
+                                this.addToDependencies(dependencies, attribute, comparison, modifiedSourceSpec);
+                            });
+                            break;
+                        }
+                    }
+                }
+            }
+
+            else if (targetAttribute === 'fit') {
+                if (sourceSpec === "width" || sourceSpec === "true") {
+                    this.addToDependencies(
+                        dependencies, "width", comparison, `fitWidth.${node.id}`
+                    );
+                }
+                if (sourceSpec === "height" || sourceSpec === "true") {
+                    this.addToDependencies(
+                        dependencies, "height", comparison, `fitHeight.${node.id}`
+                    );
                 }
             }
 
@@ -402,7 +435,6 @@ class UI4 {
                     targetCombo.forEach((expandedAttribute, index) => {
                         const modifiedSourceSpec = sourceSpec.replace(`${sourceAttribute}.`, `${sourceCombo[index]}.`);
                         this.addToDependencies(dependencies, expandedAttribute, comparison, modifiedSourceSpec);
-                        console.log("Combo: ", targetAttribute, " ", modifiedSourceSpec);
                     });
                 }
 
@@ -411,7 +443,7 @@ class UI4 {
             }
 
             else {
-                console.log(`Unknown target attribute in ${spec}: ${targetAttribute}`);
+                console.error(`Unknown target attribute in ${spec}: ${targetAttribute}`);
             }
         });
         return dependencies;
@@ -428,7 +460,7 @@ class UI4 {
     parseSourceSpec(targetAttribute, sourceSpec) {
         // const contained = targetAttribute.parentElement === sourceElem;
         let sourceAttribute, sourceID;
-        for (const attributeCandidate in this.setValue) {
+        for (const attributeCandidate in this.getValue) {
             if (sourceSpec.startsWith(attributeCandidate)) {
                 sourceAttribute = attributeCandidate;
                 break;
@@ -467,8 +499,8 @@ class UI4 {
             }
         });
 
-        let left, right, top, bottom, centerX, centerY, width, height;
-        left = right = top = bottom = centerX = centerY = width = height = idCatcherProxy;
+        let left, right, top, bottom, centerX, centerY, width, height, fitWidth, fitHeight;
+        left = right = top = bottom = centerX = centerY = width = height = fitWidth = fitHeight = idCatcherProxy;
         const gap = 0;
         try {
             eval(sourceSpec);
@@ -493,8 +525,8 @@ class UI4 {
                         }
                     }
                 );
-                let left, right, top, bottom, centerX, centerY, width, height;
-                left = right = top = bottom = centerX = centerY = width = height = attributeGetProxy;
+                let left, right, top, bottom, centerX, centerY, width, height, fitWidth, fitHeight;
+                left = right = top = bottom = centerX = centerY = width = height = fitWidth = fitHeight = attributeGetProxy;
                 const gap = _this.gap;
                 return eval(sourceSpec);
             }
@@ -613,7 +645,7 @@ class UI4 {
             if (dependants) {
                 Object.keys(dependants).forEach(dependantID => {
                     const seenCount = seen[dependantID] || 0;
-                    if (seenCount > 3) {  // Allow little circularity
+                    if (seenCount) {  // Allow no circularity
                         return;
                     }
                     toCheck.push(dependantID);
@@ -623,7 +655,6 @@ class UI4 {
             }
 
         }
-        console.log("To check in dependency order: " + toCheck);
         for (const targetId of toCheck) {
             if (targetId in this.allDependencies) {
                 this.checkDependenciesFor(targetId);
@@ -647,7 +678,6 @@ class UI4 {
     }
 
     checkDependenciesFor(targetId) {
-        console.log("checkDependeciesFor " + targetId);
         let redrawNeeded = false;
 
         let checkResults = this.checkResults(targetId);
@@ -772,14 +802,7 @@ class UI4 {
     }
 
     processSourceSpec(targetElem, sourceSpec) {
-        console.log("Source spec " + JSON.stringify(sourceSpec));
-        if (typeof sourceSpec === 'number') {
-            return sourceSpec;
-        }
-        // else if (sourceSpec === 'gap') {
-        //     return this.gap;
-        // }
-        else if ('id' in sourceSpec) {
+        if ('id' in sourceSpec) {
             return this.processSourceAttribute(targetElem, sourceSpec);
         }
         else if (sourceSpec.attribute === "constant") {
@@ -788,28 +811,6 @@ class UI4 {
                 type: UI4.attrType[sourceSpec.attribute],
                 contained: true,
             };
-        }
-        else if ('operation' in sourceSpec) {
-            let lhs = this.processSourceSpec(targetElem, sourceSpec.lhs);
-            let rhs = this.processSourceSpec(targetElem, sourceSpec.rhs);
-            if (typeof lhs !== 'number') {
-                lhs = lhs.value;
-            }
-            if (typeof rhs !== 'number') {
-                rhs = rhs.value;
-            }
-            return UI4.operations[sourceSpec.operation](lhs, rhs);
-        }
-        else if ('func' in sourceSpec) {
-            const _this = this;
-            const values = sourceSpec.values.map(function(item) {
-                let value = _this.processSourceSpec(targetElem, item);
-                if (typeof value !== 'number') {
-                    value = value.value;
-                }
-                return value;
-            });
-            return UI4.operations[sourceSpec.func](...values);
         }
     }
 
@@ -834,7 +835,6 @@ class UI4 {
             type: UI4.attrType[sourceSpec.attribute],
             contained: contained,
         };
-        console.log("Source " + JSON.stringify(source));
 
         return source;
     }
