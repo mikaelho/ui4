@@ -1,30 +1,35 @@
 /*jshint esversion: 9 */
 
 
-const ID_AND_ATTRIBUTE = "idAndAttribute";
-const IDENTIFIER = "identifier";
+
+// Basic math
 const OPERATOR = "operator";
 const LEFT_PARENTHESIS = "leftParenthesis";
 const RIGHT_PARENTHESIS = "rightParenthesis";
 const NUMBER = "number";
-const GAP = "gap";
 
+// Application-specific
+const ID_AND_ATTRIBUTE = "idAndAttribute";
+const KEYWORD = "keyword";
+const FUNCTION = "function";
+const COMMA = "comma";
+
+const AS_IS_TYPES = [ID_AND_ATTRIBUTE, KEYWORD];
 
 class Parser {
 
     constructor(string) {
-        const PER_TOKEN = [
+        const TOKEN_TYPES = [
             "(?<idAndAttribute>([a-zA-Z]|\\d|_|-)+\\.([a-zA-Z]+))",
-            "(?<gap>gap)",
-            "(?<identifier>[a-zA-Z]+)",
+            "(?<keyword>gap)",
+            "(?<function>min|max|share)",
+            "(?<comma>,)",
             "(?<operator>[\\+\\-\\*\\/\\^])",
             "(?<leftParenthesis>[(\\[])",
             "(?<rightParenthesis>[)\\]])",
             "(?<number>[\\d\\.]+)",
         ];
-        const COMBINED_TOKENS = PER_TOKEN.join("|");
-
-        this.complete_matcher = new RegExp(`(${COMBINED_TOKENS})`,);
+        this.matcher = new RegExp(`(${TOKEN_TYPES.join("|")})`,);
 
         this.currentToken = undefined;
         this.tokens = this.tokenize(string);
@@ -32,8 +37,9 @@ class Parser {
 
     * tokenize(string) {
         let index = 0;
+        string = string.replace(' ', '');
         while (index < string.length) {
-            const match = string.substring(index).match(this.complete_matcher);
+            const match = string.substring(index).match(this.matcher);
 
             if (!match) {
                 throw `Could not recognize token starting from "${string.substring(index)}"`;
@@ -101,12 +107,20 @@ class Parser {
         if (token && token.type === NUMBER) {
             this.skipToken();
             return {type: token.type, value: parseFloat(token.value)};
-        } else if (token && (token.type === GAP || token.type === ID_AND_ATTRIBUTE || token.type === IDENTIFIER)) {
+        } else if (token && AS_IS_TYPES.includes(token.type)) {
             this.skipToken();
             return {type: token.type, value: token.value};
+        } else if (token && token.type === FUNCTION) {
+            const functionName = token.value;
+            this.skipToken();
+            token = this.getToken();
+            if (token && token.type !== LEFT_PARENTHESIS) {
+                throw `Function name should be followed by parenthesis, not ${token.type}: ${token.value}`;
+            }
+            return {type: FUNCTION, value: functionName, arguments: this.arguments()};
         } else if (token && token.type === LEFT_PARENTHESIS) {
             this.skipToken();
-            const node = this.additive(); // The beauty of recursion
+            const node = this.additive();
             token = this.getToken();
             if (token && token.type !== RIGHT_PARENTHESIS) {
                 throw "Missing closing parenthesis";
@@ -114,6 +128,18 @@ class Parser {
             return node;
         } else {
             throw `Unexpected ${token.type}: ${token.value}`;
+        }
+    }
+
+    arguments() {
+        let argument = this.additive();
+        let token = this.getToken();
+        if (token && token.type === COMMA) {
+            return [argument].concat(this.arguments());
+        } else if (token && token.type === RIGHT_PARENTHESIS) {
+            return [argument];
+        } else {
+            throw `Expected comma or closing parenthesis in function arguments, got: ${token}`;
         }
     }
 
@@ -128,39 +154,32 @@ class Parser {
     }
 }
 
-// function parse(expression) {
-//     const tokens = tokenize(expression);
-//
-//     const [tree, remainingTokens] = parseTokens(tokens, 0);
-// }
-//
-//
-//
-// function parseTokens(tokens, position) {
-//     let sign = "+";
-//     let delta = 0;
-//     let stack = [];
-//
-//     while(position < tokens.length) {
-//         let token = tokens[position];
-//         let delta = 1;
-//         if (token[0] === "left parenthesis") {
-//             [token, delta] = parseTokens(tokens, position + 1);
-//         }
-//         if (token[0] === )
-//     }
-// }
 
-// for (const token of (new Tokens("id1.left+2*(gap+1)")).tokens) {
-//     console.log(token);
-// }
-
-function pretty(obj) {
-    console.log(JSON.stringify(obj, null, 4));
+function tester(string) {
+    console.log('INPUT: ' + string);
+    try {
+        console.log('OUTPUT:');
+        console.log(JSON.stringify(new Parser(string).parse(), null, 4));
+    } catch (error) {
+        console.log(error);
+    }
 }
 
-pretty(new Parser("1+2").parse());
-pretty(new Parser("id1.left").parse());
-pretty(new Parser("id1.left-gap").parse());
-pretty(new Parser("id1.left+2*(gap+1)").parse());
-pretty(new Parser("id1.left+2*(gap+1/2)").parse());
+try {
+    new Parser("foo").parse();
+} catch (error) {
+
+}
+
+console.log('-----------------------------------------------------------------------------------------------');
+tester("foo");
+tester("1+2");
+tester("1+2+gap+gap");
+tester("id1.left");
+tester("id1.left-gap");
+tester("id1.left+2*(gap+1)");
+tester("id1.left+2*(gap+1/2)");
+tester("id1.left+2*(gap+1/2)");
+tester("min(1, 2)");
+tester("share(1+1, 2*gap");
+tester("share(1+1, 2*gap)");
