@@ -1,5 +1,39 @@
 /*jshint esversion: 9 */
 
+
+function validateAndCreateGetFunction(sourceSpec, source, _this) {
+    let testSourceSpec = sourceSpec.toString();
+    if (source.id && source.attribute) {
+        testSourceSpec = testSourceSpec.replace(`${source.id}.${source.attribute}`, "0");
+    }
+    if (source.share) {
+        testSourceSpec = testSourceSpec.replace(`share(${source.share}${source.outOf ? `,${source.outOf}` : ""}`, "0");
+    }
+    testSourceSpec = testSourceSpec.replace("gap", "0");
+
+    eval(testSourceSpec);
+
+    return (
+        function(sourceID, sourceAttribute, context) {
+            const attributeGetProxy = new Proxy(
+                {},
+                {
+                    get(target, name) {
+                        if (name === sourceID) {
+                            return _this.getValue[sourceAttribute](context);
+                        }
+                        return 0;
+                    }
+                }
+            );
+            let left, right, top, bottom, centerx, centery, width, height, fitwidth, fitheight;
+            left = right = top = bottom = centerx = centery = width = height = fitwidth = fitheight = attributeGetProxy;
+            const gap = _this.gap;
+            return eval(sourceSpec);
+        }
+    );
+}
+
 class UI4 {
 
     static rootStyles = {
@@ -32,41 +66,41 @@ class UI4 {
         right: UI4.TRAILING,
         top: UI4.LEADING,
         bottom: UI4.TRAILING,
-        centerX: UI4.NEUTRAL,
-        centerY: UI4.NEUTRAL,
+        centerx: UI4.NEUTRAL,
+        centery: UI4.NEUTRAL,
     };
 
     static composites = {
-        center: ["centerX", "centerY"],
+        center: ["centerx", "centery"],
         position: ["left", "top"],
         size: ["width", "height"],
         frame: ["top", "left", "width", "height"],
     }
 
     static parentDock = {  // Order is significant
-        topLeft: ["top", "left"],
-        topRight: ["top", "right"],
-        bottomLeft: ["bottom", "left"],
-        bottomRight: ["bottom", "right"],
-        topCenter: ["top", "centerX"],
-        bottomCenter: ["bottom", "centerX"],
-        leftCenter: ["left", "centerY"],
-        rightCenter: ["right", "centerY"],
+        topleft: ["top", "left"],
+        topright: ["top", "right"],
+        bottomleft: ["bottom", "left"],
+        bottomright: ["bottom", "right"],
+        topcenter: ["top", "centerx"],
+        bottomcenter: ["bottom", "centerx"],
+        leftcenter: ["left", "centery"],
+        rightcenter: ["right", "centery"],
         sides: ["left", "right"],
-        topAndBottom: ["top", "bottom"],
+        topbottom: ["top", "bottom"],
         top: ["left", "top", "right"],
         left: ["top", "left", "bottom"],
         bottom: ["left", "bottom", "right"],
         right: ["top", "right", "bottom"],
-        center: ["centerX", "centerY"],
+        center: ["centerx", "centery"],
         all: ["left", "right", "top", "bottom"],
     };
 
     static peerDock = {
-        above: {size: "width", center: "centerX", myEdge: "bottom", yourEdge: "top"},
-        below: {size: "width", center: "centerX", myEdge: "top", yourEdge: "bottom"},
-        rightOf: {size: "height", center: "centerY", myEdge: "left", yourEdge: "right"},
-        leftOf: {size: "height", center: "centerY", myEdge: "right", yourEdge: "left"},
+        above: {size: "width", center: "centerx", myEdge: "bottom", yourEdge: "top"},
+        below: {size: "width", center: "centerx", myEdge: "top", yourEdge: "bottom"},
+        rightof: {size: "height", center: "centery", myEdge: "left", yourEdge: "right"},
+        leftof: {size: "height", center: "centery", myEdge: "right", yourEdge: "left"},
     }
 
     static operations = {
@@ -80,6 +114,13 @@ class UI4 {
     static comparisons = {"=": (a, b) => a !== b, "<": (a, b) => a >= b, ">": (a, b) => a <= b};
     static ordering = {"=": 0, "<": 1, ">": 2};
     static conditions = {"=": (a, b) => a === b, "<": (a, b) => a < b, ">": (a, b) => a > b};
+
+    // Parser types
+    static OPERATOR = "operator";
+    static NUMBER = "number";
+    static ID_AND_ATTRIBUTE = "idAndAttribute";
+    static KEYWORD = "keyword";
+    static FUNCTION = "function";
 
     constructor() {
         this.gap = 8;
@@ -101,13 +142,13 @@ class UI4 {
             bottom: (context) => context.contained ?
                 parseFloat(context.getStyle.height) :
                 parseFloat(context.parentStyle.height) - parseFloat(context.getStyle.bottom),
-            centerX: (context) => context.contained ?
+            centerx: (context) => context.contained ?
                 parseFloat(context.getStyle.width) / 2 :
                 parseFloat(context.getStyle.left) + parseFloat(context.getStyle.width) / 2,
-            centerY: (context) => context.contained ?
+            centery: (context) => context.contained ?
                 parseFloat(context.getStyle.height) / 2 :
                 parseFloat(context.getStyle.top) + parseFloat(context.getStyle.height) / 2,
-            fitWidth: function (context) {
+            fitwidth: function (context) {
                 let left = false;
                 let right;
                 for (const child of context.targetElem.children) {
@@ -125,7 +166,7 @@ class UI4 {
                 }
                 return right - left + 2 * _this.gap;
             },
-            fitHeight: function (context) {
+            fitheight: function (context) {
                 let top = false;
                 let bottom;
                 for (const child of context.targetElem.children) {
@@ -145,6 +186,9 @@ class UI4 {
             }
         };
 
+        const attributeOptions = Object.keys(this.getValue).join('|');
+        this.idAndAttribute = new RegExp(`(?<id>([a-zA-Z]|\\d|_|-)+)\\.(?<attribute>(${attributeOptions}))`);
+
         this.setValue = {
             width: function(context, value) { return {width: value + 'px'};},
             height: function(context, value) { return {height: value + 'px'};},
@@ -152,7 +196,7 @@ class UI4 {
             right: function(context, value) { return {right: parseFloat(context.parentStyle.width) - value + 'px'};},
             top: function(context, value) { return {top: value + 'px'};},
             bottom: function(context, value) { return {bottom: parseFloat(context.parentStyle.height) - value + 'px'};},
-            centerX: function(context, value) {
+            centerx: function(context, value) {
                 if (context.dependencies.find(item => item.targetAttribute === 'left')) {  // left locked, width must give
                     return {width: 2 * (value - parseFloat(context.getStyle.left)) + 'px'};
                 } else if (context.dependencies.find(item => item.targetAttribute === 'right')) {  // width must give)
@@ -164,7 +208,7 @@ class UI4 {
                     return {left: value - parseFloat(context.getStyle.width) / 2 + 'px'};
                 }
             },
-            centerY: function(context, value) {
+            centery: function(context, value) {
                 if (context.dependencies.find(item => item.targetAttribute === 'top')) {  // top locked, height must give
                     return {height: 2 * (value - parseFloat(context.getStyle.top)) + 'px'};
                 } else if (context.dependencies.find(item => item.targetAttribute === 'bottom')) {  // height must give)
@@ -241,21 +285,22 @@ class UI4 {
     }
 
     combineConstraintAttributes(node) {
-        let ui4Attr = node.getAttribute('ui4');
+        let ui4Attr = node.getAttribute("ui4");
+        const constraintArray = ui4Attr && ui4Attr.split(";") || [];
 
-        for (const attributeName of node.getAttributeNames()) {
-            if (attributeName.startsWith('ui4-')) {
-                const constraintValue = node.getAttribute(attributeName);
-                if (constraintValue) {
-                    if (!ui4Attr.endsWith(';')) {
-                        ui4Attr += ';';
-                    }
-                    ui4Attr += attributeName.substring('ui4-'.length) + '=' + constraintValue;
+        for (const attribute of node.attributes) {
+            console.log(attribute.name);
+            if (attribute.name in this.setValue || attribute.name === "dock" || attribute.name === "fit") {
+                for (const singleConstraint of attribute.value.split(";")) {
+                    const fullConstraint = `${attribute.name}=${singleConstraint}`;
+                    constraintArray.push(fullConstraint);
                 }
             }
         }
+        const combinedConstraints = constraintArray.join(";");
+        console.debug("combinedConstraints: " + combinedConstraints);
 
-        return ui4Attr;
+        return combinedConstraints;
     }
 
     setDependencies(node) {
@@ -372,81 +417,88 @@ class UI4 {
                 return;
             }
 
-            if (targetAttribute === "dock") {
-                let peerDocked = false;
-                for (const [dockAttribute, attributes] of Object.entries(UI4.peerDock)) {
-                    if (sourceSpec.startsWith(`${dockAttribute}.`)) {
-                        let modifiedSourceSpec = sourceSpec.replace(dockAttribute, attributes.size);
-                        this.addToDependencies(dependencies, attributes.size, comparison, modifiedSourceSpec);
+            this.parseCoreSpec(targetAttribute, comparison, sourceSpec, dependencies);
+        });
+        return dependencies;
+    }
 
-                        modifiedSourceSpec = sourceSpec.replace(dockAttribute, attributes.center);
-                        this.addToDependencies(dependencies, attributes.center, comparison, modifiedSourceSpec);
+    parseCoreSpec(targetAttribute, comparison, sourceSpec, dependencies) {
+        const keywordRE = /[a-z]+/g;
+        const shareRE = /share\((?<first>\d+(\.\d+)?)(,(?<second>\d+(\.\d+)?))?\)/;
 
-                        modifiedSourceSpec = sourceSpec.replace(dockAttribute, attributes.yourEdge);
-                        this.addToDependencies(dependencies, attributes.myEdge, comparison, modifiedSourceSpec);
+        if (targetAttribute === "dock") {
+            let peerDocked = false;
+            for (const [dockAttribute, attributes] of Object.entries(UI4.peerDock)) {
+                if (sourceSpec.startsWith(`${dockAttribute}.`)) {
+                    let modifiedSourceSpec = sourceSpec.replace(dockAttribute, attributes.size);
+                    this.addToDependencies(dependencies, attributes.size, comparison, modifiedSourceSpec);
 
-                        peerDocked = true;
+                    modifiedSourceSpec = sourceSpec.replace(dockAttribute, attributes.center);
+                    this.addToDependencies(dependencies, attributes.center, comparison, modifiedSourceSpec);
+
+                    modifiedSourceSpec = sourceSpec.replace(dockAttribute, attributes.yourEdge);
+                    this.addToDependencies(dependencies, attributes.myEdge, comparison, modifiedSourceSpec);
+
+                    peerDocked = true;
+                    break;
+                }
+            }
+
+            if (!peerDocked) {
+                for (const [dockAttribute, attributes] of Object.entries(UI4.parentDock)) {
+                    if (sourceSpec.startsWith(dockAttribute)) {
+                        const parentId = node.parentNode.id;
+                        attributes.forEach(attribute => {
+                            const modifiedSourceSpec = sourceSpec.replace(
+                                dockAttribute, `${attribute}.${parentId}`
+                            );
+                            this.addToDependencies(dependencies, attribute, comparison, modifiedSourceSpec);
+                        });
                         break;
                     }
                 }
+            }
+        }
 
-                if (!peerDocked) {
-                    for (const [dockAttribute, attributes] of Object.entries(UI4.parentDock)) {
-                        if (sourceSpec.startsWith(dockAttribute)) {
-                            const parentId = node.parentNode.id;
-                            attributes.forEach(attribute => {
-                                const modifiedSourceSpec = sourceSpec.replace(
-                                    dockAttribute, `${attribute}.${parentId}`
-                                );
-                                this.addToDependencies(dependencies, attribute, comparison, modifiedSourceSpec);
-                            });
-                            break;
-                        }
+        else if (targetAttribute === 'fit') {
+            if (sourceSpec === "width" || sourceSpec === "true") {
+                this.addToDependencies(
+                    dependencies, "width", comparison, `fitwidth.${node.id}`
+                );
+            }
+            if (sourceSpec === "height" || sourceSpec === "true") {
+                this.addToDependencies(
+                    dependencies, "height", comparison, `fitheight.${node.id}`
+                );
+            }
+        }
+
+        else if (targetAttribute in UI4.composites) {
+            const targetCombo = UI4.composites[targetAttribute];
+            let sourceAttribute, sourceCombo;
+            for (const [attribute, combo] of Object.entries(UI4.composites)) {
+                if (combo.length === targetCombo.length) {
+                    if (sourceSpec.includes(`${attribute}.`)) {
+                        sourceAttribute = attribute;
+                        sourceCombo = combo;
+                        break;
                     }
                 }
             }
-
-            else if (targetAttribute === 'fit') {
-                if (sourceSpec === "width" || sourceSpec === "true") {
-                    this.addToDependencies(
-                        dependencies, "width", comparison, `fitWidth.${node.id}`
-                    );
-                }
-                if (sourceSpec === "height" || sourceSpec === "true") {
-                    this.addToDependencies(
-                        dependencies, "height", comparison, `fitHeight.${node.id}`
-                    );
-                }
+            if (sourceAttribute) {
+                targetCombo.forEach((expandedAttribute, index) => {
+                    const modifiedSourceSpec = sourceSpec.replace(`${sourceAttribute}.`, `${sourceCombo[index]}.`);
+                    this.addToDependencies(dependencies, expandedAttribute, comparison, modifiedSourceSpec);
+                });
             }
 
-            else if (targetAttribute in UI4.composites) {
-                const targetCombo = UI4.composites[targetAttribute];
-                let sourceAttribute, sourceCombo;
-                for (const [attribute, combo] of Object.entries(UI4.composites)) {
-                    if (combo.length === targetCombo.length) {
-                        if (sourceSpec.includes(`${attribute}.`)) {
-                            sourceAttribute = attribute;
-                            sourceCombo = combo;
-                            break;
-                        }
-                    }
-                }
-                if (sourceAttribute) {
-                    targetCombo.forEach((expandedAttribute, index) => {
-                        const modifiedSourceSpec = sourceSpec.replace(`${sourceAttribute}.`, `${sourceCombo[index]}.`);
-                        this.addToDependencies(dependencies, expandedAttribute, comparison, modifiedSourceSpec);
-                    });
-                }
+        } else if (targetAttribute in this.setValue) {
+            this.addToDependencies(dependencies, targetAttribute, comparison, sourceSpec);
+        }
 
-            } else if (targetAttribute in this.setValue) {
-                this.addToDependencies(dependencies, targetAttribute, comparison, sourceSpec);
-            }
-
-            else {
-                console.error(`Unknown target attribute in ${spec}: ${targetAttribute}`);
-            }
-        });
-        return dependencies;
+        else {
+            console.error(`Unknown target attribute: ${targetAttribute}`);
+        }
     }
 
     addToDependencies(dependencies, targetAttribute, comparison, sourceSpec) {
@@ -458,79 +510,26 @@ class UI4 {
     }
 
     parseSourceSpec(targetAttribute, sourceSpec) {
+        const keywordRE = /[a-z]+/g;
+        const shareRE = /share\((?<first>\d+(\.\d+)?)(,(?<second>\d+(\.\d+)?))?\)/;
+
         // const contained = targetAttribute.parentElement === sourceElem;
         let sourceAttribute, sourceID;
-        for (const attributeCandidate in this.getValue) {
-            if (sourceSpec.startsWith(attributeCandidate)) {
-                sourceAttribute = attributeCandidate;
-                break;
-            }
+        let source = {};
+
+        let match = sourceSpec.match(this.idAndAttribute);
+        if (match) {
+            source.id = match.groups.id;
+            source.attribute = match.groups.attribute;
         }
-        if (sourceAttribute) {
-            sourceID = this.getSourceID(sourceSpec);  // May be undefined
-        } else {
-            sourceAttribute = "constant";
+        match = sourceSpec.match(shareRE);
+        if (match) {
+            source.share = {share: match.groups.first, outOf: match.groups.second};
         }
-        const source = {
-            attribute: sourceAttribute,
-        };
-        if (sourceID !== undefined) {
-            source.id = sourceID;
-            source.valueFunction = this.createGetFunction(sourceSpec, this);
-        } else {
-            const toEvaluate = `(function(gap) {return ${sourceSpec};})`;
-            source.valueFunction = eval(toEvaluate);
-        }
+
+        source.getFunction = validateAndCreateGetFunction(sourceSpec, source, this);
+
         return source;
-    }
-
-    getSourceID(sourceSpec) {
-        const idCatcher = {};
-        const idCatcherProxy = new Proxy(idCatcher, {
-            get(target, name, receiver) {
-                if (name !== '_ui4_sourceID') {
-                    if (target._ui4_sourceID === undefined) {
-                        target._ui4_sourceID = name;
-                    }
-                    return 0;
-                } else {
-                    return target._ui4_sourceID;
-                }
-            }
-        });
-
-        let left, right, top, bottom, centerX, centerY, width, height, fitWidth, fitHeight;
-        left = right = top = bottom = centerX = centerY = width = height = fitWidth = fitHeight = idCatcherProxy;
-        const gap = 0;
-        try {
-            eval(sourceSpec);
-        }
-        catch (ReferenceError) {}
-
-        return idCatcherProxy._ui4_sourceID;
-    }
-
-    createGetFunction(sourceSpec) {
-        const _this = this;
-        return (
-            function(sourceID, sourceAttribute, context) {
-                const attributeGetProxy = new Proxy(
-                    {},
-                    {
-                        get(target, name) {
-                            if (name === sourceID) {
-                                return _this.getValue[sourceAttribute](context);
-                            }
-                            return 0;
-                        }
-                    }
-                );
-                let left, right, top, bottom, centerX, centerY, width, height, fitWidth, fitHeight;
-                left = right = top = bottom = centerX = centerY = width = height = fitWidth = fitHeight = attributeGetProxy;
-                const gap = _this.gap;
-                return eval(sourceSpec);
-            }
-        );
     }
 
     expandCompositeDependencies(node, dependencies) {
@@ -591,14 +590,14 @@ class UI4 {
                     updatedDependencies.push({
                         targetAttribute: "width",
                         comparison: '=',
-                        value: {id: node.id, attribute: "fitWidth"},
+                        value: {id: node.id, attribute: "fitwidth"},
                     });
                 }
                 if (fitKeyword === "height" || fitKeyword === "true") {
                     updatedDependencies.push({
                         targetAttribute: "height",
                         comparison: '=',
-                        value: {id: node.id, attribute: "fitHeight"},
+                        value: {id: node.id, attribute: "fitheight"},
                     });
                 }
             } else {
@@ -645,7 +644,7 @@ class UI4 {
             if (dependants) {
                 Object.keys(dependants).forEach(dependantID => {
                     const seenCount = seen[dependantID] || 0;
-                    if (seenCount) {  // Allow no circularity
+                    if (seenCount > 3) {  // Allow little circularity
                         return;
                     }
                     toCheck.push(dependantID);
@@ -932,7 +931,168 @@ class UI4 {
     }
 }
 
+UI4.Parser = class {
+
+    constructor() {
+        // Tokens - Basic math
+        this.OPERATOR = "operator";
+        this.LEFT_PARENTHESIS = "leftParenthesis";
+        this.RIGHT_PARENTHESIS = "rightParenthesis";
+        this.NUMBER = "number";
+
+        // Tokens - Application-specific
+        this.ID_AND_ATTRIBUTE = "idAndAttribute";
+        this.KEYWORD = "keyword";
+        this.FUNCTION = "function";
+        this.COMMA = "comma";
+
+        this.AS_IS_TYPES = [this.ID_AND_ATTRIBUTE, this.KEYWORD];
+
+        const TOKEN_TYPES = [
+            "(?<idAndAttribute>([a-zA-Z]|\\d|_|-)+\\.([a-zA-Z]+))",
+            "(?<keyword>gap)",
+            "(?<function>min|max|share)",
+            "(?<comma>,)",
+            "(?<operator>[\\+\\-\\*\\/\\^])",
+            "(?<leftParenthesis>[(\\[])",
+            "(?<rightParenthesis>[)\\]])",
+            "(?<number>[\\d\\.]+)",
+        ];
+        this.matcher = new RegExp(`(${TOKEN_TYPES.join("|")})`,);
+
+        this.currentToken = undefined;
+    }
+
+    parse(string) {
+        string = string.replace(' ', '');
+        if (string.length === 0) {
+            return {};
+        }
+
+        this.tokens = this.tokenize(string);
+        return this.additive();
+    }
+
+    * tokenize(string) {
+        let index = 0;
+        string = string.replace(' ', '');
+        while (index < string.length) {
+            const match = string.substring(index).match(this.matcher);
+
+            if (!match) {
+                throw new SyntaxError(`Could not recognize token starting from "${string.substring(index)}"`);
+            }
+            index += match[0].length;
+            for (const [key, value] of Object.entries(match.groups)) {
+                if (value !== undefined) {
+                    yield {type: key, value: value};
+                    break;
+                }
+            }
+        }
+    }
+
+    getToken() {
+        let token = this.currentToken ? this.currentToken : this.tokens.next().value;
+        this.currentToken = undefined;
+        return token;
+    }
+
+    peekToken() {
+        if (!this.currentToken) {
+            this.currentToken = this.tokens.next().value;
+        }
+        return this.currentToken;
+    }
+
+    skipToken() {
+        if (!this.currentToken) {
+            this.currentToken = this.tokens.next().value;
+        }
+        this.currentToken = undefined;
+    }
+
+    additive() {
+        let left = this.multiplicative()
+        let token = this.peekToken();
+        while (token && token.type === this.OPERATOR && (token.value === '+' || token.value === '-')) {
+            this.skipToken();
+            const right = this.multiplicative();
+            left = this.getNode(token.value, left, right);
+            token = this.peekToken();
+        }
+        return left;
+    }
+
+    multiplicative() {
+        let left = this.primary();
+        let token = this.peekToken();
+        while (token && token.type === this.OPERATOR && (token.value === '*' || token.value === '/')) {
+            this.skipToken();
+            const right = this.primary();
+            left = this.getNode(token.value, left, right);
+            token = this.peekToken();
+        }
+        return left;
+    }
+
+    primary() {
+        let token = this.peekToken();
+        if (token && token.type === this.NUMBER) {
+            this.skipToken();
+            return {type: token.type, value: parseFloat(token.value)};
+        } else if (token && this.AS_IS_TYPES.includes(token.type)) {
+            this.skipToken();
+            return {type: token.type, value: token.value};
+        } else if (token && token.type === this.FUNCTION) {
+            const functionName = token.value;
+            this.skipToken();
+            token = this.getToken();
+            if (token && token.type !== this.LEFT_PARENTHESIS) {
+                throw new SyntaxError(
+                    `Function name should be followed by parenthesis, not ${token.type}: ${token.value}`
+                );
+            }
+            return {type: this.FUNCTION, value: functionName, arguments: this.arguments()};
+        } else if (token && token.type === this.LEFT_PARENTHESIS) {
+            this.skipToken();
+            const node = this.additive();
+            token = this.getToken();
+            if (token && token.type !== this.RIGHT_PARENTHESIS) {
+                throw new SyntaxError('Missing closing parenthesis');
+            }
+            return node;
+        } else {
+            throw new SyntaxError(`Unexpected ${token.type}: ${token.value}`);
+        }
+    }
+
+    arguments() {
+        let argument = this.additive();
+        let token = this.getToken();
+        if (token && token.type === this.COMMA) {
+            return [argument].concat(this.arguments());
+        } else if (token && token.type === this.RIGHT_PARENTHESIS) {
+            return [argument];
+        } else {
+            throw new SyntaxError(`Expected comma or closing parenthesis in function arguments, got: ${token}`);
+        }
+    }
+
+    getNode(operator, left, right) {
+        // Return a node combining the operator and left and right sides, or if possible, already calculated number node
+        const operations = {"+": (a, b) => a + b, "-": (a, b) => a - b, "*": (a, b) => a * b, "/": (a, b) => a / b};
+        if ((left && left.type === this.NUMBER) && (right && right.type === this.NUMBER)) {
+            return {type: this.NUMBER, value: operations[operator](left.value, right.value)};
+        } else {
+            return {operator: operator, left: left, right: right};
+        }
+    }
+}
+
 var ui4 = new UI4();
 
 ui4.startClassObserver();
 //window.onload = ui4.startTracking.bind(ui4);
+
+module.exports = UI4;
