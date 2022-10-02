@@ -1,39 +1,5 @@
 /*jshint esversion: 9 */
 
-
-function validateAndCreateGetFunction(sourceSpec, source, _this) {
-    let testSourceSpec = sourceSpec.toString();
-    if (source.id && source.attribute) {
-        testSourceSpec = testSourceSpec.replace(`${source.id}.${source.attribute}`, "0");
-    }
-    if (source.share) {
-        testSourceSpec = testSourceSpec.replace(`share(${source.share}${source.outOf ? `,${source.outOf}` : ""}`, "0");
-    }
-    testSourceSpec = testSourceSpec.replace("gap", "0");
-
-    eval(testSourceSpec);
-
-    return (
-        function(sourceID, sourceAttribute, context) {
-            const attributeGetProxy = new Proxy(
-                {},
-                {
-                    get(target, name) {
-                        if (name === sourceID) {
-                            return _this.getValue[sourceAttribute](context);
-                        }
-                        return 0;
-                    }
-                }
-            );
-            let left, right, top, bottom, centerx, centery, width, height, fitwidth, fitheight;
-            left = right = top = bottom = centerx = centery = width = height = fitwidth = fitheight = attributeGetProxy;
-            const gap = _this.gap;
-            return eval(sourceSpec);
-        }
-    );
-}
-
 class UI4 {
 
     static rootStyles = {
@@ -51,8 +17,6 @@ class UI4 {
         padding: 0,
         "box-sizing": "border-box"
     }
-
-    static lhsKeywords = "dock fit left right top bottom centerX centerY center position size frame".split(" ");
 
     static LEADING = 'leading';
     static TRAILING = 'trailing';
@@ -115,7 +79,7 @@ class UI4 {
     static ordering = {"=": 0, "<": 1, ">": 2};
     static conditions = {"=": (a, b) => a === b, "<": (a, b) => a < b, ">": (a, b) => a > b};
 
-    // Parser types
+    // Parser node types
     static OPERATOR = "operator";
     static NUMBER = "number";
     static ID_AND_ATTRIBUTE = "idAndAttribute";
@@ -123,7 +87,7 @@ class UI4 {
     static FUNCTION = "function";
 
     constructor() {
-        this.gap = 8;
+        this._gap = 8;
 
         this.callLog = [];
 
@@ -232,8 +196,13 @@ class UI4 {
         });
     }
 
-    setGap(gap) {
-        this.gap = gap;
+    // Gap is the only externally-settable parameter
+    get gap() {
+        return this._gap;
+    }
+
+    set gap(value) {
+        this._gap = value;
         this.checkDependencies();
     }
 
@@ -289,7 +258,6 @@ class UI4 {
         const constraintArray = ui4Attr && ui4Attr.split(";") || [];
 
         for (const attribute of node.attributes) {
-            console.log(attribute.name);
             if (attribute.name in this.setValue || attribute.name === "dock" || attribute.name === "fit") {
                 for (const singleConstraint of attribute.value.split(";")) {
                     const fullConstraint = `${attribute.name}=${singleConstraint}`;
@@ -297,10 +265,7 @@ class UI4 {
                 }
             }
         }
-        const combinedConstraints = constraintArray.join(";");
-        console.debug("combinedConstraints: " + combinedConstraints);
-
-        return combinedConstraints;
+        return constraintArray.join(";");
     }
 
     setDependencies(node) {
@@ -309,17 +274,7 @@ class UI4 {
 
         // const ui4AnimationID = node.getAttribute("ui4anim");
 
-        // Check constraints
-        const ui4Attr = this.combineConstraintAttributes(node);
-        const isRootElem = node.classList.contains("ui4Root");
-
-        if (ui4Attr || isRootElem) {
-            Object.assign(node.style, UI4.elementStyles);
-        }
-
-        if (isRootElem) {
-            Object.assign(node.style, UI4.rootStyles);
-        }
+        const ui4Attr = this.checkStyles(node);
 
         if (ui4Attr) {
             let dependencies;
@@ -373,6 +328,22 @@ class UI4 {
         node.childNodes.forEach(childNode => this.setDependencies(childNode));
     }
 
+    checkStyles(node) {
+        // Check constraints
+        const ui4Attr = this.combineConstraintAttributes(node);
+        const isRootElem = node.classList.contains("ui4Root");
+
+        if (ui4Attr || isRootElem) {
+            Object.assign(node.style, UI4.elementStyles);
+        }
+
+        if (isRootElem) {
+            Object.assign(node.style, UI4.rootStyles);
+        }
+
+        return ui4Attr;
+    }
+
     parseAndOrderDependencies(node, specString) {
         const dependencies = this.parse(node, specString.replace(/\s/g,""));
 
@@ -384,7 +355,7 @@ class UI4 {
         const specs = specString.split(";");
         const dependencies = [];
         specs.forEach(spec => {
-            if (!spec) { return; }  // Accidental double ";" or similar
+            if (!spec) { return; }  // Accidental double ";", probably
 
             // Process conditions and animation, if any
             let coreSpec = spec;
@@ -423,9 +394,7 @@ class UI4 {
     }
 
     parseCoreSpec(targetAttribute, comparison, sourceSpec, dependencies) {
-        const keywordRE = /[a-z]+/g;
-        const shareRE = /share\((?<first>\d+(\.\d+)?)(,(?<second>\d+(\.\d+)?))?\)/;
-
+        const sourceTree = new UI4.Parser().parse(sourceSpec);
         if (targetAttribute === "dock") {
             let peerDocked = false;
             for (const [dockAttribute, attributes] of Object.entries(UI4.peerDock)) {
@@ -493,12 +462,72 @@ class UI4 {
             }
 
         } else if (targetAttribute in this.setValue) {
-            this.addToDependencies(dependencies, targetAttribute, comparison, sourceSpec);
+            this.finalizeTree(sourceTree);
+            dependencies.push({
+                targetAttribute: targetAttribute, comparison: comparison, value: sourceTree
+            });
         }
 
         else {
             console.error(`Unknown target attribute: ${targetAttribute}`);
         }
+    }
+
+    finalizeTree(sourceTree) {
+        const _this = this;
+        const walker = function(node) {
+            switch (node.type) {
+                case UI4.ID_AND_ATTRIBUTE:
+                    if (!(node.value.attribute in _this.getValue)) {
+                        throw AssertionError(`Unknown attribute in ${node.value.id}.${node.value.attribute}`);
+                    }
+                    node.function = _this.getIdAndAttributeValue.bind(_this);
+                    break;
+                case UI4.KEYWORD:
+                    if (node.value !== "gap") {
+                        throw AssertionError(`Unknown keyword ${node.value}`);
+                    }
+                    node.function = (targetElem, treeNode, result) => _this.gap;
+                    break;
+            }
+        };
+        this.walkParseTree(sourceTree, walker);
+    }
+
+    getIdAndAttributeValue(targetElem, treeNode, resultContext) {
+        const id = treeNode.value.id;
+        const attribute = treeNode.value.attribute;
+        const attributeType = UI4.attrType[attribute];
+        if (!resultContext.type) {
+            resultContext.type = attributeType;
+        } else if (resultContext.type !== attributeType) {
+            throw AssertionError(
+                `Mixed attribute types in one constraint: ${attributeType}, ${result.type}`
+            );
+        }
+        const sourceElem = document.getElementById(id);
+
+        if (!sourceElem) {
+            throw AssertionError(`Could not find source element with id ${sourceSpec.id}`);
+        }
+
+        const contained = targetElem.parentElement === sourceElem;
+        if (!resultContext.contained) {
+            resultContext.contained = contained;
+        } else if (resultContext.contained !== contained) {
+            throw AssertionError(
+                'Both contained and non-contained source attributes in one constraint'
+            );
+        }
+
+        let sourceContext = {
+            contained: contained,
+            getStyle: window.getComputedStyle(sourceElem),
+            parentStyle: window.getComputedStyle(sourceElem.parentElement),
+            targetElem: targetElem
+        };
+
+        return this.getValue[attribute](sourceContext);
     }
 
     addToDependencies(dependencies, targetAttribute, comparison, sourceSpec) {
@@ -706,29 +735,26 @@ class UI4 {
         let redrawNeeded = false;
 
         dependencies.forEach(dependency => {
-            if ('animation' in dependency && dependency.animation.running) {
-                redrawNeeded = true;
-                return;
-            }
+            // if ('animation' in dependency && dependency.animation.running) {
+            //     redrawNeeded = true;
+            //     return;
+            // }
+            //
+            // if (!this.checkCondition(targetElem, dependency)) {
+            //     return;
+            // }
 
-            if (!this.checkCondition(targetElem, dependency)) {
-                return;
-            }
+            const sourceContext = {};
+            let sourceValue = this.resolveSourceTree(targetElem, dependency.value, sourceContext);
 
-            const source = this.processSourceSpec(targetElem, dependency.value);
-
-            if (source === undefined) {
+            if (sourceValue === undefined) {
                 return;
             }
 
             let targetContext = this.getTargetContext(targetElem, dependencies);
             let target = this.getTargetValue(dependency.targetAttribute, targetContext);
 
-            let sourceValue = source;
-            if (typeof source !== 'number') {
-                sourceValue = source.value;
-                sourceValue += this.gapAdjustment(source, target);
-            }
+            sourceValue += this.gapAdjustment(sourceContext, target);
 
             const result = {
                 targetElem: targetElem,
@@ -760,6 +786,27 @@ class UI4 {
         });
 
         return [values, redrawNeeded];
+    }
+
+    resolveSourceTree(targetElem, treeNode, resultContext) {
+        if (treeNode.type === UI4.NUMBER) {
+            return treeNode.value;
+        }
+        else if (treeNode.type === UI4.OPERATOR) {
+            const left = this.resolveSourceTree(targetElem, treeNode.left, resultContext);
+            const right = this.resolveSourceTree(targetElem, treeNode.right, resultContext);
+            return UI4.operations[treeNode.operator](left, right);
+        }
+        else if ([UI4.ID_AND_ATTRIBUTE, UI4.KEYWORD].includes(treeNode.type)) {
+            return treeNode.function(targetElem, treeNode, resultContext);
+        }
+        else if (treeNode.type === UI4.FUNCTION) {
+            const attributes = [];
+            for (const attributeTreeNode of treeNode.attributes) {
+                attributes.push(this.resolveSourceTree(targetElem, attributeTreeNode, resultContext));
+            }
+            return treeNode.function(...attributes);
+        }
     }
 
     checkCondition(targetElem, dependency) {
@@ -830,7 +877,7 @@ class UI4 {
             targetElem: targetElem
         };
         const source = {
-            value: sourceSpec.valueFunction(sourceElem.id, sourceSpec.attribute, sourceContext),  //this.getValue[sourceSpec.attribute](sourceContext),
+            value: this.getValue[sourceSpec.attribute](sourceContext),
             type: UI4.attrType[sourceSpec.attribute],
             contained: contained,
         };
@@ -894,7 +941,23 @@ class UI4 {
         };
     }
 
-    // Utilities
+    // UTILITIES
+
+    walkParseTree(treeNode, walker) {
+        let result = [walker(treeNode)];
+
+        if (treeNode.left) {
+            result = result.concat(this.walkParseTree(treeNode.left, walker));
+        }
+        if (treeNode.right) {
+            result = result.concat(this.walkParseTree(treeNode.right, walker));
+        }
+        if (treeNode.arguments) {
+            treeNode.arguments.forEach(argument => result = result.concat(this.walkParseTree(argument, walker)));
+        }
+
+        return result;
+    }
 
     toCamelCase(variableName) {
         return variableName.replace(
@@ -930,6 +993,8 @@ class UI4 {
         return {x: bestX, y: bestY};
     }
 }
+
+// UI4 ATTRIBUTE PARSER
 
 UI4.Parser = class {
 
@@ -1040,17 +1105,21 @@ UI4.Parser = class {
         let token = this.peekToken();
         if (token && token.type === this.NUMBER) {
             this.skipToken();
-            return {type: token.type, value: parseFloat(token.value)};
-        } else if (token && this.AS_IS_TYPES.includes(token.type)) {
+            return {type: this.NUMBER, value: parseFloat(token.value)};
+        } else if (token && token.type === this.ID_AND_ATTRIBUTE) {
             this.skipToken();
-            return {type: token.type, value: token.value};
+            const [id, attribute] = token.value.split(".");
+            return {type: this.ID_AND_ATTRIBUTE, value: {id: id, attribute: attribute}};
+        } else if (token && token.type === this.KEYWORD) {
+            this.skipToken();
+            return {type: this.KEYWORD, value: token.value};
         } else if (token && token.type === this.FUNCTION) {
             const functionName = token.value;
             this.skipToken();
             token = this.getToken();
-            if (token && token.type !== this.LEFT_PARENTHESIS) {
+            if (!token || token.type !== this.LEFT_PARENTHESIS) {
                 throw new SyntaxError(
-                    `Function name should be followed by parenthesis, not ${token.type}: ${token.value}`
+                    `Function name should be followed by parenthesis`
                 );
             }
             return {type: this.FUNCTION, value: functionName, arguments: this.arguments()};
@@ -1058,7 +1127,7 @@ UI4.Parser = class {
             this.skipToken();
             const node = this.additive();
             token = this.getToken();
-            if (token && token.type !== this.RIGHT_PARENTHESIS) {
+            if (!token || token.type !== this.RIGHT_PARENTHESIS) {
                 throw new SyntaxError('Missing closing parenthesis');
             }
             return node;
@@ -1085,14 +1154,15 @@ UI4.Parser = class {
         if ((left && left.type === this.NUMBER) && (right && right.type === this.NUMBER)) {
             return {type: this.NUMBER, value: operations[operator](left.value, right.value)};
         } else {
-            return {operator: operator, left: left, right: right};
+            return {type: this.OPERATOR, operator: operator, left: left, right: right};
         }
     }
-}
+};
 
 var ui4 = new UI4();
 
 ui4.startClassObserver();
 //window.onload = ui4.startTracking.bind(ui4);
 
-module.exports = UI4;
+// Export only for tests under Node
+if (new Function("try {return this === global;} catch(e) {return false;}")()) { module.exports = UI4; }
