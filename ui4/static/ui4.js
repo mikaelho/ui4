@@ -462,14 +462,10 @@ class UI4 {
 
         else if (targetAttribute === 'fit') {
             if (sourceSpec === "width" || sourceSpec === "true") {
-                this.addToDependencies(
-                    dependencies, "width", comparison, `fitwidth.${node.id}`
-                );
+                this.parseCoreSpec(node, "width", comparison, `${node.id}.fitwidth`, dependencies);
             }
             if (sourceSpec === "height" || sourceSpec === "true") {
-                this.addToDependencies(
-                    dependencies, "height", comparison, `fitheight.${node.id}`
-                );
+                this.parseCoreSpec(node, "height", comparison, `${node.id}.fitheight`, dependencies);
             }
         }
 
@@ -484,13 +480,13 @@ class UI4 {
             switch (node.type) {
                 case UI4.ID_AND_ATTRIBUTE:
                     if (!(node.value.attribute in _this.getValue)) {
-                        throw AssertionError(`Unknown attribute in ${node.value.id}.${node.value.attribute}`);
+                        throw SyntaxError(`Unknown attribute in ${node.value.id}.${node.value.attribute}`);
                     }
                     node.function = _this.getIdAndAttributeValue.bind(_this);
                     return node.value.id;  // Return dependency IDs
                 case UI4.KEYWORD:
                     if (node.value !== "gap") {
-                        throw AssertionError(`Unknown keyword ${node.value}`);
+                        throw SyntaxError(`Unknown keyword ${node.value}`);
                     }
                     node.function = (targetElem, treeNode, result) => _this.gap;
                     return;
