@@ -480,16 +480,26 @@ class UI4 {
             switch (node.type) {
                 case UI4.ID_AND_ATTRIBUTE:
                     if (!(node.value.attribute in _this.getValue)) {
-                        throw SyntaxError(`Unknown attribute in ${node.value.id}.${node.value.attribute}`);
+                        throw SyntaxError(`Unknown attribute in '${node.value.id}.${node.value.attribute}'`);
                     }
                     node.function = _this.getIdAndAttributeValue.bind(_this);
                     return node.value.id;  // Return dependency IDs
                 case UI4.KEYWORD:
                     if (node.value !== "gap") {
-                        throw SyntaxError(`Unknown keyword ${node.value}`);
+                        throw SyntaxError(`Unknown keyword '${node.value}'`);
                     }
                     node.function = (targetElem, treeNode, result) => _this.gap;
                     return;
+                case UI4.FUNCTION:
+                    switch (node.value) {
+                        case "min":
+                            node.function = Math.min;
+                            return;
+                        case "max":
+                            node.function = Math.max;
+                            return;
+                    }
+                    throw SyntaxError(`Unknown function '${node.value}'`);
             }
         };
         const dependencyIDs = this.walkParseTree(sourceTree, walker);
@@ -505,21 +515,21 @@ class UI4 {
         if (!resultContext.type) {
             resultContext.type = attributeType;
         } else if (resultContext.type !== attributeType) {
-            throw AssertionError(
+            throw SyntaxError(
                 `Mixed attribute types in one constraint: ${attributeType}, ${result.type}`
             );
         }
         const sourceElem = document.getElementById(id);
 
         if (!sourceElem) {
-            throw AssertionError(`Could not find source element with id ${sourceSpec.id}`);
+            throw SyntaxError(`Could not find source element with id ${id}`);
         }
 
         const contained = targetElem.parentElement === sourceElem;
         if (!resultContext.contained) {
             resultContext.contained = contained;
         } else if (resultContext.contained !== contained) {
-            throw AssertionError(
+            throw SyntaxError(
                 'Both contained and non-contained source attributes in one constraint'
             );
         }
@@ -804,11 +814,11 @@ class UI4 {
             return treeNode.function(targetElem, treeNode, resultContext);
         }
         else if (treeNode.type === UI4.FUNCTION) {
-            const attributes = [];
-            for (const attributeTreeNode of treeNode.attributes) {
-                attributes.push(this.resolveSourceTree(targetElem, attributeTreeNode, resultContext));
+            const functionArguments = [];
+            for (const attributeTreeNode of treeNode.arguments) {
+                functionArguments.push(this.resolveSourceTree(targetElem, attributeTreeNode, resultContext));
             }
-            return treeNode.function(...attributes);
+            return treeNode.function(...functionArguments);
         }
     }
 
