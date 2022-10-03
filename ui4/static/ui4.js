@@ -253,21 +253,6 @@ class UI4 {
         this.checkDependencies();
     }
 
-    combineConstraintAttributes(node) {
-        let ui4Attr = node.getAttribute("ui4");
-        const constraintArray = ui4Attr && ui4Attr.split(";") || [];
-
-        for (const attribute of node.attributes) {
-            if (attribute.name in this.setValue || attribute.name === "dock" || attribute.name === "fit") {
-                for (const singleConstraint of attribute.value.split(";")) {
-                    const fullConstraint = `${attribute.name}=${singleConstraint}`;
-                    constraintArray.push(fullConstraint);
-                }
-            }
-        }
-        return constraintArray.join(";");
-    }
-
     setDependencies(node) {
         const targetId = node.id;
         if (!targetId) { return; }
@@ -287,9 +272,10 @@ class UI4 {
             if (!dependencies.length) {
                 if (targetId in this.allDependencies) {
                     for (const dependency of this.allDependencies[targetId]) {
-                        if (typeof dependency.value === 'object' && 'id' in dependency.value) {
-                            const sourceID = dependency.value.id;
-                            delete this.sourceDependencies[sourceID][targetId];
+                        if (typeof dependency.value === 'object' && 'dependencyIDs' in dependency.value) {
+                            dependency.value.dependencyIDs.forEach(
+                                sourceID => delete this.sourceDependencies[sourceID][targetId]
+                            );
                         }
                     }
                 }
@@ -298,11 +284,14 @@ class UI4 {
                 // dependencies = this.expandCompositeDependencies(node, dependencies);
                 this.allDependencies[targetId] = dependencies;
                 for (const dependency of dependencies) {
-                    if (typeof dependency.value === 'object' && 'id' in dependency.value) {
-                        const sourceID = dependency.value.id;
-                        const targetIds = this.sourceDependencies[sourceID] || {};
-                        targetIds[targetId] = true;
-                        this.sourceDependencies[sourceID] = targetIds;
+                    if (typeof dependency.value === 'object' && 'dependencyIDs' in dependency.value) {
+                        dependency.value.dependencyIDs.forEach(
+                            sourceID => {
+                                const targetIds = this.sourceDependencies[sourceID] || {};
+                                targetIds[targetId] = true;
+                                this.sourceDependencies[sourceID] = targetIds;
+                            }
+                        );
                     }
                 }
             }
@@ -342,6 +331,22 @@ class UI4 {
         }
 
         return ui4Attr;
+    }
+
+    combineConstraintAttributes(node) {
+        let ui4Attr = node.getAttribute("ui4");
+        const constraintArray = ui4Attr && ui4Attr.split(";") || [];
+
+        for (const attribute of node.attributes) {
+            const name = attribute.name;
+            if (name in this.setValue || name in UI4.composites || ["dock", "fit"].includes(name)) {
+                for (const singleConstraint of attribute.value.split(";")) {
+                    const fullConstraint = `${attribute.name}=${singleConstraint}`;
+                    constraintArray.push(fullConstraint);
+                }
+            }
+        }
+        return constraintArray.join(";");
     }
 
     parseAndOrderDependencies(node, specString) {
@@ -388,25 +393,51 @@ class UI4 {
                 return;
             }
 
-            this.parseCoreSpec(targetAttribute, comparison, sourceSpec, dependencies);
+            this.parseCoreSpec(node, targetAttribute, comparison, sourceSpec, dependencies);
         });
         return dependencies;
     }
 
-    parseCoreSpec(targetAttribute, comparison, sourceSpec, dependencies) {
-        const sourceTree = new UI4.Parser().parse(sourceSpec);
-        if (targetAttribute === "dock") {
+    parseCoreSpec(node, targetAttribute, comparison, sourceSpec, dependencies) {
+        if (targetAttribute in this.setValue) {
+            const sourceTree = new UI4.Parser().parse(sourceSpec);
+            sourceTree.dependencyIDs = this.finalizeIdAndAttributeTree(sourceTree);
+            dependencies.push({
+                targetAttribute: targetAttribute, comparison: comparison, value: sourceTree
+            });
+        }
+        else if (targetAttribute in UI4.composites) {
+            const targetCombo = UI4.composites[targetAttribute];
+            let sourceAttribute, sourceCombo;
+            for (const [attribute, combo] of Object.entries(UI4.composites)) {
+                if (combo.length === targetCombo.length) {
+                    if (sourceSpec.includes(`.${attribute}`)) {
+                        sourceAttribute = attribute;
+                        sourceCombo = combo;
+                        break;
+                    }
+                }
+            }
+            if (sourceAttribute) {
+                targetCombo.forEach((expandedAttribute, index) => {
+                    const modifiedSourceSpec = sourceSpec.replace(`.${sourceAttribute}`, `.${sourceCombo[index]}`);
+                    this.parseCoreSpec(node, expandedAttribute, comparison, modifiedSourceSpec, dependencies);
+                });
+            }
+        }
+        else if (targetAttribute === "dock") {
             let peerDocked = false;
             for (const [dockAttribute, attributes] of Object.entries(UI4.peerDock)) {
-                if (sourceSpec.startsWith(`${dockAttribute}.`)) {
+                const matcher = new RegExp(`[a-zA-Z\\d_-]+\\.${dockAttribute}`);
+                if (sourceSpec.match(matcher)) {
                     let modifiedSourceSpec = sourceSpec.replace(dockAttribute, attributes.size);
-                    this.addToDependencies(dependencies, attributes.size, comparison, modifiedSourceSpec);
+                    this.parseCoreSpec(node, attributes.size, comparison, modifiedSourceSpec, dependencies);
 
                     modifiedSourceSpec = sourceSpec.replace(dockAttribute, attributes.center);
-                    this.addToDependencies(dependencies, attributes.center, comparison, modifiedSourceSpec);
+                    this.parseCoreSpec(node, attributes.center, comparison, modifiedSourceSpec, dependencies);
 
                     modifiedSourceSpec = sourceSpec.replace(dockAttribute, attributes.yourEdge);
-                    this.addToDependencies(dependencies, attributes.myEdge, comparison, modifiedSourceSpec);
+                    this.parseCoreSpec(node, attributes.myEdge, comparison, modifiedSourceSpec, dependencies);
 
                     peerDocked = true;
                     break;
@@ -419,9 +450,9 @@ class UI4 {
                         const parentId = node.parentNode.id;
                         attributes.forEach(attribute => {
                             const modifiedSourceSpec = sourceSpec.replace(
-                                dockAttribute, `${attribute}.${parentId}`
+                                dockAttribute, `${parentId}.${attribute}`
                             );
-                            this.addToDependencies(dependencies, attribute, comparison, modifiedSourceSpec);
+                            this.parseCoreSpec(node, attribute, comparison, modifiedSourceSpec, dependencies);
                         });
                         break;
                     }
@@ -442,38 +473,12 @@ class UI4 {
             }
         }
 
-        else if (targetAttribute in UI4.composites) {
-            const targetCombo = UI4.composites[targetAttribute];
-            let sourceAttribute, sourceCombo;
-            for (const [attribute, combo] of Object.entries(UI4.composites)) {
-                if (combo.length === targetCombo.length) {
-                    if (sourceSpec.includes(`${attribute}.`)) {
-                        sourceAttribute = attribute;
-                        sourceCombo = combo;
-                        break;
-                    }
-                }
-            }
-            if (sourceAttribute) {
-                targetCombo.forEach((expandedAttribute, index) => {
-                    const modifiedSourceSpec = sourceSpec.replace(`${sourceAttribute}.`, `${sourceCombo[index]}.`);
-                    this.addToDependencies(dependencies, expandedAttribute, comparison, modifiedSourceSpec);
-                });
-            }
-
-        } else if (targetAttribute in this.setValue) {
-            this.finalizeTree(sourceTree);
-            dependencies.push({
-                targetAttribute: targetAttribute, comparison: comparison, value: sourceTree
-            });
-        }
-
         else {
             console.error(`Unknown target attribute: ${targetAttribute}`);
         }
     }
 
-    finalizeTree(sourceTree) {
+    finalizeIdAndAttributeTree(sourceTree) {
         const _this = this;
         const walker = function(node) {
             switch (node.type) {
@@ -482,16 +487,19 @@ class UI4 {
                         throw AssertionError(`Unknown attribute in ${node.value.id}.${node.value.attribute}`);
                     }
                     node.function = _this.getIdAndAttributeValue.bind(_this);
-                    break;
+                    return node.value.id;  // Return dependency IDs
                 case UI4.KEYWORD:
                     if (node.value !== "gap") {
                         throw AssertionError(`Unknown keyword ${node.value}`);
                     }
                     node.function = (targetElem, treeNode, result) => _this.gap;
-                    break;
+                    return;
             }
         };
-        this.walkParseTree(sourceTree, walker);
+        const dependencyIDs = this.walkParseTree(sourceTree, walker);
+        const uniqueDependencies = new Set(dependencyIDs);
+        uniqueDependencies.delete(undefined);
+        return [...uniqueDependencies];
     }
 
     getIdAndAttributeValue(targetElem, treeNode, resultContext) {
@@ -561,80 +569,80 @@ class UI4 {
         return source;
     }
 
-    expandCompositeDependencies(node, dependencies) {
-        let updatedDependencies = Array();
-        dependencies.forEach(dependency => {
-            if (dependency.targetAttribute in UI4.composites && dependency.value) {
-
-                if (dependency.targetAttribute === dependency.value.attribute) {
-                    UI4.composites[dependency.targetAttribute].forEach(attribute => {
-                        const cloned = structuredClone(dependency);
-                        cloned.targetAttribute = attribute;
-                        cloned.value.attribute = attribute;
-                        updatedDependencies.push(cloned);
-                    });
-                } else {
-                    const allowed = {center: true, position: true};
-                    if (dependency.targetAttribute in allowed && dependency.value.attribute in allowed) {
-                        const sourceComposite = UI4.composites[dependency.value.attribute];
-                        UI4.composites[dependency.targetAttribute].forEach((attribute, index) => {
-                            const cloned = structuredClone(dependency);
-                            cloned.targetAttribute = attribute;
-                            cloned.value.attribute = sourceComposite[index];
-                            updatedDependencies.push(cloned);
-                        });
-                    }
-                }
-            } else if (dependency.targetAttribute === 'dock') {
-                if ('id' in dependency.value) {
-                    const spec = UI4.peerDock[dependency.value.attribute];
-                    const sourceId = dependency.value.id;
-                    updatedDependencies.push({
-                        targetAttribute: spec.size,
-                        comparison: '=',
-                        value: {id: sourceId, attribute: spec.size},
-                    });
-                    updatedDependencies.push({
-                        targetAttribute: spec.center,
-                        comparison: '=',
-                        value: {id: sourceId, attribute: spec.center},
-                    });
-                    const cloned = structuredClone(dependency);
-                    cloned.targetAttribute = spec.myEdge;
-                    cloned.value.attribute = spec.yourEdge;
-                    updatedDependencies.push(cloned);
-                } else {
-                    const parentId = node.parentNode.id;
-                    UI4.parentDock[dependency.value.attribute].forEach(attribute => {
-                        const cloned = structuredClone(dependency);
-                        cloned.targetAttribute = attribute;
-                        cloned.value.id = parentId;
-                        cloned.value.attribute = attribute;
-                        updatedDependencies.push(cloned);
-                    });
-                }
-            } else if (dependency.targetAttribute === 'fit') {
-                const fitKeyword = dependency.value.attribute;
-                if (fitKeyword === "width" || fitKeyword === "true") {
-                    updatedDependencies.push({
-                        targetAttribute: "width",
-                        comparison: '=',
-                        value: {id: node.id, attribute: "fitwidth"},
-                    });
-                }
-                if (fitKeyword === "height" || fitKeyword === "true") {
-                    updatedDependencies.push({
-                        targetAttribute: "height",
-                        comparison: '=',
-                        value: {id: node.id, attribute: "fitheight"},
-                    });
-                }
-            } else {
-                updatedDependencies.push(dependency);
-            }
-        });
-        return updatedDependencies;
-    }
+    // expandCompositeDependencies(node, dependencies) {
+    //     let updatedDependencies = Array();
+    //     dependencies.forEach(dependency => {
+    //         if (dependency.targetAttribute in UI4.composites && dependency.value) {
+    //
+    //             if (dependency.targetAttribute === dependency.value.attribute) {
+    //                 UI4.composites[dependency.targetAttribute].forEach(attribute => {
+    //                     const cloned = structuredClone(dependency);
+    //                     cloned.targetAttribute = attribute;
+    //                     cloned.value.attribute = attribute;
+    //                     updatedDependencies.push(cloned);
+    //                 });
+    //             } else {
+    //                 const allowed = {center: true, position: true};
+    //                 if (dependency.targetAttribute in allowed && dependency.value.attribute in allowed) {
+    //                     const sourceComposite = UI4.composites[dependency.value.attribute];
+    //                     UI4.composites[dependency.targetAttribute].forEach((attribute, index) => {
+    //                         const cloned = structuredClone(dependency);
+    //                         cloned.targetAttribute = attribute;
+    //                         cloned.value.attribute = sourceComposite[index];
+    //                         updatedDependencies.push(cloned);
+    //                     });
+    //                 }
+    //             }
+    //         } else if (dependency.targetAttribute === 'dock') {
+    //             if ('id' in dependency.value) {
+    //                 const spec = UI4.peerDock[dependency.value.attribute];
+    //                 const sourceId = dependency.value.id;
+    //                 updatedDependencies.push({
+    //                     targetAttribute: spec.size,
+    //                     comparison: '=',
+    //                     value: {id: sourceId, attribute: spec.size},
+    //                 });
+    //                 updatedDependencies.push({
+    //                     targetAttribute: spec.center,
+    //                     comparison: '=',
+    //                     value: {id: sourceId, attribute: spec.center},
+    //                 });
+    //                 const cloned = structuredClone(dependency);
+    //                 cloned.targetAttribute = spec.myEdge;
+    //                 cloned.value.attribute = spec.yourEdge;
+    //                 updatedDependencies.push(cloned);
+    //             } else {
+    //                 const parentId = node.parentNode.id;
+    //                 UI4.parentDock[dependency.value.attribute].forEach(attribute => {
+    //                     const cloned = structuredClone(dependency);
+    //                     cloned.targetAttribute = attribute;
+    //                     cloned.value.id = parentId;
+    //                     cloned.value.attribute = attribute;
+    //                     updatedDependencies.push(cloned);
+    //                 });
+    //             }
+    //         } else if (dependency.targetAttribute === 'fit') {
+    //             const fitKeyword = dependency.value.attribute;
+    //             if (fitKeyword === "width" || fitKeyword === "true") {
+    //                 updatedDependencies.push({
+    //                     targetAttribute: "width",
+    //                     comparison: '=',
+    //                     value: {id: node.id, attribute: "fitwidth"},
+    //                 });
+    //             }
+    //             if (fitKeyword === "height" || fitKeyword === "true") {
+    //                 updatedDependencies.push({
+    //                     targetAttribute: "height",
+    //                     comparison: '=',
+    //                     value: {id: node.id, attribute: "fitheight"},
+    //                 });
+    //             }
+    //         } else {
+    //             updatedDependencies.push(dependency);
+    //         }
+    //     });
+    //     return updatedDependencies;
+    // }
 
     startCSSAnimations(elem, styles) {
         const startingStyles = window.getComputedStyle(elem);
@@ -691,7 +699,6 @@ class UI4 {
     }
 
     checkDependencies() {
-        this.callLog.push("checkDependencies");
         this.checkAllDependencies();
     }
 
