@@ -33,7 +33,15 @@
         Below
     </button>
     <button id="filled" dock="bottom">
-        Filled
+        Bottom filled
+    </button>
+    <button id="edgeBetweener"
+            dock="between(nextButton.right, dockButton.left)">
+        Between
+    </button>
+    <button id="centerBetweenerButton"
+            dock="between(firstButton, centerButton)">
+        Between
     </button>
     <button id="floatingButton"
             centerx="(centerButton.centerx + dockButton.centerx) / 2" bottom="max(centerButton.bottom, 300)">

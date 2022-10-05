@@ -67,6 +67,12 @@ class UI4 {
         leftof: {size: "height", center: "centery", myEdge: "right", yourEdge: "left"},
     }
 
+    static betweenDock = {
+        betweenstart: ["min", "min"],
+        betweenend: ["max", "max"],
+        between: ["min", "max"],
+    }
+
     static operations = {
         "+": (a, b) => a + b,
         "-": (a, b) => a - b,
@@ -426,7 +432,7 @@ class UI4 {
             }
         }
         else if (targetAttribute === "dock") {
-            let peerDocked = false;
+            let handled = false;
             for (const [dockAttribute, attributes] of Object.entries(UI4.peerDock)) {
                 const matcher = new RegExp(`[a-zA-Z\\d_-]+\\.${dockAttribute}`);
                 if (sourceSpec.match(matcher)) {
@@ -439,12 +445,12 @@ class UI4 {
                     modifiedSourceSpec = sourceSpec.replace(dockAttribute, attributes.yourEdge);
                     this.parseCoreSpec(node, attributes.myEdge, comparison, modifiedSourceSpec, dependencies);
 
-                    peerDocked = true;
+                    handled = true;
                     break;
                 }
             }
 
-            if (!peerDocked) {
+            if (!handled) {
                 for (const [dockAttribute, attributes] of Object.entries(UI4.parentDock)) {
                     if (sourceSpec.startsWith(dockAttribute)) {
                         const parentId = node.parentNode.id;
@@ -454,9 +460,18 @@ class UI4 {
                             );
                             this.parseCoreSpec(node, attribute, comparison, modifiedSourceSpec, dependencies);
                         });
+                        handled = true;
                         break;
                     }
                 }
+            }
+
+            if (!handled) {
+                handled = this.parseBetweenSpec(node, sourceSpec, dependencies);
+            }
+
+            if (!handled) {
+                throw SyntaxError(`Could not parse dock value ${sourceSpec}`);
             }
         }
 
@@ -473,6 +488,78 @@ class UI4 {
             console.error(`Unknown target attribute: ${targetAttribute}`);
         }
     }
+
+    parseBetweenSpec(node, sourceSpec, dependencies) {
+        let attribute, minMax;
+        for (const [dockAttribute, minmax] of Object.entries(UI4.betweenDock)) {
+            if (sourceSpec.startsWith(dockAttribute)) {
+                attribute = dockAttribute;
+                minMax = minmax;
+                break;
+            }
+        }
+        if (!attribute) {
+            return false;
+        }
+
+        const edgesRE = (
+            /\((?<id1>[a-zA-Z\d_-]+)\.(?<attribute1>([a-zA-Z]+)),(?<id2>[a-zA-Z\d_-]+)\.(?<attribute2>([a-zA-Z]+))\)/
+        );
+        const match = sourceSpec.match(edgesRE);
+        if (match) {
+            const lookup = {};
+            lookup[match.groups.attribute1] = match.groups.id1;
+            lookup[match.groups.attribute2] = match.groups.id2;
+            if ('top' in lookup && 'bottom' in lookup) {
+                this.parseCoreSpec(
+                    node, 'top', '=', `${lookup.bottom}.bottom`, dependencies
+                );
+
+                this.parseCoreSpec(
+                    node, 'bottom', '=', `${lookup.top}.top`, dependencies
+                );
+                this.parseCoreSpec(
+                    node, 'left', '=', `${minMax[0]}(${lookup.top}.left,${lookup.bottom}.left)`, dependencies
+                );
+                this.parseCoreSpec(
+                    node, 'right', '=', `${minMax[1]}(${lookup.top}.right,${lookup.bottom}.right)`, dependencies
+                );
+            } else if ('left' in lookup && 'right' in lookup) {
+                this.parseCoreSpec(
+                    node, 'left', '=', `${lookup.right}.right`, dependencies
+                );
+                this.parseCoreSpec(
+                    node, 'right', '=', `${lookup.left}.left`, dependencies
+                );
+                this.parseCoreSpec(
+                    node, 'top', '=', `${minMax[0]}(${lookup.right}.top,${lookup.left}.top)`, dependencies
+                );
+                this.parseCoreSpec(
+                    node, 'bottom', '=', `${minMax[1]}(${lookup.right}.bottom,${lookup.left}.bottom)`, dependencies
+                );
+            } else {
+                throw SyntaxError(`Not a possible combination for between: ${Object.keys(lookup)}`);
+            }
+        } else {
+            const centersRE = (
+                /between\((?<id1>[a-zA-Z\d_-]+),(?<id2>[a-zA-Z\d_-]+)\)/
+            );
+            const match = sourceSpec.match(centersRE);
+
+            if (match) {
+                const id1 = match.groups.id1;
+                const id2 = match.groups.id2;
+
+                this.parseCoreSpec(node, 'centerx', '=', `(${id1}.centerx+${id2}.centerx)/2`, dependencies);
+                this.parseCoreSpec(node, 'centery', '=', `(${id1}.centery+${id2}.centery)/2`, dependencies);
+            } else {
+                throw SyntaxError(`Could not parse ${sourceSpec}`);
+            }
+        }
+
+        return true;
+    }
+
 
     finalizeIdAndAttributeTree(sourceTree) {
         const _this = this;
@@ -1135,7 +1222,12 @@ UI4.Parser = class {
                     `Function name should be followed by parenthesis`
                 );
             }
-            return {type: this.FUNCTION, value: functionName, arguments: this.arguments()};
+            let argumentExpression = (
+                functionName.startsWith('between') ?
+                    this.idAndAttributeArguments.bind(this) :
+                    this.arguments.bind(this)
+            );
+            return {type: this.FUNCTION, value: functionName, arguments: argumentExpression()};
         } else if (token && token.type === this.LEFT_PARENTHESIS) {
             this.skipToken();
             const node = this.additive();
@@ -1154,6 +1246,22 @@ UI4.Parser = class {
         let token = this.getToken();
         if (token && token.type === this.COMMA) {
             return [argument].concat(this.arguments());
+        } else if (token && token.type === this.RIGHT_PARENTHESIS) {
+            return [argument];
+        } else {
+            throw new SyntaxError(`Expected comma or closing parenthesis in function arguments, got: ${token}`);
+        }
+    }
+
+    idAndAttributeArguments() {
+        let token = this.getToken();
+        if (!token || token.type !== this.ID_AND_ATTRIBUTE) {
+            throw new SyntaxError(`Expected an id-and-attribute argument, got: ${token}`);
+        }
+        let argument = token;
+        token = this.getToken();
+        if (token && token.type === this.COMMA) {
+            return [argument].concat(this.idAndAttributeArguments());
         } else if (token && token.type === this.RIGHT_PARENTHESIS) {
             return [argument];
         } else {
