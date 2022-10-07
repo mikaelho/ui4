@@ -359,7 +359,7 @@
       } else {
         allDependencies[targetId] = dependencies;
       }
-      # ui4.testHook.allDependencies = allDependencies;
+      // ui4.testHook.allDependencies = allDependencies;
 
       /**
       if (animDependencies.length) {
@@ -502,16 +502,28 @@
     }
   }
 
+  function logChange(entries) {
+    console.log("Got something");
+  }
+
+  function setResizeObserver(node) {
+    console.log("Set");
+    const resizeObserver = new ResizeObserver(logChange);
+    resizeObserver.observe(node);
+  }
+
   function classChangeHandler(mutations, observer) {
     mutations.forEach( (mutation) => {
       switch(mutation.type) {
         case 'childList':
           mutation.addedNodes.forEach( (node) => {
             setDependencies(node);
+            setResizeObserver(node);
           });
           break;
         case 'attributes':
           setDependencies(mutation.target);
+          setResizeObserver(mutation.target);
           break;
       }
     });

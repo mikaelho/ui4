@@ -1,24 +1,22 @@
 /*jshint esversion: 9 */
 
-
-
-// Basic math
-const OPERATOR = "operator";
-const LEFT_PARENTHESIS = "leftParenthesis";
-const RIGHT_PARENTHESIS = "rightParenthesis";
-const NUMBER = "number";
-
-// Application-specific
-const ID_AND_ATTRIBUTE = "idAndAttribute";
-const KEYWORD = "keyword";
-const FUNCTION = "function";
-const COMMA = "comma";
-
-const AS_IS_TYPES = [ID_AND_ATTRIBUTE, KEYWORD];
-
 class Parser {
 
     constructor(string) {
+        // Tokens - Basic math
+        this.OPERATOR = "operator";
+        this.LEFT_PARENTHESIS = "leftParenthesis";
+        this.RIGHT_PARENTHESIS = "rightParenthesis";
+        this.NUMBER = "number";
+
+        // Tokens - Application-specific
+        this.ID_AND_ATTRIBUTE = "idAndAttribute";
+        this.KEYWORD = "keyword";
+        this.FUNCTION = "function";
+        this.COMMA = "comma";
+
+        this.AS_IS_TYPES = [this.ID_AND_ATTRIBUTE, this.KEYWORD];
+
         const TOKEN_TYPES = [
             "(?<idAndAttribute>([a-zA-Z]|\\d|_|-)+\\.([a-zA-Z]+))",
             "(?<keyword>gap)",
@@ -81,7 +79,7 @@ class Parser {
     additive() {
         let left = this.multiplicative()
         let token = this.peekToken();
-        while (token && token.type === OPERATOR && (token.value === '+' || token.value === '-')) {
+        while (token && token.type === this.OPERATOR && (token.value === '+' || token.value === '-')) {
             this.skipToken();
             const right = this.multiplicative();
             left = this.getNode(token.value, left, right);
@@ -93,7 +91,7 @@ class Parser {
     multiplicative() {
         let left = this.primary();
         let token = this.peekToken();
-        while (token && token.type === OPERATOR && (token.value === '*' || token.value === '/')) {
+        while (token && token.type === this.OPERATOR && (token.value === '*' || token.value === '/')) {
             this.skipToken();
             const right = this.primary();
             left = this.getNode(token.value, left, right);
@@ -104,25 +102,25 @@ class Parser {
 
     primary() {
         let token = this.peekToken();
-        if (token && token.type === NUMBER) {
+        if (token && token.type === this.NUMBER) {
             this.skipToken();
             return {type: token.type, value: parseFloat(token.value)};
-        } else if (token && AS_IS_TYPES.includes(token.type)) {
+        } else if (token && this.AS_IS_TYPES.includes(token.type)) {
             this.skipToken();
             return {type: token.type, value: token.value};
-        } else if (token && token.type === FUNCTION) {
+        } else if (token && token.type === this.FUNCTION) {
             const functionName = token.value;
             this.skipToken();
             token = this.getToken();
-            if (token && token.type !== LEFT_PARENTHESIS) {
+            if (token && token.type !== this.LEFT_PARENTHESIS) {
                 throw `Function name should be followed by parenthesis, not ${token.type}: ${token.value}`;
             }
-            return {type: FUNCTION, value: functionName, arguments: this.arguments()};
-        } else if (token && token.type === LEFT_PARENTHESIS) {
+            return {type: this.FUNCTION, value: functionName, arguments: this.arguments()};
+        } else if (token && token.type === this.LEFT_PARENTHESIS) {
             this.skipToken();
             const node = this.additive();
             token = this.getToken();
-            if (token && token.type !== RIGHT_PARENTHESIS) {
+            if (token && token.type !== this.RIGHT_PARENTHESIS) {
                 throw "Missing closing parenthesis";
             }
             return node;
@@ -134,9 +132,9 @@ class Parser {
     arguments() {
         let argument = this.additive();
         let token = this.getToken();
-        if (token && token.type === COMMA) {
+        if (token && token.type === this.COMMA) {
             return [argument].concat(this.arguments());
-        } else if (token && token.type === RIGHT_PARENTHESIS) {
+        } else if (token && token.type === this.RIGHT_PARENTHESIS) {
             return [argument];
         } else {
             throw `Expected comma or closing parenthesis in function arguments, got: ${token}`;
@@ -146,8 +144,8 @@ class Parser {
     getNode(operator, left, right) {
         // Return a node combining the operator and left and right sides, or if possible, already calculated number node
         const operations = {"+": (a, b) => a + b, "-": (a, b) => a - b, "*": (a, b) => a * b, "/": (a, b) => a / b};
-        if ((left && left.type === NUMBER) && (right && right.type === NUMBER)) {
-            return {type: NUMBER, value: operations[operator](left.value, right.value)};
+        if ((left && left.type === this.NUMBER) && (right && right.type === this.NUMBER)) {
+            return {type: this.NUMBER, value: operations[operator](left.value, right.value)};
         } else {
             return {operator: operator, left: left, right: right};
         }

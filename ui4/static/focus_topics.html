@@ -5,15 +5,18 @@
     <title>Focus topics</title>
     <script src="ui4parser.js"></script>
     <script src="ui4.js"></script>
+    <style>
+        div { border:1px solid black; background-color: #00000044; }
+    </style>
 </head>
 <body>
 <div id="root" class="ui4Root">
-    <div id="one" style="background-color: #c9c9c9;" ui4="width=100; height=100;"></div>
-    <div id="two" style="background-color: #c9c9c9;" ui4="width=300; height=300; dock=center"></div>
-    <div id="three" style="background-color: black;" ui4="width=100; height=100; center=two.center"></div>
-    <div id="four" style="background-color: black;" ui4="width=100; height=100; position=two.position"></div>
-    <div id="five" style="border:1px solid red; border-radius: 25px; background-color: #ff0000aa;" ui4="width=50; height=50; center=two.position"></div>
-    <div id="six" style="border:1px solid black;" ui4="frame=two.frame"></div>
+    <div id="one" ui4="width=100; height=100;"></div>
+    <div id="two" style="background-color: #c9c9c9;" ui4="width=150; height=150; dock=center"></div>
+    <div id="three" style="border-radius: 25px;" ui4="width=50; height=50; center=two.center"></div>
+    <div id="four" ui4="width=50; height=50; position=two.position"></div>
+    <div id="five" style="border-radius: 25px;" ui4="width=50; height=50; center=two.position"></div>
+    <div id="six" style="border: 1px dashed blue; background-color: transparent;" ui4="frame=two.frame"></div>
 
 </div>
 </body>

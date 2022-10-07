@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <title>UI4 Parser Generator</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            border: 1px solid grey;
+        }
+
+        table tbody td {
+            border-collapse: collapse;
+            border: 1px solid grey;
+        }
+    </style>
+    <script src="https://unpkg.com/peggy"></script>
+    <script>
+
+        function generateParser() {
+            const grammarElem = document.getElementById("grammar");
+            const parserElem = document.getElementById("parser")
+            const grammar = grammarElem.innerText;
+            const startRules = ['additive']
+            parserElem.innerText = peggy.generate(grammar, {
+                format: "es",
+                output: "source",
+                allowedStartRules: startRules
+            });
+            const parser = peggy.generate(grammar, {allowedStartRules: startRules});
+
+            testCases.forEach(function (value) {
+                const testCase = value[0];
+                const shouldMatch = value[1];
+                const expectedResult = shouldMatch && JSON.stringify(value[2]);
+                const options = {};
+                if (value.length === 4) {
+                    options.startRule = value[3];
+                }
+
+                const tbody = document.getElementById('tests').getElementsByTagName('tbody')[0];
+                const row = tbody.insertRow();
+
+                const cellTestCase = row.insertCell();
+                cellTestCase.appendChild(document.createTextNode(testCase));
+
+                const cellShouldMatch = row.insertCell();
+                cellShouldMatch.appendChild(document.createTextNode(shouldMatch));
+
+                let didMatch = '🟢';
+                let matchResult = '';
+                let sourceIDsResult = '';
+                try {
+                    const result = parser.parse(testCase.replace(/\s/g, ''), options);
+                    if (shouldMatch) {
+                        matchResult = JSON.stringify(result);
+
+                        if (matchResult !== expectedResult) {
+                            didMatch = '🔴';
+                        }
+                    }
+                } catch (error) {
+                    if (shouldMatch) {
+                        didMatch = error.toString();
+                    }
+                }
+
+                const cellDidMatch = row.insertCell();
+                cellDidMatch.appendChild(document.createTextNode(didMatch));
+
+                const cellMatchResult = row.insertCell();
+                cellMatchResult.appendChild(document.createTextNode(matchResult));
+
+                const cellSourceIDsResult = row.insertCell();
+                cellSourceIDsResult.appendChild(document.createTextNode(sourceIDsResult))
+            });
+        }
+
+        const testCases = [
+            // CALCULATIONS
+            ['1', true, 1],
+            ['1.9+2.1', true, 4],
+            ['(4-1)*-3', true, -9],
+        ];
+    </script>
+
+</head>
+<body onload="generateParser();">
+
+<h3>Grammar</h3>
+<pre id="grammar">
+
+    {
+        const result = [];
+
+        const operations = {
+            '+': (a, b) => a + b,
+            '-': (a, b) => a - b,
+            '*': (a, b) => a * b,
+            '/': (a, b) => a / b,
+            'min': Math.min,
+            'max': Math.max
+        };
+
+        function checkOperation(op, lhs, rhs) {
+            const operation = operations[op];
+            if (typeof lhs == 'number' && typeof rhs == 'number') {
+                return operation(lhs, rhs);
+            } else {
+                return {operation: op, lhs: lhs, rhs: rhs};
+            }
+        }
+    }
+
+    additive
+        = first:multiplicative rest:(("+" / "-") multiplicative)+ {
+            return rest.reduce(function(memo, curr) {
+              return checkOperation(curr[0], memo, curr[1]);
+            }, first);
+          }
+        / multiplicative
+
+    multiplicative
+        = first:primary rest:(("*" / "/") primary)+ {
+            return rest.reduce(function(memo, curr) {
+              return checkOperation(curr[0], memo, curr[1]);
+            }, first);
+          }
+        / primary
+
+    primary
+        = number
+        / "(" additive:additive ")" { return additive; }
+
+    number 'number'
+        = sign:[+-]? integer_part:[0-9]+ decimal_part:('.' [0-9]+)?
+        { return parseFloat(
+            sign && text(sign) || '' + text(integer_part) + decimal_part && text(decimal_part) || ''
+          );
+        }
+</pre>
+
+<h3>Tests</h3>
+<table id="tests">
+    <thead>
+    <tr>
+        <th>Test case</th>
+        <th>Should match</th>
+        <th>Match result</th>
+        <th>Result</th>
+        <th>Source</th>
+    </tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+
+<h3>Parser</h3>
+<pre id="parser"></pre>
+
+</body>
+</html>
