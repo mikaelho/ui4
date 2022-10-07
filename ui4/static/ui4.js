@@ -15,7 +15,7 @@ class UI4 {
         margin: 0,
         outline: 0,
         padding: 0,
-        "box-sizing": "border-box"
+        //boxSizing: "border-box"
     }
 
     static LEADING = 'leading';
@@ -95,10 +95,10 @@ class UI4 {
     constructor() {
         this._gap = 8;
 
-        this.callLog = [];
-
         this.allDependencies = {};
         this.sourceDependencies = {};
+
+        this.shares = {};
 
         const _this = this;
         this.getValue = {
@@ -198,7 +198,7 @@ class UI4 {
                 get(target, name, receiver) {
                     return 2;
                 }
-}           );
+            });
         });
     }
 
@@ -210,6 +210,33 @@ class UI4 {
     set gap(value) {
         this._gap = value;
         this.checkDependencies();
+    }
+
+    share(targetElem, targetAttribute, howMuch, outOf) {
+        const dimensions = {
+            width: 'clientWidth',
+            height: 'clientHeight'
+        };
+        const actualDimension = dimensions[targetAttribute];
+        if (actualDimension === undefined) {
+            throw SyntaxError(`Can not use attribute ${targetAttribute} with share()`);
+        }
+        const parentDimension = parseFloat(targetElem.parentElement[actualDimension]);
+        const shareOf = howMuch ? howMuch: 1;
+        let total;
+        if (outOf) {
+            total = outOf;
+        } else {
+            const shares = (
+                this.shares[targetElem.parentElement.id] && this.shares[targetElem.parentElement.id][targetAttribute]
+            );
+            if (shares) {
+                total = Object.values(shares).reduce((accumulator, value) => {return accumulator + value;}, 0);
+            } else {
+                total = targetElem.parentElement.childElementCount;
+            }
+        }
+        return (parentDimension - ((total + 1) * this.gap)) / total * shareOf + ((shareOf - 1) * this.gap);
     }
 
     setResizeObserver(node) {
@@ -262,6 +289,8 @@ class UI4 {
     setDependencies(node) {
         const targetId = node.id;
         if (!targetId) { return; }
+
+        // TODO: Clean shares
 
         // const ui4AnimationID = node.getAttribute("ui4anim");
 
@@ -407,7 +436,7 @@ class UI4 {
     parseCoreSpec(node, targetAttribute, comparison, sourceSpec, dependencies) {
         if (targetAttribute in this.setValue) {
             const sourceTree = new UI4.Parser().parse(sourceSpec);
-            sourceTree.dependencyIDs = this.finalizeIdAndAttributeTree(sourceTree);
+            sourceTree.dependencyIDs = this.finalizeIdAndAttributeTree(node, targetAttribute, sourceTree);
             dependencies.push({
                 targetAttribute: targetAttribute, comparison: comparison, value: sourceTree
             });
@@ -561,8 +590,10 @@ class UI4 {
     }
 
 
-    finalizeIdAndAttributeTree(sourceTree) {
+    finalizeIdAndAttributeTree(node, targetAttribute, sourceTree) {
         const _this = this;
+        const _node = node;
+        const _targetAttribute = targetAttribute;
         const walker = function(node) {
             switch (node.type) {
                 case UI4.ID_AND_ATTRIBUTE:
@@ -584,6 +615,17 @@ class UI4 {
                             return;
                         case "max":
                             node.function = Math.max;
+                            return;
+                        case "share":
+                            // Record a share for the parent in the dimension given by targetAttribute
+                            if (node.attributes.length < 2) {
+                                const share = node.attributes.length ? node.attributes[0] : 0;
+                                const byId = _this.shares[_node.parentElement.id] || {};
+                                const byAttribute = byId[_targetAttribute] || {};
+                                byAttribute[_node.id] = share;
+                                byId[_targetAttribute] = byAttribute;
+                                _this.shares[_node.parentElement.id] = byId;
+                            }
                             return;
                     }
                     throw SyntaxError(`Unknown function '${node.value}'`);
@@ -631,36 +673,36 @@ class UI4 {
         return this.getValue[attribute](sourceContext);
     }
 
-    addToDependencies(dependencies, targetAttribute, comparison, sourceSpec) {
-        dependencies.push({
-            targetAttribute: targetAttribute,
-            comparison: comparison,
-            value: this.parseSourceSpec(targetAttribute, sourceSpec),
-        });
-    }
+    // addToDependencies(dependencies, targetAttribute, comparison, sourceSpec) {
+    //     dependencies.push({
+    //         targetAttribute: targetAttribute,
+    //         comparison: comparison,
+    //         value: this.parseSourceSpec(targetAttribute, sourceSpec),
+    //     });
+    // }
 
-    parseSourceSpec(targetAttribute, sourceSpec) {
-        const keywordRE = /[a-z]+/g;
-        const shareRE = /share\((?<first>\d+(\.\d+)?)(,(?<second>\d+(\.\d+)?))?\)/;
-
-        // const contained = targetAttribute.parentElement === sourceElem;
-        let sourceAttribute, sourceID;
-        let source = {};
-
-        let match = sourceSpec.match(this.idAndAttribute);
-        if (match) {
-            source.id = match.groups.id;
-            source.attribute = match.groups.attribute;
-        }
-        match = sourceSpec.match(shareRE);
-        if (match) {
-            source.share = {share: match.groups.first, outOf: match.groups.second};
-        }
-
-        source.getFunction = validateAndCreateGetFunction(sourceSpec, source, this);
-
-        return source;
-    }
+    // parseSourceSpec(targetAttribute, sourceSpec) {
+    //     const keywordRE = /[a-z]+/g;
+    //     const shareRE = /share\((?<first>\d+(\.\d+)?)(,(?<second>\d+(\.\d+)?))?\)/;
+    //
+    //     // const contained = targetAttribute.parentElement === sourceElem;
+    //     let sourceAttribute, sourceID;
+    //     let source = {};
+    //
+    //     let match = sourceSpec.match(this.idAndAttribute);
+    //     if (match) {
+    //         source.id = match.groups.id;
+    //         source.attribute = match.groups.attribute;
+    //     }
+    //     match = sourceSpec.match(shareRE);
+    //     if (match) {
+    //         source.share = {share: match.groups.first, outOf: match.groups.second};
+    //     }
+    //
+    //     source.getFunction = validateAndCreateGetFunction(sourceSpec, source, this);
+    //
+    //     return source;
+    // }
 
     // expandCompositeDependencies(node, dependencies) {
     //     let updatedDependencies = Array();
@@ -845,7 +887,9 @@ class UI4 {
             // }
 
             const sourceContext = {};
-            let sourceValue = this.resolveSourceTree(targetElem, dependency.value, sourceContext);
+            let sourceValue = this.resolveSourceTree(
+                targetElem, dependency.targetAttribute, dependency.value, sourceContext
+            );
 
             if (sourceValue === undefined) {
                 return;
@@ -888,13 +932,13 @@ class UI4 {
         return [values, redrawNeeded];
     }
 
-    resolveSourceTree(targetElem, treeNode, resultContext) {
+    resolveSourceTree(targetElem, targetAttribute, treeNode, resultContext) {
         if (treeNode.type === UI4.NUMBER) {
             return treeNode.value;
         }
         else if (treeNode.type === UI4.OPERATOR) {
-            const left = this.resolveSourceTree(targetElem, treeNode.left, resultContext);
-            const right = this.resolveSourceTree(targetElem, treeNode.right, resultContext);
+            const left = this.resolveSourceTree(targetElem, targetAttribute, treeNode.left, resultContext);
+            const right = this.resolveSourceTree(targetElem, targetAttribute, treeNode.right, resultContext);
             return UI4.operations[treeNode.operator](left, right);
         }
         else if ([UI4.ID_AND_ATTRIBUTE, UI4.KEYWORD].includes(treeNode.type)) {
@@ -903,7 +947,12 @@ class UI4 {
         else if (treeNode.type === UI4.FUNCTION) {
             const functionArguments = [];
             for (const attributeTreeNode of treeNode.arguments) {
-                functionArguments.push(this.resolveSourceTree(targetElem, attributeTreeNode, resultContext));
+                functionArguments.push(
+                    this.resolveSourceTree(targetElem, targetAttribute, attributeTreeNode, resultContext)
+                );
+            }
+            if (treeNode.value === 'share') {
+                return this.share(targetElem, targetAttribute, ...functionArguments);
             }
             return treeNode.function(...functionArguments);
         }
@@ -1242,8 +1291,14 @@ UI4.Parser = class {
     }
 
     arguments() {
+        // Allow empty args
+        let token = this.peekToken();
+        if (token && token.type === this.RIGHT_PARENTHESIS) {
+            this.skipToken();
+            return [];
+        }
         let argument = this.additive();
-        let token = this.getToken();
+        token = this.getToken();
         if (token && token.type === this.COMMA) {
             return [argument].concat(this.arguments());
         } else if (token && token.type === this.RIGHT_PARENTHESIS) {
