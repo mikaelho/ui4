@@ -98,8 +98,6 @@ class UI4 {
         this.allDependencies = {};
         this.sourceDependencies = {};
 
-        this.shares = {};
-
         const _this = this;
         this.getValue = {
             width: (context) => parseFloat(context.getStyle.width),
@@ -212,7 +210,7 @@ class UI4 {
         this.checkDependencies();
     }
 
-    share(targetElem, targetAttribute, howMuch, outOf) {
+    share(targetElem, targetAttribute, shareOf, total) {
         const dimensions = {
             width: 'clientWidth',
             height: 'clientHeight'
@@ -222,20 +220,11 @@ class UI4 {
             throw SyntaxError(`Can not use attribute ${targetAttribute} with share()`);
         }
         const parentDimension = parseFloat(targetElem.parentElement[actualDimension]);
-        const shareOf = howMuch ? howMuch: 1;
-        let total;
-        if (outOf) {
-            total = outOf;
-        } else {
-            const shares = (
-                this.shares[targetElem.parentElement.id] && this.shares[targetElem.parentElement.id][targetAttribute]
-            );
-            if (shares) {
-                total = Object.values(shares).reduce((accumulator, value) => {return accumulator + value;}, 0);
-            } else {
-                total = targetElem.parentElement.childElementCount;
-            }
+
+        if (!(shareOf && total)) {
+            throw SyntaxError('Share needs both total number of elements and this elements share of it');
         }
+
         return (parentDimension - ((total + 1) * this.gap)) / total * shareOf + ((shareOf - 1) * this.gap);
     }
 
@@ -617,15 +606,6 @@ class UI4 {
                             node.function = Math.max;
                             return;
                         case "share":
-                            // Record a share for the parent in the dimension given by targetAttribute
-                            if (node.attributes.length < 2) {
-                                const share = node.attributes.length ? node.attributes[0] : 0;
-                                const byId = _this.shares[_node.parentElement.id] || {};
-                                const byAttribute = byId[_targetAttribute] || {};
-                                byAttribute[_node.id] = share;
-                                byId[_targetAttribute] = byAttribute;
-                                _this.shares[_node.parentElement.id] = byId;
-                            }
                             return;
                     }
                     throw SyntaxError(`Unknown function '${node.value}'`);

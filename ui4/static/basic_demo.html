@@ -13,6 +13,8 @@
         [id$=Button] {
             width: 100px;
         }
+        #shareArea {background-color: lightcyan; border-radius: 5px; border: solid #1E90FFCC;
+        }}
     </style>
 </head>
 <body>
@@ -35,18 +37,30 @@
     <button id="filled" dock="bottom">
         Bottom filled
     </button>
-    <button id="edgeBetweener"
-            dock="between(nextButton.right, dockButton.left)">
+    <button id="edgeBetweener" dock="between(nextButton.right, dockButton.left)">
         Between
     </button>
-    <button id="centerBetweenerButton"
-            dock="between(firstButton, centerButton)">
+    <button id="centerBetweenerButton" dock="between(firstButton, centerButton)">
         Between
     </button>
     <button id="floatingButton"
             centerx="(centerButton.centerx + dockButton.centerx) / 2" bottom="max(centerButton.bottom, 300)">
         Floating
     </button>
+    <button id="share1" centery="root.height*3/4" left="root.left" width="share(1, 3)">
+        Share 1/3
+    </button>
+    <button id="share2" dock="share1.rightof" width="0.5 * share(1, 3) - gap/2">
+        Share half of 1/3
+    </button>
+    <div id="shareArea" top="share2.top" left="share2.right" bottom="filled.top" width="share(1, 2)">
+        <button id="share3" dock="top" height="share(1,3)">
+            Share 1/3
+        </button>
+        <button id="share4" dock="share3.below" height="share(2,3)">
+            Share 2/3
+        </button>
+    </div>
 </div>
 </body>
 </html>
