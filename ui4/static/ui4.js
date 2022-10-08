@@ -15,7 +15,7 @@ class UI4 {
         margin: 0,
         outline: 0,
         padding: 0,
-        //boxSizing: "border-box"
+        boxSizing: "border-box"
     }
 
     static LEADING = 'leading';
@@ -97,25 +97,26 @@ class UI4 {
 
         this.allDependencies = {};
         this.sourceDependencies = {};
+        this.layouts = {};
 
         const _this = this;
         this.getValue = {
-            width: (context) => parseFloat(context.getStyle.width),
-            height: (context) => parseFloat(context.getStyle.height),
+            width: (context) => context.sourceElem.offsetWidth,
+            height: (context) => context.sourceElem.offsetHeight,
             left: (context) => context.contained ?  0 : parseFloat(context.getStyle.left),
             right: (context) => context.contained ?
-                parseFloat(context.getStyle.width) :
-                parseFloat(context.parentStyle.width) - parseFloat(context.getStyle.right),
+                context.sourceElem.clientWidth :
+                context.parentElem.clientWidth - parseFloat(context.getStyle.right),
             top: (context) => context.contained ?  0 : parseFloat(context.getStyle.top),
             bottom: (context) => context.contained ?
-                parseFloat(context.getStyle.height) :
-                parseFloat(context.parentStyle.height) - parseFloat(context.getStyle.bottom),
+                context.sourceElem.clientHeight :
+                context.parentElem.clientHeight - parseFloat(context.getStyle.bottom),
             centerx: (context) => context.contained ?
-                parseFloat(context.getStyle.width) / 2 :
-                parseFloat(context.getStyle.left) + parseFloat(context.getStyle.width) / 2,
+                context.sourceElem.clientWidth / 2 :
+                parseFloat(context.getStyle.left) + context.sourceElem.offsetWidth / 2,
             centery: (context) => context.contained ?
-                parseFloat(context.getStyle.height) / 2 :
-                parseFloat(context.getStyle.top) + parseFloat(context.getStyle.height) / 2,
+                context.sourceElem.clientHeight / 2 :
+                parseFloat(context.getStyle.top) + context.sourceElem.offsetHeight / 2,
             fitwidth: function (context) {
                 let left = false;
                 let right;
@@ -154,26 +155,23 @@ class UI4 {
             }
         };
 
-        const attributeOptions = Object.keys(this.getValue).join('|');
-        this.idAndAttribute = new RegExp(`(?<id>([a-zA-Z]|\\d|_|-)+)\\.(?<attribute>(${attributeOptions}))`);
-
         this.setValue = {
             width: function(context, value) { return {width: value + 'px'};},
             height: function(context, value) { return {height: value + 'px'};},
             left: function(context, value) { return {left: value + 'px'};},
-            right: function(context, value) { return {right: parseFloat(context.parentStyle.width) - value + 'px'};},
+            right: function(context, value) { return {right: context.parentElem.clientWidth - value + 'px'};},
             top: function(context, value) { return {top: value + 'px'};},
-            bottom: function(context, value) { return {bottom: parseFloat(context.parentStyle.height) - value + 'px'};},
+            bottom: function(context, value) { return {bottom: context.parentElem.clientHeight - value + 'px'};},
             centerx: function(context, value) {
                 if (context.dependencies.find(item => item.targetAttribute === 'left')) {  // left locked, width must give
                     return {width: 2 * (value - parseFloat(context.getStyle.left)) + 'px'};
                 } else if (context.dependencies.find(item => item.targetAttribute === 'right')) {  // width must give)
                     return {
-                        width: 2 * (parseFloat(context.parentStyle.width) -
+                        width: 2 * (context.parentElem.clientWidth -
                             parseFloat(context.getStyle.right) - value) + 'px'
                     };
                 } else {  // Neither locked, move left
-                    return {left: value - parseFloat(context.getStyle.width) / 2 + 'px'};
+                    return {left: value - context.targetElem.offsetWidth / 2 + 'px'};
                 }
             },
             centery: function(context, value) {
@@ -181,14 +179,17 @@ class UI4 {
                     return {height: 2 * (value - parseFloat(context.getStyle.top)) + 'px'};
                 } else if (context.dependencies.find(item => item.targetAttribute === 'bottom')) {  // height must give)
                     return {
-                        height: 2 * (parseFloat(context.parentStyle.height) -
-                            parseFloat(context.getStyle.bottom) - value) + 'px'
+                        height: 2 * context.parentElem.clientHeight -
+                            parseFloat(context.getStyle.bottom) - value + 'px'
                     };
                 } else {  // Neither locked, move top
-                    return {top: value - parseFloat(context.getStyle.height) / 2 + 'px'};
+                    return {top: value - context.targetElem.offsetHeight / 2 + 'px'};
                 }
             }
         };
+
+        const attributeOptions = Object.keys(this.getValue).join('|');
+        this.idAndAttribute = new RegExp(`(?<id>([a-zA-Z]|\\d|_|-)+)\\.(?<attribute>(${attributeOptions}))`);
 
         this.valueProxies = {};
         Object.keys(this.getValue).forEach(attribute => {
@@ -363,7 +364,7 @@ class UI4 {
 
         for (const attribute of node.attributes) {
             const name = attribute.name;
-            if (name in this.setValue || name in UI4.composites || ["dock", "fit"].includes(name)) {
+            if (name in this.setValue || name in UI4.composites || ["dock", "fit", "layout"].includes(name)) {
                 for (const singleConstraint of attribute.value.split(";")) {
                     const fullConstraint = `${attribute.name}=${singleConstraint}`;
                     constraintArray.push(fullConstraint);
@@ -500,6 +501,10 @@ class UI4 {
             if (sourceSpec === "height" || sourceSpec === "true") {
                 this.parseCoreSpec(node, "height", comparison, `${node.id}.fitheight`, dependencies);
             }
+        }
+
+        else if (targetAttribute === 'layout') {
+            this.layouts[node.id] = sourceSpec;
         }
 
         else {
@@ -647,7 +652,9 @@ class UI4 {
             contained: contained,
             getStyle: window.getComputedStyle(sourceElem),
             parentStyle: window.getComputedStyle(sourceElem.parentElement),
-            targetElem: targetElem
+            targetElem: targetElem,
+            sourceElem: sourceElem,
+            parentElem: sourceElem.parentElement,
         };
 
         return this.getValue[attribute](sourceContext);
@@ -847,6 +854,11 @@ class UI4 {
             }
         }
 
+        // Apply layouts, if any, to children, if any
+        if (this.layouts[targetId]) {
+            this.grid_layout(document.getElementById(targetId));
+        }
+
         return redrawNeeded;
     }
 
@@ -1018,6 +1030,7 @@ class UI4 {
         return {
             dependencies: dependencies,
             targetElem: targetElem,
+            parentElem: targetElem.parentElement,
             getStyle: window.getComputedStyle(targetElem),
             style: targetElem.style,
             parentStyle: window.getComputedStyle(targetElem.parentElement),
@@ -1026,15 +1039,18 @@ class UI4 {
     }
 
     getTargetValue(targetAttribute, targetContext) {
+        const fullContext = {...targetContext};
+        fullContext.sourceElem = targetContext.targetElem;
+        fullContext.parentElem = targetContext.targetElem.parentElement;
         return {
-            value: this.getValue[targetAttribute](targetContext),
+            value: this.getValue[targetAttribute](fullContext),
             type: UI4.attrType[targetAttribute],
             context: targetContext,
         };
     }
 
     gapAdjustment(source, target) {
-        if (source.contained) {
+        if (source.contained) { // aligned
             if (source.type === UI4.LEADING && target.type === UI4.LEADING) {
                 return this.gap;
             }
@@ -1097,7 +1113,7 @@ class UI4 {
         );
     }
 
-    dimensions(count, width, height) {
+    grid_dimensions(count, width, height) {
         const initialX = Math.min(count, Math.sqrt(count * width / height));
         const initialY = Math.min(count, Math.sqrt(count * height / width));
         const operations = [
@@ -1119,7 +1135,68 @@ class UI4 {
                 }
             }
         });
-        return {x: bestX, y: bestY};
+        return [bestX, bestY];
+    }
+
+    grid_layout(element) {
+        const count = element.childElementCount;
+        if (!count) return;
+
+        const [countX, countY] = this.grid_dimensions(count, element.clientWidth, element.clientHeight);
+        // if count_x is None and count_y is None:
+        //     count_x, count_y = self.dimensions(count)
+        // elif count_x is None:
+        //     count_x = math.ceil(count / count_y)
+        // elif count_y is None:
+        //     count_y = math.ceil(count / count_x)
+        // if count > count_x * count_y:
+        //     raise ValueError(
+        //         f'Fixed counts (x: {count_x}, y: {count_y}) not enough to display all views'
+        //     )
+
+        // const borders = 2 * this.gap;
+
+        const dimX = (element.clientWidth - (countX + 1) * this.gap) / countX;
+        const dimY = (element.clientHeight - (countY + 1) * this.gap) / countY;
+
+        const dim = Math.min(dimX, dimY);
+
+        // px = self.pack_x
+        // exp_pack_x = px[0] + px[1] * (count_x - 1) + px[2]
+        // py = self.pack_y
+        // exp_pack_y = py[0] + py[1] * (count_y - 1) + py[2]
+        // free_count_x = exp_pack_x.count('_')
+        // free_count_y = exp_pack_y.count('_')
+
+        // if free_count_x > 0:
+        //     per_free_x = (
+        //         self.width - borders - count_x * dim -
+        //         (count_x + 1 - free_count_x) * self.gap) / free_count_x
+        // if free_count_y > 0:
+        //     per_free_y = (
+        //         self.height - borders - count_y * dim -
+        //         (count_y + 1 - free_count_y) * self.gap) / free_count_y
+
+        const realDimX = dimX; // if free_count_x == 0 else dim
+        const realDimY = dimY; // if free_count_y == 0 else dim
+
+        const children = [...element.children];
+        let y = this.gap; // + (per_free_y if self.top_free else self.gap)
+        for (let row = 0; row < countY; row++) {
+            let x = this.gap; // + (per_free_x if self.leading_free else self.gap)
+            for (let col = 0; col < countX; col++) {
+                const child = children.shift();
+                if (!child) return;
+                Object.assign(child.style, UI4.elementStyles);
+                child.style.left = x;
+                child.style.top = y;
+                child.style.width = realDimX;
+                child.style.height = realDimY;
+                x += realDimX + this.gap; // + (per_free_x if self.center_x_free else self.gap)
+
+            }
+            y += realDimY + this.gap; // (per_free_y if self.center_y_free else self.gap)
+        }
     }
 }
 
