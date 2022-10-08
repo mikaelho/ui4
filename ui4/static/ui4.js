@@ -306,7 +306,6 @@ class UI4 {
                 }
                 delete this.allDependencies[targetId];
             } else {
-                // dependencies = this.expandCompositeDependencies(node, dependencies);
                 this.allDependencies[targetId] = dependencies;
                 for (const dependency of dependencies) {
                     if (typeof dependency.value === 'object' && 'dependencyIDs' in dependency.value) {
@@ -660,112 +659,6 @@ class UI4 {
         return this.getValue[attribute](sourceContext);
     }
 
-    // addToDependencies(dependencies, targetAttribute, comparison, sourceSpec) {
-    //     dependencies.push({
-    //         targetAttribute: targetAttribute,
-    //         comparison: comparison,
-    //         value: this.parseSourceSpec(targetAttribute, sourceSpec),
-    //     });
-    // }
-
-    // parseSourceSpec(targetAttribute, sourceSpec) {
-    //     const keywordRE = /[a-z]+/g;
-    //     const shareRE = /share\((?<first>\d+(\.\d+)?)(,(?<second>\d+(\.\d+)?))?\)/;
-    //
-    //     // const contained = targetAttribute.parentElement === sourceElem;
-    //     let sourceAttribute, sourceID;
-    //     let source = {};
-    //
-    //     let match = sourceSpec.match(this.idAndAttribute);
-    //     if (match) {
-    //         source.id = match.groups.id;
-    //         source.attribute = match.groups.attribute;
-    //     }
-    //     match = sourceSpec.match(shareRE);
-    //     if (match) {
-    //         source.share = {share: match.groups.first, outOf: match.groups.second};
-    //     }
-    //
-    //     source.getFunction = validateAndCreateGetFunction(sourceSpec, source, this);
-    //
-    //     return source;
-    // }
-
-    // expandCompositeDependencies(node, dependencies) {
-    //     let updatedDependencies = Array();
-    //     dependencies.forEach(dependency => {
-    //         if (dependency.targetAttribute in UI4.composites && dependency.value) {
-    //
-    //             if (dependency.targetAttribute === dependency.value.attribute) {
-    //                 UI4.composites[dependency.targetAttribute].forEach(attribute => {
-    //                     const cloned = structuredClone(dependency);
-    //                     cloned.targetAttribute = attribute;
-    //                     cloned.value.attribute = attribute;
-    //                     updatedDependencies.push(cloned);
-    //                 });
-    //             } else {
-    //                 const allowed = {center: true, position: true};
-    //                 if (dependency.targetAttribute in allowed && dependency.value.attribute in allowed) {
-    //                     const sourceComposite = UI4.composites[dependency.value.attribute];
-    //                     UI4.composites[dependency.targetAttribute].forEach((attribute, index) => {
-    //                         const cloned = structuredClone(dependency);
-    //                         cloned.targetAttribute = attribute;
-    //                         cloned.value.attribute = sourceComposite[index];
-    //                         updatedDependencies.push(cloned);
-    //                     });
-    //                 }
-    //             }
-    //         } else if (dependency.targetAttribute === 'dock') {
-    //             if ('id' in dependency.value) {
-    //                 const spec = UI4.peerDock[dependency.value.attribute];
-    //                 const sourceId = dependency.value.id;
-    //                 updatedDependencies.push({
-    //                     targetAttribute: spec.size,
-    //                     comparison: '=',
-    //                     value: {id: sourceId, attribute: spec.size},
-    //                 });
-    //                 updatedDependencies.push({
-    //                     targetAttribute: spec.center,
-    //                     comparison: '=',
-    //                     value: {id: sourceId, attribute: spec.center},
-    //                 });
-    //                 const cloned = structuredClone(dependency);
-    //                 cloned.targetAttribute = spec.myEdge;
-    //                 cloned.value.attribute = spec.yourEdge;
-    //                 updatedDependencies.push(cloned);
-    //             } else {
-    //                 const parentId = node.parentNode.id;
-    //                 UI4.parentDock[dependency.value.attribute].forEach(attribute => {
-    //                     const cloned = structuredClone(dependency);
-    //                     cloned.targetAttribute = attribute;
-    //                     cloned.value.id = parentId;
-    //                     cloned.value.attribute = attribute;
-    //                     updatedDependencies.push(cloned);
-    //                 });
-    //             }
-    //         } else if (dependency.targetAttribute === 'fit') {
-    //             const fitKeyword = dependency.value.attribute;
-    //             if (fitKeyword === "width" || fitKeyword === "true") {
-    //                 updatedDependencies.push({
-    //                     targetAttribute: "width",
-    //                     comparison: '=',
-    //                     value: {id: node.id, attribute: "fitwidth"},
-    //                 });
-    //             }
-    //             if (fitKeyword === "height" || fitKeyword === "true") {
-    //                 updatedDependencies.push({
-    //                     targetAttribute: "height",
-    //                     comparison: '=',
-    //                     value: {id: node.id, attribute: "fitheight"},
-    //                 });
-    //             }
-    //         } else {
-    //             updatedDependencies.push(dependency);
-    //         }
-    //     });
-    //     return updatedDependencies;
-    // }
-
     startCSSAnimations(elem, styles) {
         const startingStyles = window.getComputedStyle(elem);
 
@@ -814,7 +707,7 @@ class UI4 {
 
         }
         for (const targetId of toCheck) {
-            if (targetId in this.allDependencies) {
+            if (targetId in this.allDependencies || targetId in this.layouts) {
                 this.checkDependenciesFor(targetId);
             }
         }
@@ -837,19 +730,21 @@ class UI4 {
     checkDependenciesFor(targetId) {
         let redrawNeeded = false;
 
-        let checkResults = this.checkResults(targetId);
+        if (targetId in this.allDependencies) {
+            let checkResults = this.checkResults(targetId);
 
-        let finalValues = checkResults[0];
-        if (checkResults[1]) {
-            redrawNeeded = true;
-        }
+            let finalValues = checkResults[0];
+            if (checkResults[1]) {
+                redrawNeeded = true;
+            }
 
-        // Apply the final value for each attribute
-        for (const [targetAttribute, data] of Object.entries(finalValues)) {
-            const updates = this.setValue[targetAttribute](data.context, data.sourceValue);
-            for (const [key, value] of Object.entries(updates)) {
-                if (data.context.style[key] !== value) {
-                    data.context.style[key] = value;
+            // Apply the final value for each attribute
+            for (const [targetAttribute, data] of Object.entries(finalValues)) {
+                const updates = this.setValue[targetAttribute](data.context, data.sourceValue);
+                for (const [key, value] of Object.entries(updates)) {
+                    if (data.context.style[key] !== value) {
+                        data.context.style[key] = value;
+                    }
                 }
             }
         }
