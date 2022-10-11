@@ -120,7 +120,9 @@ class UI4 {
             fitwidth: function (context) {
                 let left = false;
                 let right;
-                for (const child of context.targetElem.children) {
+                const children = context.targetElem.children;
+                if (!children.length) return 2 * _this.gap;
+                for (const child of children) {
                     const bbox = child.getBoundingClientRect();
                     if (left === false) {
                         left = bbox.left;
@@ -138,7 +140,9 @@ class UI4 {
             fitheight: function (context) {
                 let top = false;
                 let bottom;
-                for (const child of context.targetElem.children) {
+                const children = context.targetElem.children;
+                if (!children.length) return 2 * _this.gap;
+                for (const child of children) {
                     const bbox = child.getBoundingClientRect();
                     if (top === false) {
                         top = bbox.top;
@@ -165,7 +169,7 @@ class UI4 {
             centerx: function(context, value) {
                 if (context.dependencies.find(item => item.targetAttribute === 'left')) {  // left locked, width must give
                     return {width: 2 * (value - parseFloat(context.getStyle.left)) + 'px'};
-                } else if (context.dependencies.find(item => item.targetAttribute === 'right')) {  // width must give)
+                } else if (context.dependencies.find(item => item.targetAttribute === 'right')) {  // width must give
                     return {
                         width: 2 * (context.parentElem.clientWidth -
                             parseFloat(context.getStyle.right) - value) + 'px'
@@ -177,7 +181,7 @@ class UI4 {
             centery: function(context, value) {
                 if (context.dependencies.find(item => item.targetAttribute === 'top')) {  // top locked, height must give
                     return {height: 2 * (value - parseFloat(context.getStyle.top)) + 'px'};
-                } else if (context.dependencies.find(item => item.targetAttribute === 'bottom')) {  // height must give)
+                } else if (context.dependencies.find(item => item.targetAttribute === 'bottom')) {  // height must give
                     return {
                         height: 2 * context.parentElem.clientHeight -
                             parseFloat(context.getStyle.bottom) - value + 'px'
@@ -494,16 +498,36 @@ class UI4 {
         }
 
         else if (targetAttribute === 'fit') {
-            if (sourceSpec === "width" || sourceSpec === "true") {
+            if (["width", "true", "both"].includes(sourceSpec)) {
                 this.parseCoreSpec(node, "width", comparison, `${node.id}.fitwidth`, dependencies);
             }
-            if (sourceSpec === "height" || sourceSpec === "true") {
+            if (["height", "true", "both"].includes(sourceSpec)) {
                 this.parseCoreSpec(node, "height", comparison, `${node.id}.fitheight`, dependencies);
             }
         }
 
         else if (targetAttribute === 'layout') {
-            this.layouts[node.id] = sourceSpec;
+            let sourceTree;
+            if (sourceSpec === "grid") {
+                sourceTree = {type: UI4.FUNCTION, value: "grid"};
+            } else if (sourceSpec === "column") {
+                this.parseCoreSpec(node, 'layout', comparison, 'columns(1)', dependencies);
+            } else if (sourceSpec === "row") {
+                this.parseCoreSpec(node, 'layout', comparison, 'rows(1)', dependencies);
+            } else {
+                sourceTree = new UI4.Parser().parse(sourceSpec);
+                if (!(
+                    sourceTree.type === UI4.FUNCTION &&
+                    ['columns', 'rows'].includes(sourceTree.value) &&
+                    sourceTree.args && sourceTree.args.length === 1
+                )) {
+                    throw SyntaxError(`Parse error for layout: ${sourceSpec}`);
+                }
+                this.finalizeIdAndAttributeTree(node, targetAttribute, sourceTree);
+            }
+            if (sourceTree) {
+                this.layouts[node.id] = sourceTree;
+            }
         }
 
         else {
@@ -585,8 +609,6 @@ class UI4 {
 
     finalizeIdAndAttributeTree(node, targetAttribute, sourceTree) {
         const _this = this;
-        const _node = node;
-        const _targetAttribute = targetAttribute;
         const walker = function(node) {
             switch (node.type) {
                 case UI4.ID_AND_ATTRIBUTE:
@@ -610,15 +632,17 @@ class UI4 {
                             node.function = Math.max;
                             return;
                         case "share":
+                        case "columns":
+                        case "rows":
                             return;
                     }
                     throw SyntaxError(`Unknown function '${node.value}'`);
             }
         };
         const dependencyIDs = this.walkParseTree(sourceTree, walker);
-        const uniqueDependencies = new Set(dependencyIDs);
-        uniqueDependencies.delete(undefined);
-        return [...uniqueDependencies];
+        const uniqueDependencyIDs = new Set(dependencyIDs);
+        uniqueDependencyIDs.delete(undefined);
+        return [...uniqueDependencyIDs];
     }
 
     getIdAndAttributeValue(targetElem, treeNode, resultContext) {
@@ -729,7 +753,6 @@ class UI4 {
 
     checkDependenciesFor(targetId) {
         let redrawNeeded = false;
-
         if (targetId in this.allDependencies) {
             let checkResults = this.checkResults(targetId);
 
@@ -750,8 +773,16 @@ class UI4 {
         }
 
         // Apply layouts, if any, to children, if any
-        if (this.layouts[targetId]) {
-            this.grid_layout(document.getElementById(targetId));
+        const layouts = this.layouts[targetId];
+        if (layouts) {
+            const container = document.getElementById(targetId);
+            if (layouts.value === 'grid') {
+                this.grid_layout(container);
+            } else if (layouts.value === 'columns') {
+                this.grid_layout(container, layouts.args[0].value, undefined);
+            } else if (layouts.value === 'rows') {
+                this.grid_layout(container, undefined, layouts.args[0].value);
+            }
         }
 
         return redrawNeeded;
@@ -833,7 +864,7 @@ class UI4 {
         }
         else if (treeNode.type === UI4.FUNCTION) {
             const functionArguments = [];
-            for (const attributeTreeNode of treeNode.arguments) {
+            for (const attributeTreeNode of treeNode.args) {
                 functionArguments.push(
                     this.resolveSourceTree(targetElem, targetAttribute, attributeTreeNode, resultContext)
                 );
@@ -912,13 +943,11 @@ class UI4 {
             parentStyle: window.getComputedStyle(sourceElem.parentElement),
             targetElem: targetElem
         };
-        const source = {
+        return {
             value: this.getValue[sourceSpec.attribute](sourceContext),
             type: UI4.attrType[sourceSpec.attribute],
             contained: contained,
         };
-
-        return source;
     }
 
     getTargetContext(targetElem, dependencies) {
@@ -992,8 +1021,8 @@ class UI4 {
         if (treeNode.right) {
             result = result.concat(this.walkParseTree(treeNode.right, walker));
         }
-        if (treeNode.arguments) {
-            treeNode.arguments.forEach(argument => result = result.concat(this.walkParseTree(argument, walker)));
+        if (treeNode.args) {
+            treeNode.args.forEach(argument => result = result.concat(this.walkParseTree(argument, walker)));
         }
 
         return result;
@@ -1033,28 +1062,23 @@ class UI4 {
         return [bestX, bestY];
     }
 
-    grid_layout(element) {
+    grid_layout(element, countX, countY) {
         const count = element.childElementCount;
         if (!count) return;
 
-        const [countX, countY] = this.grid_dimensions(count, element.clientWidth, element.clientHeight);
-        // if count_x is None and count_y is None:
-        //     count_x, count_y = self.dimensions(count)
-        // elif count_x is None:
-        //     count_x = math.ceil(count / count_y)
-        // elif count_y is None:
-        //     count_y = math.ceil(count / count_x)
-        // if count > count_x * count_y:
-        //     raise ValueError(
-        //         f'Fixed counts (x: {count_x}, y: {count_y}) not enough to display all views'
-        //     )
-
-        // const borders = 2 * this.gap;
+        if (!countX && !countY) {
+            [countX, countY] = this.grid_dimensions(count, element.clientWidth, element.clientHeight);
+        } else if (!countX) {
+            countX = Math.ceil(count / countY);
+        } else if (!countY) {
+            countY = Math.ceil(count / countX)
+        }
+        if (count > countX * countY) {
+            throw SyntaxError('Check columns/rows value, should be integer larger than 0');
+        }
 
         const dimX = (element.clientWidth - (countX + 1) * this.gap) / countX;
         const dimY = (element.clientHeight - (countY + 1) * this.gap) / countY;
-
-        const dim = Math.min(dimX, dimY);
 
         // px = self.pack_x
         // exp_pack_x = px[0] + px[1] * (count_x - 1) + px[2]
@@ -1112,12 +1136,10 @@ UI4.Parser = class {
         this.FUNCTION = "function";
         this.COMMA = "comma";
 
-        this.AS_IS_TYPES = [this.ID_AND_ATTRIBUTE, this.KEYWORD];
-
         const TOKEN_TYPES = [
             "(?<idAndAttribute>([a-zA-Z]|\\d|_|-)+\\.([a-zA-Z]+))",
             "(?<keyword>gap)",
-            "(?<function>min|max|share)",
+            "(?<function>min|max|share|grid|columns|rows)",
             "(?<comma>,)",
             "(?<operator>[\\+\\-\\*\\/\\^])",
             "(?<leftParenthesis>[(\\[])",
@@ -1228,7 +1250,7 @@ UI4.Parser = class {
                     this.idAndAttributeArguments.bind(this) :
                     this.arguments.bind(this)
             );
-            return {type: this.FUNCTION, value: functionName, arguments: argumentExpression()};
+            return {type: this.FUNCTION, value: functionName, args: argumentExpression()};
         } else if (token && token.type === this.LEFT_PARENTHESIS) {
             this.skipToken();
             const node = this.additive();
