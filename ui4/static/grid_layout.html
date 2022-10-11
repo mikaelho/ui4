@@ -2,7 +2,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-    <title>ui4 With Animation</title>
+    <title>ui4 Grid Layout</title>
     <script src="ui4.js"></script>
     <style>
         div {background-color: lightcyan; border-radius: 5px; border: solid 1px #1E90FFCC;}
@@ -11,11 +11,21 @@
 </head>
 <body>
 <div id="root" class="ui4Root" layout="grid">
-    <div id="card1"></div>
-    <div id="card2"></div>
-    <div id="card3"></div>
-    <div id="card4"></div>
-    <div id="card5"></div>
+    <div id="card1" layout="grid">
+        <div id="card1_1"></div>
+        <div id="card1_2"></div>
+        <div id="card1_3"></div>
+    </div>
+    <div id="card2" layout="columns(1)">
+        <div id="card2_1"></div>
+        <div id="card2_2"></div>
+        <div id="card2_3"></div>
+    </div>
+    <div id="card3" layout="rows(1)">
+        <div id="card3_1"></div>
+        <div id="card3_2"></div>
+        <div id="card3_3"></div>
+    </div>
 </div>
 </body>
 </html>

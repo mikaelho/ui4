@@ -7,13 +7,13 @@
     <style>
         div {background-color: lightcyan; border-radius: 5px; border: solid 1px #1E90FFCC;}
         div#root {background-color: white;}
-        div#mover {transition: height 1s, width 1s; width: 75px; height: 75px; border: solid 8px #1E90FFCC;}
+        div#mover {transition: height 1s, width 1s; width: 50px; height: 50px;}
         div#mover:hover {height: 100px; width: 100px;}
     </style>
 </head>
 <body>
 <div id="root" class="ui4Root">
-    <div id="mover" dock="center"><div id="inside" dock="all"></div></div>
+    <div id="mover" dock="center"></div>
     <div id="topColumn" dock="mover.above" top="root.top"></div>
     <div id="leftColumn" dock="mover.leftof" left="root.left"></div>
     <div id="rightColumn" dock="mover.rightof" right="root.right"></div>
