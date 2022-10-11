@@ -15,18 +15,20 @@
         color: white;
     }
     button {
-      appearance: none;
-      border: none;
-      box-shadow:0px 0px 2px 2px #ffffff22;
-      border-radius: 2px;
-      background-color: #4676D7;
-      padding: 8px 16px;
+        appearance: none;
+        border: none;
+        box-shadow:0px 0px 2px 2px #ffffff22;
+        background-color: #4676D7;
+        padding: 8px 16px;
+    }
+    button:active {
+        background-color: #7697d5;
     }
     button.toggleOn {
         background-color: tomato;
     }
     img {
-        border-radius: 10px;
+        border-radius: 5px;
         box-shadow:0px 0px 4px 4px #4676D7AA;
     }
     input {
@@ -76,7 +78,7 @@
     function setImage() {
         let url = 'https://picsum.photos/' + (loadedID ? `id/${loadedID}/` : '') + '400/400/'
         url += (grey || blurr ? '?' : '') + (grey ? 'grayscale' : '')
-        url += (grey && blurr ? '&' : '') + (blurr ? 'blur' : '')
+        url += (grey && blurr ? '&' : '') + (blurr ? 'blur=3' : '')
         document.getElementById('display').setAttribute('src', url);
     }
 
@@ -100,30 +102,24 @@
         setOrUpdateImage();
     }
 </script>
-<body>
+<body onload="setTimeout(getRandom(), 4000);">
     <div id="root" class="ui4Root">
-        <div id="contentarea" fit="true" dock="center">
-            <div id="buttons" dock="topleft" width="400" height="75" layout="row">
-                <div id="leftside">
-                    <button id="random" dock="all" onclick="getRandom();">Get image</button>
-                </div>
-                <div id="rightside">
-                    <input id="number" dock="all" placeholder="000" onchange="getByNumber();">
-                </div>
-            </div>
-            <div id="controls"
-                 left="display.left" right="display.right" top="display.bottom-3*gap-2" height="75" layout="row">
-                <div id="greyarea">
-                    <button id="greyscale" dock="all" onclick="toggleGrayscale(this);">Grayscale</button>
-                </div>
-                <div id="blurarea">
-                    <button id="blurr" dock="all" onclick="toggleBlur(this);">Blur</button>
-                </div>
+        <div fit="true" dock="center">
+            <div id="buttons" dock="topleft" width="400" height="75" layout="row" gap="0">
+                <div><button dock="all" onclick="getRandom();">Get image</button></div>
+                <div><input id="number" dock="all" placeholder="000" onchange="getByNumber();"></div>
             </div>
             <div id="placeholder" frame="display.frame">
-                <div id="help" dock="center" width="placeholder.width/2">Get a random image or give image number</div>
+                <div id="help" dock="center" width="placeholder.width/2">
+                    <h1>Lorem Picsum</h1> Get a random image or give image number
+                </div>
             </div>
-            <img id="display" centerx="buttons.centerx" top="buttons.bottom-3*gap-2" width="400" height="400"/>
+            <img id="display" centerx="buttons.centerx" top="buttons.bottom-2*gap" width="400" height="400"/>
+            <div id="controls" left="display.left" right="display.right" top="display.bottom-2*gap" height="75"
+                 layout="row" gap="0">
+                <div><button dock="all" onclick="toggleGrayscale(this);">Grayscale</button></div>
+                <div><button dock="all" onclick="toggleBlur(this);">Blur</button></div>
+            </div>
         </div>
     </div>
 </body>
