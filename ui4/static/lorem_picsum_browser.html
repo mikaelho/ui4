@@ -2,9 +2,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-    <title>Calculator</title>
+    <title>Browse Lorem Picsum</title>
     <script src="ui4.js"></script>
-</head>
+    <script src="color_analyzer.js"></script>
+</head> <!-- #7D6E56; #D8E1D1; The Blue #4676D7 -->
 <style>
     body {
         background-color: black;
@@ -18,7 +19,7 @@
         appearance: none;
         border: none;
         box-shadow:0px 0px 2px 2px #ffffff22;
-        background-color: #4676D7;
+        background-color: #7D6E56;
         padding: 8px 16px;
     }
     button:active {
@@ -29,15 +30,15 @@
     }
     img {
         border-radius: 5px;
-        box-shadow:0px 0px 4px 4px #4676D7AA;
+        box-shadow:0px 0px 4px 4px #7D6E56AA;
     }
     input {
         outline: none;
-        background-color: #4676D7;
+        background-color: #7D6E56;
         text-align: center;
         font-size: 30px;
         border-radius: 2px;
-        border: solid 1px #4676D7;
+        border: solid 1px #7D6E56;
     }
     input::placeholder {
         color: #a2bcf5;
@@ -55,6 +56,24 @@
     let blurr = false;
 
     function getRandom() {
+        const image = document.getElementById('display');
+        image.crossOrigin = "Anonymous";
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 400;
+        image.addEventListener("load", () => {
+            const context = canvas.getContext("2d");
+            context.drawImage(image, 0, 0);
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const main_color = getColors(imageData);
+            console.log(main_color);
+            image.style.boxShadow = "0px 0px 2px 2px " + main_color;
+            for (const elementId of ['getImage', 'number', 'display', 'grayscale', 'blurr']) {
+                const element = document.getElementById(elementId)
+                element.style.backgroundColor = main_color;
+                if (elementId === 'number') element.style.borderColor = main_color;
+            }
+        })
         fetch('https://picsum.photos/400').then(function(response) {
             loadedID = response.headers.get('Picsum-ID');
             document.getElementById('number').value = loadedID;
@@ -106,7 +125,7 @@
     <div id="root" class="ui4Root">
         <div fit="true" dock="center">
             <div id="buttons" dock="topleft" width="400" height="75" layout="row" gap="0">
-                <div><button dock="all" onclick="getRandom();">Get image</button></div>
+                <div><button id="getImage" dock="all" onclick="getRandom();">Get image</button></div>
                 <div><input id="number" dock="all" placeholder="000" onchange="getByNumber();"></div>
             </div>
             <div id="placeholder" frame="display.frame">
@@ -117,8 +136,8 @@
             <img id="display" centerx="buttons.centerx" top="buttons.bottom-2*gap" width="400" height="400"/>
             <div id="controls" left="display.left" right="display.right" top="display.bottom-2*gap" height="75"
                  layout="row" gap="0">
-                <div><button dock="all" onclick="toggleGrayscale(this);">Grayscale</button></div>
-                <div><button dock="all" onclick="toggleBlur(this);">Blur</button></div>
+                <div><button id="grayscale" dock="all" onclick="toggleGrayscale(this);">Grayscale</button></div>
+                <div><button id="blurr" dock="all" onclick="toggleBlur(this);">Blur</button></div>
             </div>
         </div>
     </div>
