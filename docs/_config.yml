@@ -1,5 +1,4 @@
 title: ui4
-theme: midnight
 plugins:
   - jekyll-relative-links
 relative_links:
