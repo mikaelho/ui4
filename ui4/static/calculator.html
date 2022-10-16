@@ -4,11 +4,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
     <title>Calculator</title>
     <script src="ui4.js"></script>
-    <script>ui4.gap = 10;</script>
 </head>
 <body>
     <div id="root" class="ui4Root">
-        <div id="placeholder" ui4="fit=true;dock=center">
+        <div id="placeholder" ui4="fit=true;dock=center" gap="10">
             <input id="result" ui4="dock=topleft; right=divide.right" value="0">
             <button id="ac" class="roundButton greyButton" ui4="left=root.left; top=result.bottom" onclick="clean()">AC</button>
             <button id="plusminus" class="roundButton greyButton" ui4="dock=ac.rightof" onclick="sign()">+/‒</button>

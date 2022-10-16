@@ -98,6 +98,8 @@ class UI4 {
 
         this.allDependencies = {};
         this.sourceDependencies = {};
+        this.previousValues = {};
+
         this.layouts = {};
         this.gaps = {};
 
@@ -263,14 +265,14 @@ class UI4 {
             switch (mutation.type) {
                 case 'childList':
                     mutation.addedNodes.forEach((node) => {
-                        if (node.id) {
+                        if (node.getAttribute) {
                             this.setDependencies(node);
                             this.setResizeObserver(node);
                         }
                     });
                     break;
                 case 'attributes':
-                    if (mutation.target.id) {
+                    if (mutation.target.getAttribute) {
                         this.setDependencies(mutation.target);
                         this.setResizeObserver(mutation.target);
                     }
@@ -279,15 +281,15 @@ class UI4 {
         });
     }
 
-    startTracking() {
-        const observer = new MutationObserver(this.checkDependencies.bind(this));
-        observer.observe(document.body, {
-            subtree: true,
-            childList: true,
-            attributeFilter: ["style"]
-        });
-        this.checkDependencies();
-    }
+    // startTracking() {
+    //     const observer = new MutationObserver(this.checkDependencies.bind(this));
+    //     observer.observe(document.body, {
+    //         subtree: true,
+    //         childList: true,
+    //         attributeFilter: ["style"]
+    //     });
+    //     this.checkDependencies();
+    // }
 
     setDependencies(node) {
         // We need the node to have an id from this point forward
@@ -627,34 +629,44 @@ class UI4 {
 
     finalizeIdAndAttributeTree(node, targetAttribute, sourceTree) {
         const _this = this;
-        const walker = function(node) {
-            switch (node.type) {
+        const _node = node;
+        const walker = function(treeNode) {
+            switch (treeNode.type) {
                 case UI4.ID_AND_ATTRIBUTE:
-                    if (!(node.value.attribute in _this.getValue)) {
-                        throw SyntaxError(`Unknown attribute in '${node.value.id}.${node.value.attribute}'`);
+                    if (!(treeNode.value.attribute in _this.getValue)) {
+                        throw SyntaxError(`Unknown attribute in '${treeNode.value.id}.${treeNode.value.attribute}'`);
                     }
-                    node.function = _this.getIdAndAttributeValue.bind(_this);
-                    return node.value.id;  // Return dependency IDs
+                    treeNode.function = _this.getIdAndAttributeValue.bind(_this);
+                    return treeNode.value.id;  // Return dependency IDs
                 case UI4.KEYWORD:
-                    if (node.value !== "gap") {
-                        throw SyntaxError(`Unknown keyword '${node.value}'`);
+                    if (treeNode.value === "gap") {
+                        treeNode.function = (targetElem, treeNode, result) => _this.gap(targetElem);
+                        return;
                     }
-                    node.function = (targetElem, treeNode, result) => _this.gap(targetElem);
-                    return;
+                    // Rewrite sole attributes to be full references to parent attribute
+                    else if (treeNode.value in _this.setValue) {
+                        treeNode.type = UI4.ID_AND_ATTRIBUTE;
+                        treeNode.value = {id: node.parentElement.id, attribute: treeNode.value}
+                        treeNode.function = _this.getIdAndAttributeValue.bind(_this);
+                        return treeNode.value.id;
+                    }
+                    else {
+                        throw SyntaxError(`Unknown keyword '${treeNode.value}'`);
+                    }
                 case UI4.FUNCTION:
-                    switch (node.value) {
+                    switch (treeNode.value) {
                         case "min":
-                            node.function = Math.min;
+                            treeNode.function = Math.min;
                             return;
                         case "max":
-                            node.function = Math.max;
+                            treeNode.function = Math.max;
                             return;
                         case "share":
                         case "columns":
                         case "rows":
                             return;
                     }
-                    throw SyntaxError(`Unknown function '${node.value}'`);
+                    throw SyntaxError(`Unknown function '${treeNode.value}'`);
             }
         };
         const dependencyIDs = this.walkParseTree(sourceTree, walker);
@@ -746,7 +758,6 @@ class UI4 {
                     seen[dependantID] = seenCount + 1;
                 });
             }
-
         }
         for (const targetId of toCheck) {
             if (targetId in this.allDependencies || targetId in this.layouts) {
@@ -783,7 +794,26 @@ class UI4 {
             for (const [targetAttribute, data] of Object.entries(finalValues)) {
                 const updates = this.setValue[targetAttribute](data.context, data.sourceValue);
                 for (const [key, value] of Object.entries(updates)) {
-                    if (data.context.style[key] !== value) {
+                    const oldValue = data.context.style[key]
+                    if (!oldValue) {
+                        data.context.style[key] = value;
+                        continue;
+                    }
+
+                    // Remove oscillating jitter caused by floating point rounding error
+                    const valueAsNumber = parseFloat(value);
+                    const valueKey = `${targetId}.${targetAttribute}`;
+                    this.previousValues[valueKey] = this.previousValues[valueKey] || []
+                    const values = this.previousValues[valueKey];
+                    values.push(valueAsNumber);
+                    if (values.length === 6) {
+                        values.shift();
+                        const oddValue = new Set([values[1], values[3], values[5]]);
+                        const evenValue = new Set([values[1], values[3], values[5]]);
+                        if (!(oddValue.size === 1 && evenValue.size === 1 && oddValue.values()[0] === evenValue.values()[0])) {
+                            data.context.style[key] = value;
+                        }
+                    } else {
                         data.context.style[key] = value;
                     }
                 }
@@ -1158,7 +1188,7 @@ UI4.Parser = class {
 
         const TOKEN_TYPES = [
             "(?<idAndAttribute>([a-zA-Z]|\\d|_|-)+\\.([a-zA-Z]+))",
-            "(?<keyword>gap)",
+            "(?<keyword>gap|left|right|top|bottom|centerx|centery|width|height|position|size|frame)",
             "(?<function>min|max|share|grid|columns|rows)",
             "(?<comma>,)",
             "(?<operator>[\\+\\-\\*\\/\\^])",
