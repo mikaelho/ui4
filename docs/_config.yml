@@ -1,5 +1,5 @@
 title: ui4
-remote_theme: pages-themes/minima@v2.5.1
+remote_theme: pages-themes/minima
 plugins:
   - jekyll-relative-links
 relative_links:
