@@ -1,7 +1,9 @@
 title: ui4
-remote_theme: pages-themes/midnight@v0.2.0
+remote_theme: pages-themes/minima@v2.5.1
 plugins:
   - jekyll-relative-links
 relative_links:
   enabled: true
   collections: true
+minima:
+  skin: dark
